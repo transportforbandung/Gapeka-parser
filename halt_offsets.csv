@@ -1,0 +1,15 @@
+# halt_code,from_code,minutes
+# halt time = departure of the previous station (from_code, in the direction of travel) + minutes
+# taken from the FDTB April 2026 timetable poster (most common value over all rows; see halt_durations_from_poster.csv)
+# Padalarang -> Cicalengka -> Garut direction
+GK,PDL,3        # Gadobangkong after Padalarang
+CTH,BD,6        # Cikudapateuh after Bandung
+CMK,GDB,3       # Cimekar after Gedebage
+HRP,RCK,7       # Haurpugur after Rancaekek
+LO,KRAI,4       # Leuwigoong after Karangsari
+# Garut -> Cicalengka -> Padalarang direction
+LO,CB,4         # Leuwigoong after Cibatu
+HRP,CCL,6       # Haurpugur after Cicalengka
+CMK,RCK,6       # Cimekar after Rancaekek
+CTH,KAC,4       # Cikudapateuh after Kiaracondong
+GK,CMI,4        # Gadobangkong after Cimahi
