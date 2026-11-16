@@ -13,12 +13,15 @@ Size (same for every table, taken from the FDTB PDF; 1 pt = 1 px in Illustrator 
                    time cell 49.84 x 11.6 pt, row gap 2.3 pt, train-number cell 27.8 x 11.6 pt, header row 22 pt high
                    --scale 0.8   resizes the whole table uniformly (cell ratios stay the same)
                    --fit-width 1450   scales the table so its total width is 1450 pt
-Other:             --color "#2bace2" header colour   --highlight 348,350   extra rows tinted orange (trains with a stop at Nagreg or Cilame are tinted automatically)
+Colours (from the FDTB PDF): Commuter Line Garut = orange, Commuter Line Bandung Raya = blue (also the default), Siliwangi = yellow.
+                   A train's row colour follows its service. A station header takes the colour of the service that calls there most
+                   (so Purwakarta-Cilame and Nagreg-Garut are orange even though one Bandung Raya train runs to Purwakarta).
+                   Header and body columns alternate dark / light, starting again with dark when the colour changes.
+Other:             --highlight 348,350   force these rows orange
                    --sort time|number   rows ordered by time at the bold station most trains call at (default) or by train number
                    --weight 500 (regular times: 400 Regular, 500 Medium)   --font "IBM Plex Sans"   --hfont "IBM Plex Sans"   --no-right-numbers
 Cells: stop = departure time, halt (Berh/Sb) = arrival time, last stop = arrival, pass without a time = LS.
 Columns alternate dark / light; a station the train does not serve is grey.
-Orange = trains with a stop time at Nagreg or Cilame (beyond Cicalengka / Padalarang), found automatically.
 Text stays live text; groups are named header / rows / train-<no> / numbers.
 """
 import re
@@ -49,7 +52,7 @@ def split_name(n, maxc):
 
 def main(argv):
     opt = dict(out="poster.svg", db="gapeka.db", scale=1.0, font="IBM Plex Sans", hfont="IBM Plex Sans",
-               color="#2bace2", weight="500", sort="time", parity=None, stations=None, bold=None,
+               weight="500", sort="time", parity=None, stations=None, bold=None,
                highlight=set(), right=True, exclude=["Cisomang", "Lebakjero","Rajamandala","Selajambe","Tipar","Maleber","Cilaku","Sindangresmi","Ranji"], fit=None)
     args = []
     it = iter(argv[1:])
@@ -102,6 +105,13 @@ def main(argv):
             trains[no] = rows
     if not trains:
         sys.exit("no trains found")
+    service = {no: (db.execute("select service from trains where no=?", (no,)).fetchone() or [""])[0] for no in trains}
+    # palettes: (header dark, header light, cell dark, cell light, grey dark, grey light, number box)
+    BLUE = ("#2bace2", "#47c4f1", "#6dcff6", "#b0e3fa", "#c0bfbf", "#cccccc", "#717171")
+    ORANGE = ("#d54727", "#f26c50", "#f79779", "#fabba8", "#c0bfbf", "#cccccc", "#d54727")
+    YELLOW = ("#fecd03", "#fce669", "#fee36a", "#fdf2b0", "#c0bfbf", "#cccccc", "#717171")
+    PAL = {"Commuter Line Bandung Raya": BLUE, "Commuter Line Garut": ORANGE, "Siliwangi": YELLOW}
+    pal_of = lambda svc: PAL.get(svc, BLUE)
 
     # column order: longest train first, others slotted in beside shared stations
     order = []
@@ -152,12 +162,6 @@ def main(argv):
                 t = d if d is not None else a
             c[st] = hms(t) if t is not None else ("LS" if kind == "pass" else "")
         cells[no] = c
-    # orange rows: trains that go beyond Padalarang / Cicalengka, i.e. have a stop time at Nagreg or Cilame
-    beyond = {n for n, k_ in (("Nagreg", 0), ("Cilame", 0)) for n in [n]}
-    bcodes = {c for c, nm in name.items() if nm in beyond}
-    for no, rows in trains.items():
-        if any(st in bcodes and kind != "pass" and (a is not None or d is not None) for st, kind, a, d in rows):
-            opt["highlight"].add(no)
     served = {st: sum(1 for c in cells.values() if c.get(st)) for st in order}
     ref = max((s_ for s_ in order if s_ in bold), key=lambda s_: (served[s_], -order.index(s_)), default=order[0])   # rows are sorted by the time here
     # (halts: ref station is a real stop in practice)
@@ -174,6 +178,19 @@ def main(argv):
     nos = sorted(trains, key=key)
 
     n = len(order)
+    # header palette per station = palette of the service with most trains calling there
+    hpal = {}
+    for st in order:
+        cnt = {}
+        for no, rows in trains.items():
+            if any(r[0] == st and r[1] != "pass" and (r[2] is not None or r[3] is not None) for r in rows):
+                cnt[service[no]] = cnt.get(service[no], 0) + 1
+        top = max(cnt.items(), key=lambda kv: (kv[1], kv[0] == "Commuter Line Bandung Raya"))[0] if cnt else ""
+        hpal[st] = pal_of(top)
+    gidx, run = {}, 0                 # position inside a run of same-coloured stations: dark, light, dark, ...
+    for i, st in enumerate(order):
+        run = run + 1 if i and hpal[st] is hpal[order[i - 1]] else 0
+        gidx[st] = run
     k = opt["scale"]
     if opt["fit"]:                   # scale so the whole table is this many pt wide (cell ratios stay the same)
         k = opt["fit"] / ((2 if opt["right"] else 1) * 27.8 + n * 49.84)
@@ -194,9 +211,6 @@ def main(argv):
     def rect(x, y, w, h, fill):
         out.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" fill="{fill}"/>')
 
-    DARK, LIGHT = "#6dcff6", "#b0e3fa"
-    ODARK, OLIGHT = "#f79779", "#fabba8"
-    GDARK, GLIGHT = "#c0bfbf", "#cccccc"
 
     out.append('<g id="header">')
     rect(0, 0, numw, headh, "#595a5a")
@@ -205,29 +219,28 @@ def main(argv):
     maxc = 11                      # names longer than this are split over two lines (Kiara-condong, Gado-bangkong)
     for i, st in enumerate(order):
         x = x0 + i * colw
-        rect(x, 0, colw, headh, opt["color"])
+        P = hpal[st]
+        rect(x, 0, colw, headh, P[0] if gidx[st] % 2 == 0 else P[1])
         lines = split_name(name.get(st, st), maxc)
         lh = 8.4 * k
         for j, ln in enumerate(lines):
             text(x + colw / 2, headh / 2 + (j - (len(lines) - 1) / 2) * lh, ln, 8.0 * k,
-                 "700" if st in bold else "600", "#ffffff", hfont)
+                 "700" if st in bold else "600", "#231f20" if P is YELLOW else "#ffffff", hfont)
     out.append("</g>")
 
     out.append('<g id="rows">')
     for r, no in enumerate(nos):
         y = headh + gap + r * rowh
-        hl = no in opt["highlight"]
+        P = ORANGE if no in opt["highlight"] else pal_of(service[no])
         out.append(f'<g id="train-{escape(no)}">')
         for i, st in enumerate(order):
             x = x0 + i * colw
             v = cells[no].get(st)
-            dark = i % 2 == 0
+            dark = gidx[st] % 2 == 0
             if not v:
-                fill = GDARK if dark else GLIGHT
-            elif hl:
-                fill = ODARK if dark else OLIGHT
+                fill = P[4] if dark else P[5]
             else:
-                fill = DARK if dark else LIGHT
+                fill = P[2] if dark else P[3]
             rect(x, y, colw, cellh, fill)
             if v:
                 isb = st in bold
@@ -238,7 +251,7 @@ def main(argv):
     out.append('<g id="numbers">')
     for r, no in enumerate(nos):
         y = headh + gap + r * rowh
-        fill = "#d54727" if no in opt["highlight"] else "#717171"
+        fill = (ORANGE if no in opt["highlight"] else pal_of(service[no]))[6]
         for x in ([0, W - numw] if opt["right"] else [0]):
             rect(x, y, numw, cellh, fill)
             text(x + numw / 2, y + cellh / 2, no, fsb, "700", "#ffffff")
