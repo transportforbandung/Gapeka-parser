@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="896.00" height="70.00" viewBox="0 0 896.00 70.00">
+<g id="axis">
+<line x1="90.00" y1="12.00" x2="90.00" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="90.00" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">05:00</text>
+<line x1="132.11" y1="12.00" x2="132.11" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="132.11" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">06:00</text>
+<line x1="174.21" y1="12.00" x2="174.21" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="174.21" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">07:00</text>
+<line x1="216.32" y1="12.00" x2="216.32" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="216.32" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">08:00</text>
+<line x1="258.42" y1="12.00" x2="258.42" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="258.42" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">09:00</text>
+<line x1="300.53" y1="12.00" x2="300.53" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="300.53" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">10:00</text>
+<line x1="342.63" y1="12.00" x2="342.63" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="342.63" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">11:00</text>
+<line x1="384.74" y1="12.00" x2="384.74" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="384.74" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">12:00</text>
+<line x1="426.84" y1="12.00" x2="426.84" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="426.84" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">13:00</text>
+<line x1="468.95" y1="12.00" x2="468.95" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="468.95" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">14:00</text>
+<line x1="511.05" y1="12.00" x2="511.05" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="511.05" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">15:00</text>
+<line x1="553.16" y1="12.00" x2="553.16" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="553.16" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">16:00</text>
+<line x1="595.26" y1="12.00" x2="595.26" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="595.26" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">17:00</text>
+<line x1="637.37" y1="12.00" x2="637.37" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="637.37" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">18:00</text>
+<line x1="679.47" y1="12.00" x2="679.47" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="679.47" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">19:00</text>
+<line x1="721.58" y1="12.00" x2="721.58" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="721.58" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">20:00</text>
+<line x1="763.68" y1="12.00" x2="763.68" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="763.68" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">21:00</text>
+<line x1="805.79" y1="12.00" x2="805.79" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="805.79" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">22:00</text>
+<line x1="847.89" y1="12.00" x2="847.89" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="847.89" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">23:00</text>
+<line x1="890.00" y1="12.00" x2="890.00" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="890.00" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">00:00</text>
+</g>
+<g id="bar-BD">
+<text x="84.00" y="27.98" font-family="IBM Plex Sans" font-size="8.50" font-weight="600" fill="#1a1a1a" text-anchor="end">Bandung</text>
+<rect x="90.00" y="16.00" width="800.00" height="18.00" fill="#e6e6e6"/>
+<g id="headway">
+<rect x="119.47" y="16.00" width="45.61" height="18.00" fill="#f0a8a8" data-headway="65 min" data-trains="405-415"/>
+<rect x="165.09" y="16.00" width="18.95" height="18.00" fill="#d9f0a8" data-headway="27 min" data-trains="415-423"/>
+<rect x="184.04" y="16.00" width="11.23" height="18.00" fill="#b9f0a8" data-headway="16 min" data-trains="423-397"/>
+<rect x="195.26" y="16.00" width="54.74" height="18.00" fill="#f0a8a8" data-headway="78 min" data-trains="397-389"/>
+<rect x="250.00" y="16.00" width="40.00" height="18.00" fill="#f0b1a8" data-headway="57 min" data-trains="389-407"/>
+<rect x="290.00" y="16.00" width="42.11" height="18.00" fill="#f0a8a8" data-headway="60 min" data-trains="407-417"/>
+<rect x="332.11" y="16.00" width="25.96" height="18.00" fill="#f0eaa8" data-headway="37 min" data-trains="417-425"/>
+<rect x="358.07" y="16.00" width="34.39" height="18.00" fill="#f0c8a8" data-headway="49 min" data-trains="425-399"/>
+<rect x="392.46" y="16.00" width="28.77" height="18.00" fill="#f0dfa8" data-headway="41 min" data-trains="399-391"/>
+<rect x="421.23" y="16.00" width="40.00" height="18.00" fill="#f0b1a8" data-headway="57 min" data-trains="391-409"/>
+<rect x="461.23" y="16.00" width="41.40" height="18.00" fill="#f0aba8" data-headway="59 min" data-trains="409-387"/>
+<rect x="502.63" y="16.00" width="16.84" height="18.00" fill="#d0f0a8" data-headway="24 min" data-trains="387-419"/>
+<rect x="519.47" y="16.00" width="25.26" height="18.00" fill="#f0eda8" data-headway="36 min" data-trains="419-427"/>
+<rect x="544.74" y="16.00" width="18.95" height="18.00" fill="#d9f0a8" data-headway="27 min" data-trains="427-401"/>
+<rect x="563.68" y="16.00" width="43.51" height="18.00" fill="#f0a8a8" data-headway="62 min" data-trains="401-393"/>
+<rect x="607.19" y="16.00" width="40.00" height="18.00" fill="#f0b1a8" data-headway="57 min" data-trains="393-411"/>
+<rect x="647.19" y="16.00" width="45.61" height="18.00" fill="#f0a8a8" data-headway="65 min" data-trains="411-421"/>
+<rect x="692.81" y="16.00" width="40.70" height="18.00" fill="#f0aea8" data-headway="58 min" data-trains="421-429"/>
+<rect x="733.51" y="16.00" width="66.67" height="18.00" fill="#f0a8a8" data-headway="95 min" data-trains="429-403"/>
+<rect x="800.18" y="16.00" width="16.14" height="18.00" fill="#cdf0a8" data-headway="23 min" data-trains="403-395"/>
+<rect x="816.32" y="16.00" width="49.82" height="18.00" fill="#f0a8a8" data-headway="71 min" data-trains="395-431"/>
+</g>
+<g id="trains">
+<line id="train-405" x1="119.47" y1="16.00" x2="119.47" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>405 05:42</title></line>
+<line id="train-415" x1="165.09" y1="16.00" x2="165.09" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>415 06:47</title></line>
+<line id="train-423" x1="184.04" y1="16.00" x2="184.04" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>423 07:14</title></line>
+<line id="train-397" x1="195.26" y1="16.00" x2="195.26" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>397 07:30</title></line>
+<line id="train-389" x1="250.00" y1="16.00" x2="250.00" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>389 08:48</title></line>
+<line id="train-407" x1="290.00" y1="16.00" x2="290.00" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>407 09:45</title></line>
+<line id="train-417" x1="332.11" y1="16.00" x2="332.11" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>417 10:45</title></line>
+<line id="train-425" x1="358.07" y1="16.00" x2="358.07" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>425 11:22</title></line>
+<line id="train-399" x1="392.46" y1="16.00" x2="392.46" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>399 12:11</title></line>
+<line id="train-391" x1="421.23" y1="16.00" x2="421.23" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>391 12:52</title></line>
+<line id="train-409" x1="461.23" y1="16.00" x2="461.23" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>409 13:49</title></line>
+<line id="train-387" x1="502.63" y1="16.00" x2="502.63" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>387 14:48</title></line>
+<line id="train-419" x1="519.47" y1="16.00" x2="519.47" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>419 15:12</title></line>
+<line id="train-427" x1="544.74" y1="16.00" x2="544.74" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>427 15:48</title></line>
+<line id="train-401" x1="563.68" y1="16.00" x2="563.68" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>401 16:15</title></line>
+<line id="train-393" x1="607.19" y1="16.00" x2="607.19" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>393 17:17</title></line>
+<line id="train-411" x1="647.19" y1="16.00" x2="647.19" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>411 18:14</title></line>
+<line id="train-421" x1="692.81" y1="16.00" x2="692.81" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>421 19:19</title></line>
+<line id="train-429" x1="733.51" y1="16.00" x2="733.51" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>429 20:17</title></line>
+<line id="train-403" x1="800.18" y1="16.00" x2="800.18" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>403 21:52</title></line>
+<line id="train-395" x1="816.32" y1="16.00" x2="816.32" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>395 22:15</title></line>
+<line id="train-431" x1="866.14" y1="16.00" x2="866.14" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>431 23:26</title></line>
+</g>
+<rect x="90.00" y="16.00" width="800.00" height="18.00" fill="none" stroke="#595a5a" stroke-width="0.6"/>
+</g>
+<g id="legend">
+<rect x="90.00" y="44.00" width="4.05" height="7.00" fill="#a8f0a8"/>
+<rect x="94.00" y="44.00" width="4.05" height="7.00" fill="#acf0a8"/>
+<rect x="98.00" y="44.00" width="4.05" height="7.00" fill="#b0f0a8"/>
+<rect x="102.00" y="44.00" width="4.05" height="7.00" fill="#b3f0a8"/>
+<rect x="106.00" y="44.00" width="4.05" height="7.00" fill="#b7f0a8"/>
+<rect x="110.00" y="44.00" width="4.05" height="7.00" fill="#bbf0a8"/>
+<rect x="114.00" y="44.00" width="4.05" height="7.00" fill="#bef0a8"/>
+<rect x="118.00" y="44.00" width="4.05" height="7.00" fill="#c2f0a8"/>
+<rect x="122.00" y="44.00" width="4.05" height="7.00" fill="#c6f0a8"/>
+<rect x="126.00" y="44.00" width="4.05" height="7.00" fill="#c9f0a8"/>
+<rect x="130.00" y="44.00" width="4.05" height="7.00" fill="#cdf0a8"/>
+<rect x="134.00" y="44.00" width="4.05" height="7.00" fill="#d1f0a8"/>
+<rect x="138.00" y="44.00" width="4.05" height="7.00" fill="#d4f0a8"/>
+<rect x="142.00" y="44.00" width="4.05" height="7.00" fill="#d8f0a8"/>
+<rect x="146.00" y="44.00" width="4.05" height="7.00" fill="#dcf0a8"/>
+<rect x="150.00" y="44.00" width="4.05" height="7.00" fill="#dff0a8"/>
+<rect x="154.00" y="44.00" width="4.05" height="7.00" fill="#e3f0a8"/>
+<rect x="158.00" y="44.00" width="4.05" height="7.00" fill="#e7f0a8"/>
+<rect x="162.00" y="44.00" width="4.05" height="7.00" fill="#eaf0a8"/>
+<rect x="166.00" y="44.00" width="4.05" height="7.00" fill="#eef0a8"/>
+<rect x="170.00" y="44.00" width="4.05" height="7.00" fill="#f0eea8"/>
+<rect x="174.00" y="44.00" width="4.05" height="7.00" fill="#f0eaa8"/>
+<rect x="178.00" y="44.00" width="4.05" height="7.00" fill="#f0e7a8"/>
+<rect x="182.00" y="44.00" width="4.05" height="7.00" fill="#f0e3a8"/>
+<rect x="186.00" y="44.00" width="4.05" height="7.00" fill="#f0dfa8"/>
+<rect x="190.00" y="44.00" width="4.05" height="7.00" fill="#f0dca8"/>
+<rect x="194.00" y="44.00" width="4.05" height="7.00" fill="#f0d8a8"/>
+<rect x="198.00" y="44.00" width="4.05" height="7.00" fill="#f0d4a8"/>
+<rect x="202.00" y="44.00" width="4.05" height="7.00" fill="#f0d1a8"/>
+<rect x="206.00" y="44.00" width="4.05" height="7.00" fill="#f0cda8"/>
+<rect x="210.00" y="44.00" width="4.05" height="7.00" fill="#f0c9a8"/>
+<rect x="214.00" y="44.00" width="4.05" height="7.00" fill="#f0c6a8"/>
+<rect x="218.00" y="44.00" width="4.05" height="7.00" fill="#f0c2a8"/>
+<rect x="222.00" y="44.00" width="4.05" height="7.00" fill="#f0bea8"/>
+<rect x="226.00" y="44.00" width="4.05" height="7.00" fill="#f0bba8"/>
+<rect x="230.00" y="44.00" width="4.05" height="7.00" fill="#f0b7a8"/>
+<rect x="234.00" y="44.00" width="4.05" height="7.00" fill="#f0b3a8"/>
+<rect x="238.00" y="44.00" width="4.05" height="7.00" fill="#f0b0a8"/>
+<rect x="242.00" y="44.00" width="4.05" height="7.00" fill="#f0aca8"/>
+<rect x="246.00" y="44.00" width="4.05" height="7.00" fill="#f0a8a8"/>
+<text x="90.00" y="59.27" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">≤10 min</text>
+<text x="250.00" y="59.27" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="end">≥60 min</text>
+<text x="258.00" y="49.77" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">headway</text>
+</g>
+</svg>

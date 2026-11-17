@@ -1,6 +1,8 @@
 # halt_code,from_code,minutes
 # halt time = departure of the previous station (from_code, in the direction of travel) + minutes
-# taken from the FDTB April 2026 timetable poster (most common value over all rows; see halt_durations_from_poster.csv)
+# taken from the FDTB April 2026 timetable poster / KAI ticketing (most common value over all rows)
+# KAI times are direction-dependent and front-load the running time, so the distance model cannot reproduce them;
+# the pipeline prints "model minus manual" per rule and flags rules that are skipped or never used
 # Padalarang -> Cicalengka -> Garut direction
 GK,PDL,3        # Gadobangkong after Padalarang
 CTH,BD,6        # Cikudapateuh after Bandung

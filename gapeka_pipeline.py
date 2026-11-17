@@ -746,6 +746,9 @@ def valid_fit(a, b):
     return 20 <= a <= 150 and 0 <= b <= 700
 
 
+TFB_SERVICES = ("Commuter Line Bandung Raya", "Commuter Line Garut", "Siliwangi")
+
+
 def apply_halt_offsets(db, path, dwell):
     """halt_offsets.csv: 'halt_code,from_code,minutes' - for every train whose halt at halt_code follows the timed
     stop from_code, the halt time is set to that stop's departure + minutes (taken from a published timetable).
@@ -763,19 +766,37 @@ def apply_halt_offsets(db, path, dwell):
         except ValueError:
             print("    halt_offsets.csv: skipped line", line)
     n = 0
-    for no, seq, st in db.execute("select train_no,seq,station from halt_est").fetchall():
+    diff = defaultdict(list)          # rule -> model minus manual (minutes): accuracy of the model
+    skipped = defaultdict(list)       # rule -> trains where the manual time does not fit before the next stop
+    for no, seq, st, model_t in db.execute("select train_no,seq,station,arr_s from halt_est").fetchall():
         rows = db.execute("select seq,station,kind,arr_s,dep_s from stops where train_no=? order by seq", (no,)).fetchall()
         i = next(k for k, r in enumerate(rows) if r[0] == seq)
         prev = next((r for r in reversed(rows[:i]) if r[2] in ("stop", "origin_or_end") and (r[4] is not None or r[3] is not None)), None)
         nxt = next((r for r in rows[i + 1:] if r[2] in ("stop", "origin_or_end") and (r[3] is not None or r[4] is not None)), None)
         if prev is None or (st, prev[1]) not in rules:
             continue
+        rule = (st, prev[1])
         t0 = prev[4] if prev[4] is not None else prev[3]
-        t = t0 + rules[(st, prev[1])]
+        t = t0 + rules[rule]
         if nxt is not None and t + dwell >= (nxt[3] if nxt[3] is not None else nxt[4]):
+            skipped[rule].append(no)
             continue
+        diff[rule].append((model_t - t) / 60)
         db.execute("UPDATE halt_est SET arr_s=?, dep_s=?, method='manual' WHERE train_no=? AND seq=?", (round(t), round(t + dwell), no, seq))
         n += 1
+    print("    halt_offsets.csv: model minus manual time per rule (minutes)")
+    for rule in rules:
+        h, f = rule
+        if rule in diff:
+            v = diff[rule]
+            print(f"      {h} after {f}: n={len(v)}  median {np.median(v):+.1f}  max |diff| {max(abs(x) for x in v):.1f}")
+        if rule in skipped:
+            print(f"      {h} after {f}: SKIPPED (does not fit before the next stop) for trains {', '.join(skipped[rule])}")
+        if rule not in diff and rule not in skipped:
+            print(f"      {h} after {f}: UNUSED - no train halts at {h} right after a timed stop at {f} (check the codes)")
+    if diff:
+        allv = [abs(x) for v in diff.values() for x in v]
+        print(f"      overall: {len(allv)} halts, mean |diff| {np.mean(allv):.2f} min, max {max(allv):.1f} min")
     return n
 
 
@@ -815,21 +836,31 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
         return v <= (vmax or 120) * 1.05 and v >= 10
 
     obs = defaultdict(list)       # (A,B) -> run times of directly adjacent timed stops
-    clean = []                    # (group, class, km, T)
+    clean = []                    # (group, class, km, T, pair)
     for no, g, cl, A, mids, T, B in segs:
         if not mids and 0 < T < 7200:
             obs[(A[1], B)].append(T)
         if not mids:
             parts = leg_km(A[1], [], B)
             if parts and parts[0] >= 1.5 and physical(parts, T, A[3]):
-                clean.append((g, cl, parts[0], T))
+                clean.append((g, cl, parts[0], T, (A[1], B)))
+    # technical (minimum) run time of a pair: the fastest trains carry little or no recovery time
+    obs_min = {k: float(np.percentile(v, 10)) for k, v in obs.items()}
     obs = {k: float(np.median(v)) for k, v in obs.items()}
 
-    def fit_group(rows):
-        if len(rows) < min_clean or len({(round(r[2], 2)) for r in rows}) < min_distinct:
+    def fit_group(rows, nmin=min_clean):
+        if len(rows) < nmin or len({(round(r[2], 2)) for r in rows}) < min_distinct:
             return None
         a, b, r = robust_fit(np.array([x[2] for x in rows]), np.array([x[3] for x in rows], float))
         return (a, b, r, len(rows)) if valid_fit(a, b) else None
+
+    def envelope(rows):
+        """one row per station pair, with the shortest run time any train of the group needs for it"""
+        best = {}
+        for r in rows:
+            if r[4] not in best or r[3] < best[r[4]][3]:
+                best[r[4]] = r
+        return list(best.values())
 
     db.executescript("""DROP TABLE IF EXISTS halt_fit; DROP TABLE IF EXISTS halt_est;
       CREATE TABLE halt_fit(grp TEXT, s_per_km REAL, base_s REAL, dwell_s REAL, n_clean INTEGER, rmse_s REAL);
@@ -850,6 +881,25 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
     if f:
         pooled = f
         db.execute("INSERT INTO halt_fit VALUES(?,?,?,?,?,?)", ("(pooled)", f[0], f[1], dwell, f[3], f[2]))
+    # lower-envelope fits (technical run time), same fallback order; fewer rows needed: one row per station pair
+    min_svc, min_cls, min_pooled = {}, {}, None
+    for idx, store, label in ((0, min_svc, "min {}"), (1, min_cls, "min class {}")):
+        for k in {c[idx] for c in clean}:
+            f = fit_group(envelope([c for c in clean if c[idx] == k]), nmin=8)
+            if f:
+                store[k] = f
+                db.execute("INSERT INTO halt_fit VALUES(?,?,?,?,?,?)", (label.format(k), f[0], f[1], dwell, f[3], f[2]))
+    f = fit_group(envelope(clean), nmin=8)
+    if f:
+        min_pooled = f
+        db.execute("INSERT INTO halt_fit VALUES(?,?,?,?,?,?)", ("min (pooled)", f[0], f[1], dwell, f[3], f[2]))
+
+    def to_minute(t, lo, hi):
+        """round to the whole minute like a published timetable; stay inside (lo, hi)"""
+        for r in (round(t / 60) * 60, (t // 60) * 60):
+            if lo < r and r + dwell < hi:
+                return r
+        return t
 
     counts = defaultdict(int)
     for no, g, cl, A, mids, T, B in segs:
@@ -860,6 +910,32 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
         parts = leg_km(A[1], mids, B)
         if parts and not physical(parts, T, A[3]):
             parts = None
+        # 0) technical run time per sub-leg, recovery time left at the end of the leg (before the next timed stop)
+        tech, tsrc = [], set()
+        for i in range(len(pts) - 1):
+            o = obs_min.get((pts[i], pts[i + 1])) or obs_min.get((pts[i + 1], pts[i]))
+            if o:
+                tech.append(o)
+                tsrc.add("observed")
+                continue
+            src = next(((s, tag) for s, tag in ((min_svc.get(g), "fit"), (min_cls.get(cl), "class"), (min_pooled, "pooled")) if s), None)
+            if not parts or not src:
+                tech = None
+                break
+            tech.append(src[0][0] * parts[i] + src[0][1])
+            tsrc.add(src[1])
+        if tech and sum(tech) + dwell * len(hs) <= T:
+            method = ("fit" if "fit" in tsrc else "class" if "class" in tsrc else "pooled" if "pooled" in tsrc else "observed") + "-front"
+            cum, nh, prev_t = 0.0, 0, A[2]
+            for i, m in enumerate(mids):
+                cum += tech[i]
+                if m[2] == "halt":
+                    t = to_minute(A[2] + cum + dwell * nh, prev_t, A[2] + T)
+                    db.execute("INSERT OR REPLACE INTO halt_est VALUES(?,?,?,?,?,?)", (no, m[0], m[1], round(t), round(t + dwell), method))
+                    prev_t = t + dwell
+                    nh += 1
+                    counts[method] += 1
+            continue
         w, method = None, None
         # 1) observed run times of the same station pairs
         o = [obs.get((pts[i], pts[i + 1])) or obs.get((pts[i + 1], pts[i])) for i in range(len(pts) - 1)]
@@ -875,11 +951,12 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
             w, method = [1.0] * len(pts[1:]), "equal"
             w = [1.0] * (len(pts) - 1)
         avail = max(T - dwell * len(hs), 0)
-        tot, cum, nh = sum(w), 0.0, 0
+        tot, cum, nh, prev_t = sum(w), 0.0, 0, A[2]
         for i, m in enumerate(mids):
             cum += w[i]
             if m[2] == "halt":
-                t = A[2] + avail * cum / tot + dwell * nh
+                t = to_minute(A[2] + avail * cum / tot + dwell * nh, prev_t, A[2] + T)
+                prev_t = t + dwell
                 db.execute("INSERT OR REPLACE INTO halt_est VALUES(?,?,?,?,?,?)", (no, m[0], m[1], round(t), round(t + dwell), method))
                 nh += 1
                 counts[method] += 1
@@ -1072,10 +1149,15 @@ def main(argv):
     print(f"    stations with no distance on any graph page: {len(miss)} of "
           f"{db.execute('select count(*) from stations').fetchone()[0]}; most used: {[(c, nm) for c, nm, k in miss[:12]]}")
     counts, nclean = estimate_halts(db, make_distance(db), dwell)
-    n_off = apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "halt_offsets.csv"), dwell)
-    if n_off:
-        counts['manual'] = n_off
+    apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "halt_offsets.csv"), dwell)
+    counts = dict(db.execute("select method,count(*) from halt_est group by 1"))
     print(f"[3] halts estimated {counts} (clean fit legs: {nclean}, dwell {dwell:.0f}s)")
+    left = db.execute(f"""select h.station, st.name, count(*) from halt_est h join trains t on t.no=h.train_no
+                          join stations st on st.code=h.station
+                          where h.method!='manual' and t.service in ({','.join('?' * len(TFB_SERVICES))})
+                          group by 1 order by 3 desc""", TFB_SERVICES).fetchall()
+    if left:
+        print(f"    TfB halts still estimated by the model (add a rule to halt_offsets.csv): {left}")
     for r in db.execute("select grp,round(s_per_km,1),round(base_s),n_clean,round(rmse_s) from halt_fit"):
         print("     fit", r)
     print("[4] constraints", link_notes(db))

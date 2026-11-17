@@ -1,15 +1,16 @@
 """Export a station x trip matrix (stations across, one row per train) to CSV.
 
-  py export_matrix.py 350-400                      -> arrival/departure shown as dep (arr at the last stop)
-  py export_matrix.py 350-400 1608 -o out.csv      -> range plus single trains, custom file name
-  py export_matrix.py 400-410 --odd                -> only odd-numbered trains (401, 403, ...); --even for even ones
-  py export_matrix.py 350-400 --split              -> two header rows: station name (twice, once for a terminus) over Arr/Dep
-  py export_matrix.py 350-400 --arr                -> arrival time only (default is departure only)
-  py export_matrix.py 350-400 --both               -> cells as "arr,dep" when they differ (change the separator with --sep " / ")
-  py export_matrix.py 350-400 --codes              -> station codes instead of names in the header
-  py export_matrix.py 350-400 --db other.db
+  py export_trains.py 350-400                      -> arrival/departure shown as dep (arr at the last stop)
+  py export_trains.py 350-400 1608 -o out.csv      -> range plus single trains, custom file name
+  py export_trains.py 400-410 --odd                -> only odd-numbered trains (401, 403, ...); --even for even ones
+  py export_trains.py 350-400 --split              -> two header rows: station name (twice, once for a terminus) over Arr/Dep
+  py export_trains.py 350-400 --arr                -> arrival time only (default is departure only)
+  py export_trains.py 350-400 --both               -> cells as "arr,dep" when they differ (change the separator with --sep " / ")
+  py export_trains.py 350-400 --codes              -> station codes instead of names in the header
+  py export_trains.py 350-400 --db other.db
 Cells are HH:MM:SS; times after midnight wrap to 00:xx. Stations the train does not serve are left empty.
-Estimated halt times (Berh/Sb) are marked with a trailing '*'.
+Halts (Berh/Sb) show one time, the arrival, as HH:MM like the KAI ticket (not in --split/--both);
+estimated halt times (also those from halt_offsets.csv) are marked with a trailing '*'.
 """
 import csv
 import re
@@ -132,6 +133,8 @@ def main(argv):
                 cell[st] = ""
             elif both and a is not None and d is not None and int(a) != int(d):
                 cell[st] = f"{hms(a)}{sep}{hms(d)}" + ("*" if est else "")
+            elif kind == "halt":             # Berh/Sb: one time, the arrival, in whole minutes as on the KAI ticket
+                cell[st] = (a if a is not None else d, est, True)
             elif arr_only:
                 cell[st] = (a if a is not None else d, est)
             else:
@@ -143,7 +146,11 @@ def main(argv):
 
     if True:
         def txt(c):
-            return (hms(c[0]) + ("*" if c[1] else "")) if isinstance(c, tuple) else c
+            if not isinstance(c, tuple):
+                return c
+            if len(c) > 2:                   # halt: HH:MM, rounded to the minute
+                return hms(round(c[0] / 60) * 60)[:5] + ("*" if c[1] else "")
+            return hms(c[0]) + ("*" if c[1] else "")
         with open(out, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
             w.writerows(heads)
