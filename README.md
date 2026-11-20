@@ -93,19 +93,20 @@ python sanity_check.py gapeka.db
 ## Halt times and `halt_offsets.csv`
 
 The GAPEKA gives no time for halt stations such as Gadobangkong, Cikudapateuh, Cimekar, Haurpugur
-and Leuwigoong. The model's estimates come within about 1–2 minutes of KAI's ticketing times but
-cannot match them exactly, because KAI's times depend on the direction of travel. For example,
-Gadobangkong is 3 minutes after Padalarang but 4 minutes after Cimahi.
+and Leuwigoong. The model's estimates come within about 1–2 minutes of KAI's published times but
+cannot match them exactly, because KAI's times depend on the direction of travel and differ for
+some trains. For example, the Garut trains often need one minute more than Bandung Raya trains.
 
-So for the TfB services, the halt time is set by a rule in `halt_offsets.csv`:
+So for the TfB services, the halt time is set by a rule in `halt_offsets.csv`. The current values come
+from KAI Commuter's *Jadwal Commuter Line Wilayah 2 Bandung* (update 1 December 2026):
 
 ```
-# halt_code,from_code,minutes
-GK,PDL,3        # Gadobangkong = departure from Padalarang + 3 min
-GK,CMI,4        # Gadobangkong = departure from Cimahi + 4 min
+# halt_code,from_code,minutes[,trains]
+GK,PDL,5             # Gadobangkong = departure from Padalarang + 5 min
+GK,PDL,6,386 388     # ... but + 6 min for trains 386 and 388
 ```
 
-When a new GAPEKA or ticketing schedule is released, update these rules. If a Bandung halt has no
+When a new GAPEKA or KAI schedule is released, update these rules. If a Bandung halt has no
 rule, the pipeline lists it at the end of step 3.
 
 In the outputs, halt times are shown as one time, the arrival, in whole minutes, the same way the

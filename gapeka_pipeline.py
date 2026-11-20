@@ -750,50 +750,65 @@ TFB_SERVICES = ("Commuter Line Bandung Raya", "Commuter Line Garut", "Siliwangi"
 
 
 def apply_halt_offsets(db, path, dwell):
-    """halt_offsets.csv: 'halt_code,from_code,minutes' - for every train whose halt at halt_code follows the timed
-    stop from_code, the halt time is set to that stop's departure + minutes (taken from a published timetable).
-    Skipped when it would not fit before the next timed stop."""
+    """halt_offsets.csv: 'halt_code,from_code,minutes[,trains]' - for every train whose halt at halt_code follows the
+    timed stop from_code, the halt time is set to that stop's departure + minutes (taken from a published timetable).
+    The optional 4th column lists train numbers (space separated) that use this value instead of the general rule
+    for the same halt_code,from_code. Skipped when it would not fit before the next timed stop."""
     if not os.path.exists(path):
         return 0
-    rules = {}
+    rules = []                        # (halt, from, seconds, trains) ; trains = () for the general rule
+    general, specific = {}, {}        # (halt, from) / (halt, from, train) -> index in rules
     for line in open(path, encoding="utf-8"):
         line = line.split("#")[0].strip()
         if not line:
             continue
         try:
-            h, f, m = [x.strip() for x in line.split(",")[:3]]
-            rules[(h, f)] = float(m) * 60
+            parts = [x.strip() for x in line.split(",")]
+            h, f, m = parts[:3]
+            trains = tuple(parts[3].split()) if len(parts) > 3 else ()
+            rules.append((h, f, float(m) * 60, trains))
         except ValueError:
             print("    halt_offsets.csv: skipped line", line)
+            continue
+        for no in trains:
+            specific[(h, f, no)] = len(rules) - 1
+        if not trains:
+            general[(h, f)] = len(rules) - 1
     n = 0
     diff = defaultdict(list)          # rule -> model minus manual (minutes): accuracy of the model
     skipped = defaultdict(list)       # rule -> trains where the manual time does not fit before the next stop
+    used = defaultdict(set)           # rule -> trains it was applied to
     for no, seq, st, model_t in db.execute("select train_no,seq,station,arr_s from halt_est").fetchall():
         rows = db.execute("select seq,station,kind,arr_s,dep_s from stops where train_no=? order by seq", (no,)).fetchall()
         i = next(k for k, r in enumerate(rows) if r[0] == seq)
         prev = next((r for r in reversed(rows[:i]) if r[2] in ("stop", "origin_or_end") and (r[4] is not None or r[3] is not None)), None)
         nxt = next((r for r in rows[i + 1:] if r[2] in ("stop", "origin_or_end") and (r[3] is not None or r[4] is not None)), None)
-        if prev is None or (st, prev[1]) not in rules:
+        if prev is None:
             continue
-        rule = (st, prev[1])
+        rule = specific.get((st, prev[1], no), general.get((st, prev[1])))
+        if rule is None:
+            continue
         t0 = prev[4] if prev[4] is not None else prev[3]
-        t = t0 + rules[rule]
+        t = t0 + rules[rule][2]
         if nxt is not None and t + dwell >= (nxt[3] if nxt[3] is not None else nxt[4]):
             skipped[rule].append(no)
             continue
         diff[rule].append((model_t - t) / 60)
+        used[rule].add(no)
         db.execute("UPDATE halt_est SET arr_s=?, dep_s=?, method='manual' WHERE train_no=? AND seq=?", (round(t), round(t + dwell), no, seq))
         n += 1
     print("    halt_offsets.csv: model minus manual time per rule (minutes)")
-    for rule in rules:
-        h, f = rule
+    for rule, (h, f, sec, trains) in enumerate(rules):
+        lab = f"{h} after {f} +{sec / 60:g}" + (f" (trains {' '.join(trains)})" if trains else "")
         if rule in diff:
             v = diff[rule]
-            print(f"      {h} after {f}: n={len(v)}  median {np.median(v):+.1f}  max |diff| {max(abs(x) for x in v):.1f}")
+            print(f"      {lab}: n={len(v)}  median {np.median(v):+.1f}  max |diff| {max(abs(x) for x in v):.1f}")
         if rule in skipped:
-            print(f"      {h} after {f}: SKIPPED (does not fit before the next stop) for trains {', '.join(skipped[rule])}")
+            print(f"      {lab}: SKIPPED (does not fit before the next stop) for trains {', '.join(skipped[rule])}")
         if rule not in diff and rule not in skipped:
-            print(f"      {h} after {f}: UNUSED - no train halts at {h} right after a timed stop at {f} (check the codes)")
+            print(f"      {lab}: UNUSED - no train halts at {h} right after a timed stop at {f} (check the codes)")
+        elif trains and set(trains) - used[rule] - set(skipped[rule]):
+            print(f"      {lab}: trains never matched: {' '.join(sorted(set(trains) - used[rule]))}")
     if diff:
         allv = [abs(x) for v in diff.values() for x in v]
         print(f"      overall: {len(allv)} halts, mean |diff| {np.mean(allv):.2f} min, max {max(allv):.1f} min")

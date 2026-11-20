@@ -1,17 +1,29 @@
-# halt_code,from_code,minutes
-# halt time = departure of the previous station (from_code, in the direction of travel) + minutes
-# taken from the FDTB April 2026 timetable poster / KAI ticketing (most common value over all rows)
+# halt_code,from_code,minutes[,trains]
+# halt time = departure of the previous timed station (from_code, in the direction of travel) + minutes
+# optional 4th column: space-separated train numbers that use this value instead of the general rule
+# source: KAI Commuter "Jadwal Commuter Line Wilayah 2 Bandung", update 1 Desember 2026 (GAPEKA 2026)
+#   most trains follow the general value; the Garut trains (386-389, 423) and a few Bandung Raya trains run 1 min longer
 # KAI times are direction-dependent and front-load the running time, so the distance model cannot reproduce them;
 # the pipeline prints "model minus manual" per rule and flags rules that are skipped or never used
-# Padalarang -> Cicalengka -> Garut direction
-GK,PDL,3        # Gadobangkong after Padalarang
-CTH,BD,6        # Cikudapateuh after Bandung
-CMK,GDB,3       # Cimekar after Gedebage
-HRP,RCK,7       # Haurpugur after Rancaekek
-LO,KRAI,4       # Leuwigoong after Karangsari
-# Garut -> Cicalengka -> Padalarang direction
-LO,CB,4         # Leuwigoong after Cibatu
-HRP,CCL,6       # Haurpugur after Cicalengka
-CMK,RCK,6       # Cimekar after Rancaekek
-CTH,KAC,4       # Cikudapateuh after Kiaracondong
-GK,CMI,4        # Gadobangkong after Cimahi
+
+# Padalarang -> Cicalengka -> Garut/Cibatu direction (even trains)
+GK,PDL,5             # Gadobangkong after Padalarang
+GK,PDL,6,386 388
+CTH,BD,5             # Cikudapateuh after Bandung
+CTH,BD,6,386
+CMK,GDB,5            # Cimekar after Gedebage
+CMK,GDB,6,386
+HRP,RCK,7            # Haurpugur after Rancaekek
+HRP,RCK,8,386
+LO,KRAI,7            # Leuwigoong after Karangsari
+
+# Garut/Cibatu -> Cicalengka -> Padalarang direction (odd trains)
+LO,CB,6              # Leuwigoong after Cibatu
+LO,CB,7,423
+HRP,CCL,6            # Haurpugur after Cicalengka
+CMK,RCK,6            # Cimekar after Rancaekek
+CMK,RCK,7,387 389 393 399 423 429 431
+CTH,KAC,5            # Cikudapateuh after Kiaracondong
+CTH,KAC,6,429
+GK,CMI,5             # Gadobangkong after Cimahi
+GK,CMI,6,389
