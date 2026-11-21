@@ -41,7 +41,8 @@ GAPEKA-JAWA-2026.pdf
 ## Requirements
 
 - Python 3.9 or newer
-- `pip install pymupdf numpy`. Only the pipeline needs these; the export scripts use the standard library only.
+- `pip install pymupdf numpy scipy rapidocr-onnxruntime`. Only the pipeline needs these; the export scripts use the
+  standard library only. OCR (rapidocr) is needed for graph pages whose text is drawn as outlines.
 
 ## Usage
 
@@ -51,9 +52,19 @@ GAPEKA-JAWA-2026.pdf
 python gapeka_pipeline.py gapeka.db GAPEKA-JAWA-2026.pdf
 ```
 
-This takes about 6–7 minutes for the full Java GAPEKA. You can give several PDFs or a folder.
-`--dwell 30` sets the dwell time at halts in seconds, and `--no-graph` skips the graph sheets
-(faster, but no distances).
+This takes about 8–10 minutes for the full Java GAPEKA (the first run longer: OCR of the graph sheets drawn as
+outlines, cached in `.cache/ocr`). It writes three databases next to `gapeka.db`:
+
+- `gapeka.db`: the timetable (trains, stops, halt times, train types, KA Dinas trips)
+- `infra.db`: the infrastructure from the graph sheets (`build_infra.py`; hand corrections in `manual/*.csv`)
+- `rules.db`: the rules in `rules/*.csv` plus the running-time model fitted on the timetable (`build_rules.py`)
+
+Halt times come from the running-time model with the publication rule of each KAI region (`rules/halt_rules.csv`);
+the KAI times in `rules/halt_offsets.csv` override them. The run prints how well the model matches the GAPEKA and
+KAI's published halt times. You can give several PDFs or a folder. `--dwell 30` sets the dwell time for the manual
+halt times, `--no-graph` skips the graph sheets (faster, but no distances), `--no-model` skips steps 7–9.
+
+Needs `pip install pymupdf numpy scipy rapidocr-onnxruntime`.
 
 The run prints a report. Check the `halt_offsets.csv` section: it shows how far the model is
 from the KAI times, and warns about rules that were skipped or never used.
@@ -90,7 +101,7 @@ python export_trains.py 386-431 --odd -o trains_odd.csv
 python sanity_check.py gapeka.db
 ```
 
-## Halt times and `halt_offsets.csv`
+## Halt times and `rules/halt_offsets.csv`
 
 The GAPEKA gives no time for halt stations such as Gadobangkong, Cikudapateuh, Cimekar, Haurpugur
 and Leuwigoong. The model's estimates come within about 1–2 minutes of KAI's published times but
@@ -117,6 +128,11 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 | File | Purpose |
 |---|---|
 | `gapeka_pipeline.py` | GAPEKA PDF → `gapeka.db` |
+| `gapeka_model.py` | Running-time model (physics on the infra.db profile + calibration), halt and KA Dinas times |
+| `build_rules.py` | `rules/*.csv` + fitted model → `rules.db` |
+| `rules/*.csv` | Hand rules: station zones, buffers, wait gaps, halt rules per KAI region, KAI halt times (`halt_offsets.csv`) |
+| `reference/*.csv` | KAI published timetables used to check the halt rules |
+| `rules.db` | Rules database (hand rules + fitted values) |
 | `train_index.py` | Reads the train-number index (Lampiran IV): class, regular / facultative, KA Dinas |
 | `build_infra.py` | GAPEKA graph sheets → `infra.db` (stations, km, sections, speed limits, gradient, double track) |
 | `manual/*.csv` | Hand corrections for `infra.db` (station aliases, section lengths / Umum, restrictions) |
@@ -125,7 +141,6 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 | `export_headway.py` | Station time bar with headway colours (SVG) |
 | `export_trains.py` | Station × train matrix (CSV) |
 | `sanity_check.py` | Flags times going backwards, odd running times, long dwells → `sanity_flags.csv` |
-| `halt_offsets.csv` | KAI halt times for the Bandung halts (manual input) |
 | `manual_links.csv` | *(optional)* station distances to add or override, `code,code,km` |
 | `gapeka_missing_links.csv` | Station pairs still without a distance (written by the pipeline) |
 | `gapeka.db` | The parsed database |

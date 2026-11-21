@@ -161,6 +161,14 @@ class Infra:
             pxb, dxa = self.directed(x, b, ctx), self.dbkm.get(frozenset((x, a)))
             if pxb and dab and dxa and abs(dxa + dab - pxb["km"]) / pxb["km"] < 0.15:
                 return self._cut(pxb, pxb["km"] * dxa / (dxa + dab), pxb["km"], "split by gapeka.db km")
+        for x in self.nbr[a]:                                     # one part known: the rest of a - x
+            pax, dbx = self.directed(a, x, ctx), self.dbkm.get(frozenset((b, x)))
+            if pax and dbx and 0.2 < pax["km"] - dbx < pax["km"]:
+                return self._cut(pax, 0.0, pax["km"] - dbx, "rest of a sheet section (gapeka.db km of the other part)")
+        for x in self.nbr[b]:
+            pxb, dxa = self.directed(x, b, ctx), self.dbkm.get(frozenset((x, a)))
+            if pxb and dxa and 0.2 < pxb["km"] - dxa < pxb["km"]:
+                return self._cut(pxb, dxa, pxb["km"], "rest of a sheet section (gapeka.db km of the other part)")
         for x in self.nbr[a]:                                     # split by shortest running times
             pax = self.directed(a, x, ctx)
             t1, t2 = self.tt.get(frozenset((a, b))), self.tt.get(frozenset((b, x)))
@@ -171,6 +179,14 @@ class Infra:
             t1, t2 = self.tt.get(frozenset((x, a))), self.tt.get(frozenset((a, b)))
             if pxb and t1 and t2:
                 return self._cut(pxb, pxb["km"] * t1 / (t1 + t2), pxb["km"], "split by running time")
+        pth = self.path(a, b, max_km=max(1.3 * dab, 3.0) if dab else 60)       # chain of sheet sections (express
+        if pth and len(pth) > 2:                                                # trains skip rows: Jakarta Kota-Jatinegara)
+            p = self.directed(pth[0], pth[1], ctx)
+            for x, y in zip(pth[1:], pth[2:]):
+                p = self._join(p, self.directed(x, y, ctx))
+            if not dab or abs(p["km"] - dab) / dab < 0.25:
+                p["derived"] = "chain of sheet sections"
+                return p
         if dab and 0.3 < dab < 40:
             return dict(km=dab, umum=None, restr=[], ruling=None, derived="gapeka.db distance")
         return None

@@ -239,6 +239,15 @@ def page_profile(page, names, ocr=None):
         if c:
             rows.append(dict(code=code, sheet_name=t, y=y, km=c))
     rows.sort(key=lambda r: r["y"])
+    # a sheet-only row at the same km as the row above is a second name of the same place ("Ssp. Pusri" /
+    # "Kaligunting" at km 145.600): keep one row
+    merged_rows = []
+    for r in rows:
+        if merged_rows and r["code"].startswith("?") and merged_rows[-1]["code"].startswith("?") \
+                and set(r["km"]) == set(merged_rows[-1]["km"]) and r["y"] - merged_rows[-1]["y"] < 30:
+            continue
+        merged_rows.append(r)
+    rows = merged_rows
 
     # ---- restrictions: start/end km tokens, speed printed between them, hu/hi tags right of the start km
     tg = sorted([w for w in kms if w[0] < dx - 15], key=cy)
@@ -414,7 +423,17 @@ def page_profile(page, names, ocr=None):
                 err = min((abs(L - x) for x in dd), default=0 if L < 30 else 99)
                 if 0.2 < L < 60 and (best is None or (err, L) < (best[0], abs(best[2] - best[1]))):
                     best = (err, ka, kb)
-        if best is None or (best[0] > 0.05 and (len(A["km"]) > 1 or len(B["km"]) > 1)):
+        if best is not None and best[0] > 0.05 and (len(A["km"]) > 1 or len(B["km"]) > 1):
+            # a row with two km values where one is 0.000 is a chainage restart (Kabat after Banyuwangi Kota):
+            # the line continues from km 0 on this side
+            zero = [(abs(kb - ka), ka, kb) for ka in A["km"] for kb in B["km"] if (kb == 0.0 or ka == 0.0) and 0.2 < abs(kb - ka) < 60]
+            best = (0.0, zero[0][1], zero[0][2]) if zero else None
+            if best is None and (A["code"].startswith("?") or B["code"].startswith("?")):
+                # the distance column skips sheet-only stops, so it cannot check this pair: nearest km values
+                kas = [A["km_in"]] if A.get("km_in") is not None else A["km"]   # keep the km from the previous pair
+                near = sorted((abs(kb - ka), ka, kb) for ka in kas for kb in B["km"] if 0.2 < abs(kb - ka) < 30)
+                best = (0.0, near[0][1], near[0][2]) if near else None
+        if best is None:
             continue
         _, ka, kb = best
         sg = 1 if kb > ka else -1
@@ -633,27 +652,39 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     continue
                 sections[k] = dict(p, line=ln["id"], page=pg, source="sheet", via=None)
 
-    # ---- join through stops that are on the sheet but not in the timetable (Bangsal, Kumendung, ...)
-    for (a, m), p1 in list(sections.items()):
-        if not m.startswith("?"):
-            continue
-        for (m2, b), p2 in list(sections.items()):
-            if m2 != m or b.startswith("?") or (a, b) in sections or (b, a) in sections:
-                continue
-            L1 = p1["km"]
-            rs = [dict(r) for r in p1["restr"]] + [dict(r, o0=round(r["o0"] + L1, 3), o1=round(r["o1"] + L1, 3)) for r in p2["restr"]]
-            u1, u2 = p1["umum"], p2["umum"]
-            umum = max(x for x in (u1, u2) if x) if (u1 or u2) else None
-            if u1 and umum and u1 < umum:
-                rs.append(dict(o0=0.0, o1=L1, v=u1, tags="", note="Umum of the first part"))
-            if u2 and umum and u2 < umum:
-                rs.append(dict(o0=L1, o1=L1 + p2["km"], v=u2, tags="", note="Umum of the second part"))
-            bl = [dict(b_) for b_ in p1["blocks"]] + [dict(b_, o=round(b_["o"] + L1, 3)) for b_ in p2["blocks"]]
-            r1, r2 = p1.get("ruling"), p2.get("ruling")
-            ruling = round((r1 * L1 + r2 * p2["km"]) / (L1 + p2["km"]), 1) if r1 is not None and r2 is not None else None
-            sections[(a, b)] = dict(a=a, b=b, km=round(L1 + p2["km"], 3), km_a=p1["km_a"], km_b=p2["km_b"], umum=umum,
-                                    restr=rs, h_a=p1["h_a"], h_b=p2["h_b"], blocks=bl, ruling=ruling,
-                                    line=p1["line"], page=p1["page"], source="sheet (joined)", via=m[1:])
+    # ---- join through stops that are on the sheet but not in the timetable (Bangsal, Kumendung, ...), also through
+    #      several in a row (Indro - Karangkering - Kalitangi - Rumah - Kandangan)
+    def joined(p1, p2, a, b, via):
+        L1 = p1["km"]
+        rs = [dict(r) for r in p1["restr"]] + [dict(r, o0=round(r["o0"] + L1, 3), o1=round(r["o1"] + L1, 3)) for r in p2["restr"]]
+        u1, u2 = p1["umum"], p2["umum"]
+        umum = max(x for x in (u1, u2) if x) if (u1 or u2) else None
+        if u1 and umum and u1 < umum:
+            rs.append(dict(o0=0.0, o1=L1, v=u1, tags="", note="Umum of the first part"))
+        if u2 and umum and u2 < umum:
+            rs.append(dict(o0=L1, o1=L1 + p2["km"], v=u2, tags="", note="Umum of the second part"))
+        bl = [dict(b_) for b_ in p1["blocks"]] + [dict(b_, o=round(b_["o"] + L1, 3)) for b_ in p2["blocks"]]
+        r1, r2 = p1.get("ruling"), p2.get("ruling")
+        ruling = round((r1 * L1 + r2 * p2["km"]) / (L1 + p2["km"]), 1) if r1 is not None and r2 is not None else None
+        return dict(a=a, b=b, km=round(L1 + p2["km"], 3), km_a=p1["km_a"], km_b=p2["km_b"], umum=umum, restr=rs,
+                    h_a=p1["h_a"], h_b=p2["h_b"], blocks=bl, ruling=ruling, line=p1["line"], page=p1["page"],
+                    source="sheet (joined)", via=via, table=p1.get("table"), context=p1.get("context"))
+    partial = {k: dict(p, via=p.get("via")) for k, p in sections.items() if k[1].startswith("?") and not k[0].startswith("?")}
+    for _ in range(6):
+        new = {}
+        for (a, m), p1 in partial.items():
+            for (m2, b), p2 in list(sections.items()):
+                if m2 != m or (a, b) in sections or (b, a) in sections or b == a:
+                    continue
+                via = " ".join(x for x in ((p1.get("via") or ""), m[1:]) if x)
+                j = joined(p1, p2, a, b, via)
+                if b.startswith("?"):
+                    new[(a, b)] = j
+                else:
+                    sections[(a, b)] = j
+        partial = new
+        if not partial:
+            break
 
     # ---- check lengths against the timetable; replace implausible ones by gapeka.db, else drop
     obs = timetable_runs(ttdb)
@@ -880,7 +911,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     for (a, b), p in sections.items():
         g[a][b] = g[b][a] = p["km"]
 
-    def chain(x, y, max_hops=4):
+    def chain(x, y, max_hops=10):
         """shortest chain of sheet sections x..y with at most max_hops sections (stations the train does not
         list in between, e.g. Cakung-Rawabebek-Kranji); returns (hops, km) or None"""
         best, frontier = {x: 0.0}, [(x, 0.0)]
