@@ -1,2 +1,3 @@
 sections,seconds_per_leg,train_types,source,note
 CTA-PDRG PDRG-CBN CBN-GPI GPI-NMO,120,krl,fitted,Nambo branch: GAPEKA adds about 2 min per leg (buffer)
+SMC-SMT SMT-ATA,45,krl commuter intercity freight,fitted,Semarang Poncol-Tawang-Alastua: GAPEKA adds about 45 s per leg for all trains on top of the station layout

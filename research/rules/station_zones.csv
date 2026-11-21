@@ -7,3 +7,7 @@ SPJ,WO,200,0,30,krl intercity freight,any,manual (user) + fitted length,switch o
 SPJ,WO,900,0,30,commuter,stop,manual (user) + fitted length,commuters use siding tracks; towards Wonokromo more switches
 RK,CTR,1200,1200,30,krl,any,manual (user) + fitted length,"KRL use tracks 3 and 5, 30 km/h switches from the Tanah Abang side"
 YK,*,300,0,30,krl commuter intercity,pass,fitted,through trains are also slowed leaving (data); fits trains using the other emplacement (two crossovers)
+SMT,ATA,750,1000,30,krl commuter intercity freight,stop,manual (user) + fitted length,stopping: from the east arrival via both crossovers (~1.5 km apart; 1000 m fits); leaving east after arriving from the west: siding switches (750 m)
+SMT,SMC,1000,750,30,krl commuter intercity freight,stop,manual (user) + fitted length,stopping: leaving west after arriving from the east via both crossovers (1000 m); arriving from the west: siding switches (750 m fits; user ~750 m apart)
+SMT,SMC,0,750,30,krl commuter intercity freight,pass,manual (user) + fitted length,"through trains from the west (750 m); through from the east not given a zone (user), though GAPEKA is still slow for them"
+SMT,ATA,750,0,30,krl commuter intercity freight,pass,manual (user) + fitted length,"through trains from the west (750 m); through from the east not given a zone (user), though GAPEKA is still slow for them"

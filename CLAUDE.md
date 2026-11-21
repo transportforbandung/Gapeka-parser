@@ -45,9 +45,12 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   the south emplacement; through from Lempuyangan use the north one and get the east siding switches; using the
   other emplacement means two restrictions. Fitted (30 km/h): stopping 300 m dep / 600 m arr; through trains
   600 m entering + 300 m leaving (data says leaving is slowed too); freight fits better without zones.
-- Semarang Tawang: about 1400 m crossover to crossover; only terminating trains use all of it. But in GAPEKA every
-  train around Semarang (even passing ones) is 1-2 min slower than physics and the sheet shows nothing more
-  (Poncol-Tawang 50 km/h general, curves 200-250 m): unexplained, left to learned corrections.
+- Semarang Tawang layout (user): trains from the east that stop use both crossovers (~1.5 km apart); trains from the
+  west that stop only pass the siding switches (~750 m apart); through trains from the east are hardly affected,
+  through trains from the west may be. Fitted (30 km/h): from the east 1000 m arriving + 1000 m leaving west; from
+  the west 750 m arriving + 750 m leaving east; through from the west 750 m. Plus a buffer of +45 s per leg on
+  Poncol-Tawang-Alastua for all trains (layout alone leaves 40-100 s). Mean bias over all Tawang cases 95 -> 36 s,
+  > 1 min 80 -> 22 %. Through trains from the east are still 1.5 min slower in GAPEKA (few legs: 5 and 3).
 - Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
   GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"
   (+120 s per leg, research/rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
