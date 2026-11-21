@@ -90,6 +90,15 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   Waits are not part of running time; running-time error on noted legs is spread, not a wait effect. GAPEKA lets
   a train run a little slower (+0.3-0.9 min) into a crossing when it has slack, and keeps it about 4 min before
   the other train. Training with noted legs + wait-role flags (NOTE_FEATS=1) takes noted legs from 12 % to 9 % > 1 min.
+- Signalling (user): single-track lines mostly mechanical semaphores (overtaken train waits for the overtaker to
+  arrive at the next station); double-track lines have electrical/PLC interlocking (the overtaker only has to reach
+  the next block or home signal). Block signals are printed in the station-name column, usually with km
+  ("B-0715 km 330.500 hi"), sometimes without ("B.hu - B.hi"). Extracted: 412 block signals on 118 station pairs
+  (92 with km, 320 placed from the sheet position, ~0.7 km off). None found on Tegal-Semarang.
+  Data: single track next station + 2 min fits (71-79 %). Double track: no block distance gives consistent
+  departures; "overtaker reaches next station + ~0.5 min" fits best (40 %) where blocks are known; waiting trains
+  (mostly freight) leave 5-8 min after the last train passed and ~20 min before the next one. Planners seem to work
+  from the station lines of the graph even on double track.
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA

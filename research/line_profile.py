@@ -200,6 +200,23 @@ def page_profile(page, use_ocr=False):
         if y1 - y0 > 300:
             return None
         return round(h0 + (h1 - h0) * (y - y0) / (y1 - y0), 1)
+    # ---- block signals: "B-0715 km 330.500 hi" in the station-name column (signal number, km, track)
+    blocks = []
+    byline = {}
+    for w in left:
+        if 265 < w[0] < 420:
+            byline.setdefault(round(cy(w) / 2.5), []).append(w)
+    for k, ws_ in byline.items():
+        txt = " ".join(t[4] for t in sorted(ws_, key=lambda t: t[0]))
+        found = False
+        for m in re.finditer(r"B[-.]?\s*(\d{1,5})\s*km\s*(\d{1,3}\.\d{3})\s*(hu|hi)", txt, re.I):
+            blocks.append(dict(y=k * 2.5, no=m.group(1), km=float(m.group(2)), tag=m.group(3).lower()))
+            found = True
+        if not found:
+            # block signal without a km value ("B.hu", "B.hi", "B.hu - B.hi"): position from its place on the sheet
+            tags = re.findall(r"\bB\s*[.\-]\s*(hu|hi)\b", txt, re.I)
+            for tg in tags:
+                blocks.append(dict(y=k * 2.5, no="", km=None, tag=tg.lower()))
     # ---- pairs of adjacent stations
     out = []
     for A, B in zip(rows, rows[1:]):
@@ -230,8 +247,21 @@ def page_profile(page, use_ocr=False):
                     continue
                 rs.append(dict(o0=round(o0, 3), o1=round(o1, 3), v=r["v"], tags=r["tags"], up=sg > 0, note=r.get("note", "")))
         u = umum_at((A["y"] + B["y"]) / 2)
+        sg = 1 if kb > ka else -1
+        bl = []
+        Lp = abs(kb - ka)
+        for b in blocks:
+            if A["y"] - 6 <= b["y"] <= B["y"] + 6:
+                frac = min(max((b["y"] - A["y"]) / max(B["y"] - A["y"], 1e-6), 0.0), 1.0)
+                o_y = frac * Lp                                  # offset from the sheet position
+                if b["km"] is not None:
+                    o = (b["km"] - ka) * sg
+                    if -0.05 <= o <= Lp + 0.05:
+                        bl.append(dict(o=round(o, 3), tag=b["tag"], no=b["no"], o_from_y=round(o_y, 3), src="km"))
+                elif 0 < frac < 1:
+                    bl.append(dict(o=round(o_y, 3), tag=b["tag"], no="", src="sheet position"))
         out.append(dict(a=A["code"], b=B["code"], up=kb > ka, km=round(abs(kb - ka), 3), umum=u, restr=rs,
-                        h_a=elev_at(A["y"]), h_b=elev_at(B["y"])))
+                        h_a=elev_at(A["y"]), h_b=elev_at(B["y"]), blocks=bl))
     return out
 
 
