@@ -45,7 +45,7 @@ def apply_zones(g, rules):
     for the listed train types, for trains that stop / pass / either at that station"""
     cap, st = g["cap"], g["stations"]
     for z in rules:
-        if g["type"] not in z["types"]:
+        if z.get("kind") == "buffer" or g["type"] not in z["types"]:
             continue
         for side in z["sides"]:                                   # 'dep' = leg starts at the station, 'arr' = ends there
             L = z["dep_m"] if side == "dep" else z["arr_m"]
@@ -115,12 +115,26 @@ def lad(X, yy):
 
 first = np.array([float(g["first"]) for g in legs]); last = np.array([float(g["last"]) for g in legs])
 TERM = os.environ.get("TERMINAL", "1") == "1"
-X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []))
+srest = np.array([float(g["start_rest"]) for g in legs]); erest = np.array([float(g["end_rest"]) for g in legs])
+ENDS = os.environ.get("ENDS", "1") == "1"         # separate fixed time for starting from / stopping at a station
+X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []) + ([srest, erest] if ENDS else []))
 calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
 base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
+# section buffers (timetable padding, not physics): extra seconds per leg that runs over the listed sections
+BUFFERS = [z for z in RULES if z.get("kind") == "buffer"]
+def buffer_s(g):
+    secs = set(zip(g["stations"], g["stations"][1:])) | set(zip(g["stations"][1:], g["stations"]))
+    return sum(b["seconds"] for b in BUFFERS if g["type"] in b["types"] and secs & {tuple(p) for p in b["sections"]})
+if BUFFERS:
+    buf = np.array([buffer_s(g) for g in legs], float)
+    # refit calibration with the buffer already added, so calibration is not distorted by the padded legs
+    calib = {t: lad(X[train & (typ == t)], (y - buf)[train & (typ == t)]) for t in TYPES}
+    base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))]) + buf
 for t in TYPES:
     c = calib[t]
     extra = f"  terminus arrival {c[3]:+4.0f} s  origin departure {c[4]:+4.0f} s" if TERM else ""
+    if ENDS:
+        extra += f"  start from stop {c[-2]:+4.0f} s  stop at end {c[-1]:+4.0f} s"
     print(f"calibration {t:9s}: margin {c[0] - 1:+.1%}  const {c[1]:4.0f} s  per halt {c[2]:3.0f} s{extra}")
 
 # ---- correction features
@@ -243,7 +257,7 @@ for (a, b, t), (e, n) in sorted(sec.items(), key=lambda kv: -abs(kv[1][0]))[:30]
 
 print("\nRULE STATIONS (all legs, no note): mean error s, share |err|<0.5 / >1 min")
 _seen = set()
-for z in RULES:
+for z in [z for z in RULES if z.get("kind") != "buffer"]:
     if (z["station"], z["towards"]) in _seen:
         continue
     _seen.add((z["station"], z["towards"]))
@@ -270,3 +284,9 @@ for tt in ("intercity", "commuter"):
         if len(ii) >= 3:
             e = (base[ii] - y[ii]) / 60
             print(f"  {tt:9s} {lab:10s} n={len(ii):3d}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nNAMBO BRANCH KRL (physics only, no note)")
+ii = [i for i, g in enumerate(legs) if g["type"] == "krl" and not g["noted"] and set(g["stations"]) & {"CBN", "NMO", "GPI", "PDRG"}]
+if ii:
+    e = (base[ii] - y[ii]) / 60
+    print(f"  n={len(ii)}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")

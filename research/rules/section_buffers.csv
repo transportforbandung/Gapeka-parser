@@ -1,0 +1,2 @@
+sections,seconds_per_leg,train_types,source,note
+CTA-PDRG PDRG-CBN CBN-GPI GPI-NMO,120,krl,fitted,Nambo branch: GAPEKA adds about 2 min per leg (buffer)

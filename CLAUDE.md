@@ -48,8 +48,15 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Semarang Tawang: about 1400 m crossover to crossover; only terminating trains use all of it. But in GAPEKA every
   train around Semarang (even passing ones) is 1-2 min slower than physics and the sheet shows nothing more
   (Poncol-Tawang 50 km/h general, curves 200-250 m): unexplained, left to learned corrections.
-- Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track. GAPEKA runs the whole branch at about
-  37-39 km/h (limit 70, no restrictions on the sheet): unexplained, left to learned corrections.
+- Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
+  GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"
+  (+120 s per leg, research/rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
+- Error sign convention in reports: model minus GAPEKA; minus = GAPEKA slower (allows more time) than physics.
+  Say this explicitly to the user.
+- Yogyakarta freight: same tracks as other trains (user). Most freight services (Bungtalun, Karsolo, Kalem,
+  Cilace Trans) are ~40 s slower in GAPEKA on the Patukan side; Mawalo Tanker (50-55 km/h) is the opposite, so no
+  freight zone yet. Freight keeps ~46 s fixed time per leg even passing at both ends.
+- Calibration now has separate fixed time for starting from a stop and stopping at the end (ENDS=1).
 - Sepanjang: commuters use siding tracks in both directions; towards Wonokromo more switches (fitted 900 m).
 - Sukabumi line: trains do not use loops at crossing stations except maybe Sukabumi (enters slow). The line is
   slower than the rest of Java; its sheet restrictions were checked and are extracted correctly.
