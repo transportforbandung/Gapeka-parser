@@ -161,12 +161,14 @@ def usable_directions(ts, pieces, x0, x1):
         for k in g:
             for (px, py) in ((pieces[k][0], pieces[k][1]), (pieces[k][2], pieces[k][3])):
                 for i, t in enumerate(ts):
-                    if abs(py - t["line_y"]) < 2.5 and t["lo"] - 3 <= px <= t["hi"] + 3:
+                    if abs(py - t["line_y"]) < 2.5 and t["lo"] - 20 <= px <= t["hi"] + 20:
                         att.append((px, i))
         att = sorted(set((round(px, 1), i) for px, i in att))
-        for (xa, a), (xb, b) in zip(att, att[1:]):
-            if a != b:
-                conns.append((a, xa, b, xb))
+        for k1 in range(len(att)):                 # every pair of tracks one switch group touches
+            for k2 in range(k1 + 1, len(att)):
+                (xa, a), (xb, b) = att[k1], att[k2]
+                if a != b:
+                    conns.append((a, xa, b, xb))
     def edge(i, side):
         return ts[i]["lo"] - x0 < 6 if side == "left" else x1 - ts[i]["hi"] < 6
     def mains(d, role):
@@ -352,9 +354,47 @@ def read_page(page, codes, extra_words=()):
             near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
             t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
-        box = lambda q: x0 - 10 <= min(q[0], q[2]) and max(q[0], q[2]) <= x1 + 10 and y0 - 12 <= min(q[1], q[3]) \
+        # unlabelled running lines (main tracks drawn as curves / lines without a label, e.g. Cikarang) join the
+        # direction analysis as unnamed tracks; the diagram's edges are then those of all its lines
+        bx0, bx1 = x0 - 45, x1 + 45
+        box = lambda q: bx0 <= min(q[0], q[2]) and max(q[0], q[2]) <= bx1 and y0 - 14 <= min(q[1], q[3]) \
+            and max(q[1], q[3]) <= y1 + 14
+        runs = sorted((min(q[0], q[2]), max(q[0], q[2]), q[1]) for i_ in horiz for q in [segs[i_]] if box(q)
+                      and not any(abs(q[1] - t["line_y"]) < 1.2 and min(q[0], q[2]) < t["hi"] + 4
+                                  and max(q[0], q[2]) > t["lo"] - 4 for t in ts))
+        extra = []
+        for a, b, y in runs:
+            e = next((e for e in extra if abs(e["line_y"] - y) < 0.6 and a <= e["hi"] + 8 and b >= e["lo"] - 8), None)
+            if e:
+                e["lo"], e["hi"] = min(e["lo"], a), max(e["hi"], b)
+            else:
+                extra.append(dict(no="", line_y=y, lo=a, hi=b))
+        extra = [e for e in extra if e["hi"] - e["lo"] > 15]
+        for e in extra:
+            e["arrows"] = "".join(sorted({c[2] for c in chev if abs(c[1] - e["line_y"]) < 1.0
+                                          and (abs(c[0] - e["lo"]) < 4 or abs(c[0] - e["hi"]) < 4)}))
+        pieces_ = [q for q in solid + dashed if box(q)]
+        box_in = lambda q: x0 - 10 <= min(q[0], q[2]) and max(q[0], q[2]) <= x1 + 10 and y0 - 12 <= min(q[1], q[3]) \
             and max(q[1], q[3]) <= y1 + 12
-        usable_directions(ts, [q for q in solid + dashed if box(q)], x0, x1)
+        usable_directions(ts, [q for q in pieces_ if box_in(q)], x0, x1)
+        # arrowheads beyond the labelled tracks: the ends of running lines drawn as curves (Cikarang)
+        extra += [dict(no="", line_y=c[1], lo=c[0] - 4, hi=c[0] + 4, arrows=c[2]) for c in chev
+                  if y0 - 14 < c[1] < y1 + 14 and (bx0 < c[0] < x0 - 3 or x1 + 3 < c[0] < bx1)]
+        beyond = [e for e in extra if e["lo"] < x0 - 3 or e["hi"] > x1 + 3]
+        if extra and (beyond or not any(t["usable"] for t in ts if is_roman(t["no"]))):
+            # running lines that leave the labelled area (curves to arrowheads: Cikarang, Malang Kotalama): run the
+            # analysis again from those ends and keep what either run allows
+            before = [(t["usable"], t["enter"], t["through"]) for t in ts]
+            allt = ts + extra
+            ex0, ex1 = min(t["lo"] for t in allt), max(t["hi"] for t in allt)
+            for t in allt:
+                t["through"] = t["lo"] - ex0 < 6 and ex1 - t["hi"] < 6
+            usable_directions(allt, pieces_, ex0, ex1)
+            for t, (u, e, th) in zip(ts, before):
+                # mains drawn through with arrows stay one-direction (user)
+                t["usable"] = u if th and t["arrows"] else "".join(sorted(set(u + t["usable"])))
+                t["enter"] = "".join(sorted(set(e + t["enter"])))
+                t["through"] = th
         out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,
                         right=right, inside=inside, marks=marks))
     # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
