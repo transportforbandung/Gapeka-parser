@@ -297,6 +297,8 @@ def page_profile(page, names, ocr=None):
                 if it[0] == "l" and abs(it[1].y - it[2].y) < 1.0 and min(it[1].x, it[2].x) <= ux0 + 4 \
                         and max(it[1].x, it[2].x) >= ux0 + 8:
                     hl.append(it[1].y)
+                elif it[0] == "re" and it[1].x0 <= ux0 + 4 and it[1].x1 >= ux0 + 8:
+                    hl.extend((it[1].y0, it[1].y1))       # cells drawn as rectangles (page 41: 120 cell ends at Blitar)
     hl = sorted(set(round(y, 1) for y in hl))
 
     def umum_at(y):
@@ -323,6 +325,8 @@ def page_profile(page, names, ocr=None):
                 if it[0] == "l" and abs(it[1].y - it[2].y) < 1.0 and min(it[1].x, it[2].x) <= gx + 2 \
                         and max(it[1].x, it[2].x) >= gx + 8:
                     grad_hl.append(round(it[1].y, 1))
+                elif it[0] == "re" and it[1].x0 <= gx + 2 and it[1].x1 >= gx + 8:
+                    grad_hl.extend((round(it[1].y0, 1), round(it[1].y1, 1)))
         grad_hl = sorted(set(grad_hl))
 
     def grad_at(y0, y1):

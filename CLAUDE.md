@@ -55,7 +55,9 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Umum (user): Masaran (from Kemiri) to Walikukun is 120 (one tall Umum cell; its bottom rule at Walikukun is
   slightly slanted, so rules are now horizontal within 1 pt). The 105 near Sragen is Sragen-Kebonromo only
   (km 230.000-229.400, hu). Restriction ends are never taken from the curve column (labelled HILIR / HULU).
-  Ngunut-Wlingi is Umum 90 (sheet); Panarukan-Kalisat has no Umum printed.
+  Ngunut-Blitar Umum 120, Blitar-Wlingi 90 (user). Page 41 draws its Umum / gradient cells as rectangles: cell
+  borders are read from lines AND rectangle edges (also fixed page 41 gradients, e.g. Madiun-Babadan 4, Caruban-Saradan 8).
+  Panarukan-Kalisat has no Umum printed.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
@@ -198,6 +200,10 @@ Read this first. It records decisions and findings from earlier sessions so they
 - The margin "Jarak" column gives station-to-station distances that skip halts; use the "Letak" km positions.
   The current `gapeka.db` has some wrong links from this (e.g. MR-CRM 11.752 km is really SBO-MR; MR-CRM is 8.122).
 - Some stops are on the sheet but not in the timetable (Bangsal, Kumendung, ...): join pairs through them.
+- KAI Commuter Jabodetabek / Nambo / Basoetta station timetables (1 Des 2026, user; all KRL, Basoetta = express KRL):
+  research/kai_jabo_extract.py -> reference/kai_krl_jabodetabek_2026.csv (20382 cells, 1238 train numbers, all in
+  gapeka.db). At GAPEKA stops KAI prints the departure (8688) or, at the end, the arrival (1274); 9903 halt times to
+  learn from. Basoetta trips carry two numbers (809 Bogor-Duri, 810 Duri-Bandara); KAI's Duri time is 810's departure.
 - KAI Commuter published timetables (Bandung, Surabaya, Dec 2026): halt time = arrival at the halt, front-loaded:
   previous departure + fixed run time; spare time sits after the halt.
 
