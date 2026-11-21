@@ -81,6 +81,19 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Bandung station: the "Empl. Bd" restriction on the sheet is the only one; nothing else leaving Bandung.
 - Sepanjang to Wonokromo is single track; trains from Sepanjang take a 30 km/h switch at the Wonokromo end of
   Sepanjang (fitted zone 200 m).
+- Crossing / overtaking waits (user): a crossed train only waits for the dispatcher to come back and set the route;
+  an overtaken train must wait until the overtaking train has arrived at the NEXT station, then for the dispatcher
+  to report clear and set the route. Data (research/waits*.py): waiting train departs +2 min after the reference:
+  crossing = other train arrives/passes the crossing station (84 % within 0.5 min when the other passes, any line);
+  overtaking = overtaker at the next station (single-track lines 78-88 % within 0.5 min; double-track main lines
+  vary -1..+3 min, about 60-70 % within 1 min). Waiting for the overtaker to pass the station itself is wrong.
+  Waits are not part of running time; running-time error on noted legs is spread, not a wait effect. GAPEKA lets
+  a train run a little slower (+0.3-0.9 min) into a crossing when it has slack, and keeps it about 4 min before
+  the other train. Training with noted legs + wait-role flags (NOTE_FEATS=1) takes noted legs from 12 % to 9 % > 1 min.
+- Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
+  of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
+- Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA
+  slower (buffers, waits). Rounded to whole minutes: 77 % exact, 11 % 1 min early, 8 % 1 min late.
 - GitHub: ignore pushing for now (no access yet); commit locally.
 - Errors below 0.5 min are acceptable (GAPEKA rounds to whole minutes). Goal: shrink the 0.5 to 1 min band
   and almost eliminate errors above 1 min.

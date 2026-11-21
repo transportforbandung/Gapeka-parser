@@ -117,7 +117,19 @@ first = np.array([float(g["first"]) for g in legs]); last = np.array([float(g["l
 TERM = os.environ.get("TERMINAL", "1") == "1"
 srest = np.array([float(g["start_rest"]) for g in legs]); erest = np.array([float(g["end_rest"]) for g in legs])
 ENDS = os.environ.get("ENDS", "1") == "1"         # separate fixed time for starting from / stopping at a station
-X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []) + ([srest, erest] if ENDS else []))
+NOTE_FEATS = os.environ.get("NOTE_FEATS", "1") == "1"
+if NOTE_FEATS:
+    _sym = {}
+    for _no, _st, _s in db.execute("select train_no, station, symbol from notes"):
+        _sym.setdefault((_no, _st), set()).add(_s)
+    def _role(g, end):
+        st, rest = (g["stations"][0], g["start_rest"]) if end == "start" else (g["stations"][-1], g["end_rest"])
+        s = _sym.get((g["train"], st), set())
+        return [float(rest and "x" in s), float(rest and "=" in s), float((not rest) and bool(s & {"x", "//"}))]
+    NF = np.array([_role(g, "start") + _role(g, "end") for g in legs])
+    train = np.array([not g["test"] for g in legs])          # noted legs now take part in training
+X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []) + ([srest, erest] if ENDS else [])
+                    + ([NF] if NOTE_FEATS else []))
 calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
 base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
 # section buffers (timetable padding, not physics): extra seconds per leg that runs over the listed sections
