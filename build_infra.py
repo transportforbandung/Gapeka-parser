@@ -854,7 +854,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
 
     pth = os.path.join(manual_dir, "section_overrides.csv")
     if os.path.exists(pth):
-        conv = dict(umum_kmh=("umum", int), ruling_gradient_permil=("ruling", float), km=("km", float))
+        conv = dict(umum_kmh=("umum", int), ruling_gradient_permil=("ruling", float), km=("km", float),
+                    double_track=("double_track_manual", int))
         for r in csv.DictReader(open(pth)):
             a, b = r["from"], r["to"]
             p = sections.get((a, b)) or sections.get((b, a))
@@ -962,7 +963,9 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         has_tags = any(t.startswith(("hu", "hi")) for t in tags)
         # the header lists are not complete (e.g. Jatinegara-Bekasi, quadruple track, is not listed): a section is
         # double track when the header lists it OR its restrictions / block signals are tagged hu / hi
-        if key in dbl:
+        if p.get("double_track_manual") is not None:
+            d, src = p["double_track_manual"], "manual (user)"
+        elif key in dbl:
             d, src = 1, dbl[key]
         elif has_tags:
             d, src = 1, "hu/hi tags on the sheet" + (" (not in the header list)" if p.get("page") in header_pages else "")
@@ -1042,7 +1045,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         inf = any(t.startswith(("hu", "hi")) for t in tags)
         if frozenset((a, b)) in dbl and not inf:
             tagged["header double, no hu/hi tags"] += 1
-        if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages:
+        if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages and p.get("double_track_manual") is None:
             tagged["header single, has hu/hi tags"] += 1
             qa.append(("double track from hu/hi tags, not in the header list", f"{a}-{b}", f"page {p.get('page')}"))
     out.executemany("insert into qa values(?,?,?)", qa)

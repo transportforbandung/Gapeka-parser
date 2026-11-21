@@ -78,6 +78,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   run between the neighbouring rows). Soka: name row without km, its km (447.916) printed below the signal lines:
   SRW-SOA 5.041, SOA-KM 2.892 (timetable confirms 7.933 km SRW-KM; the old manual 3.396 / 1.645 was wrong, removed).
   Coverage now 99.3 % of legs by one section, 100 % with chains.
+- Jatinegara-Bekasi is quadruple track (user): pages 13-18 (1-2A..1-2F) draw both double tracks: the old commuter
+  line with the halts (JNG-KLD-BUA-KLDB-CUK-RWB-KRI-BKS, used by KRL) and the new direct intercity line (JNG-BKS
+  14.653 km, Umum 120, used by intercity and freight, which list JNG-BKS directly). Both marked double track in
+  manual/section_overrides.csv (field double_track).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

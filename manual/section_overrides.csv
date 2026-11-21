@@ -1,3 +1,11 @@
 from,to,field,value,source,note
 KBS,NTG,umum_kmh,80,manual (user),"Kebasen-Notog: Umum 80 (not read from the sheet)"
 KJ,SPH,umum_kmh,120,manual (user),"Kemranjen-Sumpiuh: Umum cell Kebasen-Kutoarjo, 120 (not read from the sheet)"
+JNG,BKS,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (intercity line, direct)"
+JNG,KLD,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+KLD,BUA,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+BUA,KLDB,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+KLDB,CUK,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+CUK,RWB,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+RWB,KRI,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
+KRI,BKS,double_track,1,manual (user),"Jatinegara-Bekasi is quadruple track: two double tracks, the commuter line with halts and the direct intercity line (commuter line)"
