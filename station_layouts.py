@@ -88,8 +88,8 @@ def page_items(page, x_min):
                     hor.append((None, pymupdf.Point(a, y), pymupdf.Point(b, y)))
             for it in items:
                 a, b = it[1], it[2]
-                if abs(a.y - b.y) > 0.4 and abs(a.x - b.x) > 1:
-                    solid.append((a.x, a.y, b.x, b.y))           # crossover / switch edges of the outline
+                if abs(a.y - b.y) > 0.1 and abs(a.x - b.x) > 0.1:
+                    solid.append((a.x, a.y, b.x, b.y))           # crossover / switch edges (also tiny curve steps)
             levels = []
             for it in sorted(hor, key=lambda it: it[1].y):
                 if levels and it[1].y - levels[-1][-1][1].y < 1.6:
@@ -138,8 +138,8 @@ def usable_directions(ts, pieces, x0, x1):
     A train only moves forward: it takes a connection (switch curve / crossover, a chain of pieces from a point on
     one track to a point on another) only in the direction of travel. Usable in R = reachable moving right from an
     entry main (a through track drawn with an R arrow, or any through track when no arrows are drawn) and able to
-    continue right to an exit main; likewise L. Through tracks with arrows are used only in their arrow direction
-    (user: main straight through tracks are one direction only)."""
+    continue right to an exit main; likewise L. Tracks with a drawn arrow are used only in their arrow direction
+    (user: main straight through tracks are one direction only; Ciroyom: III to Andir, I to Bandung)."""
     pts = [(q[0], q[1]) for q in pieces] + [(q[2], q[3]) for q in pieces]
     uf = UF(len(pieces))
     ends = defaultdict(list)
@@ -201,8 +201,10 @@ def usable_directions(ts, pieces, x0, x1):
             if i not in reach:
                 continue
             t["enter"] += d                        # a train moving d can get onto it (to end / stand there)
-            if t["through"] and t["arrows"]:
-                ok = d in t["arrows"]
+            if t["arrows"] and d not in t["arrows"]:
+                ok = False                         # a track with a drawn arrow: its normal direction only (user)
+            elif t["through"] and t["arrows"]:
+                ok = True
             else:
                 onward = run(d, {i: reach[i]})
                 ok = any(j in onward for j in exits)
@@ -393,6 +395,8 @@ def read_page(page, codes, extra_words=()):
             for t, (u, e, th) in zip(ts, before):
                 # mains drawn through with arrows stay one-direction (user)
                 t["usable"] = u if th and t["arrows"] else "".join(sorted(set(u + t["usable"])))
+                if t["arrows"]:
+                    t["usable"] = "".join(c for c in t["usable"] if c in t["arrows"])
                 t["enter"] = "".join(sorted(set(e + t["enter"])))
                 t["through"] = th
         out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,

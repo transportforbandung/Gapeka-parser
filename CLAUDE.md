@@ -186,10 +186,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   Also: running lines drawn as curves to arrowheads beyond the labelled tracks (Cikarang, Malang Kotalama) give
   extra entry / exit points (union of both runs; through mains with arrows keep their arrow direction); a switch
   may meet a track up to 20 pt beyond its labelled span (Haurgeulis IV); every pair of tracks one switch group
-  touches is linked. research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the
-  direction 453 / 456 (99.3 %), crossings with a usable track pair 709 / 732 (96.9 %); misses: Ciroyom (21
-  crossings, waiting for the user), Bowerno, Kalimas, Kretek (1-2 each). Roman tracks usable in no direction:
-  124 of 1635 (mostly termini and big yards; see 'enter').
+  touches is linked. Any track with a drawn arrow is used only in its arrow direction (user, Ciroyom: III to
+  Andir, I to Bandung; II = arrival from Bandung). Filled outlines draw curves as 0.3 pt steps (Ciroyom I).
+  research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the direction 453 / 456
+  (99.3 %), crossings with a usable track pair 730 / 732 (99.7 %); misses: Bowerno, Kalimas, Kretek (1-2 each).
+  Roman tracks usable in no direction: 119 of 1635 (mostly termini and big yards; see 'enter'). Cikarang and
+  Malang Kotalama draw their running lines as unlabelled curves: no labelled track is a main there, so every
+  reachable track is treated as a loop (open question to the user).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
