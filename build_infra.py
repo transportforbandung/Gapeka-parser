@@ -1020,8 +1020,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
 
     # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
-    diagrams = station_layouts.read_all(doc, out, rows_by_page, ocr)
-    station_layouts.write(out, diagrams)
+    diagrams, layout_refs = station_layouts.read_all(doc, out, rows_by_page, ocr)
+    station_layouts.write(out, diagrams, layout_refs)
     for d in diagrams:
         if not d.get("station"):
             qa.append(("station diagram without a station", f"page {d['page']} y {d['y0']:.0f}",

@@ -56,7 +56,7 @@ def page_items(page, x_min):
         if len(items) == 1 and items[0][0] == "re" and 5 < r.width < 14 and 5 < r.height < 14:
             boxes.append(r)
             continue
-        if dr["type"] == "s" and len(items) == 2 and all(it[0] == "l" for it in items) and r.width < 3 and r.height < 4:
+        if dr["type"] == "s" and len(items) == 2 and all(it[0] == "l" for it in items) and r.width < 6 and r.height < 6:
             (_, a, b), (_, c, e) = items
             if abs(b.x - c.x) < 0.2 and abs(b.y - c.y) < 0.2:          # a -> vertex -> e
                 chev.append((b.x, b.y, "L" if b.x < min(a.x, e.x) else "R"))
@@ -64,24 +64,48 @@ def page_items(page, x_min):
         if dr.get("fill") and dr["type"] == "f" and r.width < 20 and r.height > 14 and len(items) >= 5:
             pointers.append(r)                       # arrow from a station name to its displaced diagram
             continue
-        if dr.get("fill") and dr["type"] == "f" and all(it[0] == "l" for it in items) and r.width > 15 and r.height < 16:
-            # main track drawn as a filled outline with its arrowheads (some sheets): horizontal edges -> track line,
-            # arrow orientation from the outline's end vertices
+        if dr.get("fill") and dr["type"] == "f" and all(it[0] == "l" for it in items) and r.width > 15 and r.height < 60:
+            # main tracks drawn as one filled outline with their arrowheads (and crossovers): every pair of close
+            # horizontal edges is one track; its arrow orientation comes from the outline's end vertices
             pts = [(it[1].x, it[1].y) for it in items] + [(it[2].x, it[2].y) for it in items]
-            for it in items:
-                a, b = it[1], it[2]
-                if abs(a.y - b.y) < 0.4 and abs(a.x - b.x) > 4:
-                    segs.append((a.x, a.y, b.x, b.y))
-            hy = [it[1].y for it in items if abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 4]
-            if hy:
-                yc = sum(hy) / len(hy)
-                for end, xe in (("lo", r.x0), ("hi", r.x1)):
-                    ext = [p_ for p_ in pts if abs(p_[0] - xe) < 0.6]
-                    tip = any(abs(p_[1] - yc) < 1.2 for p_ in ext) and len({round(p_[1]) for p_ in ext}) <= 2
+            # long edges can be drawn as many short pieces: join collinear horizontal pieces into runs
+            pieces = sorted(((min(it[1].x, it[2].x), max(it[1].x, it[2].x), (it[1].y + it[2].y) / 2) for it in items
+                             if abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 0.8), key=lambda q: (round(q[2], 1), q[0]))
+            runs = []
+            for a, b, y in pieces:
+                if runs and abs(runs[-1][2] - y) < 0.2 and a <= runs[-1][1] + 1.0:
+                    runs[-1][1] = max(runs[-1][1], b)
+                else:
+                    runs.append([a, b, y])
+            hor = []
+            for a, b, y in runs:
+                if b - a > 4:
+                    segs.append((a, y, b, y))
+                    hor.append((None, pymupdf.Point(a, y), pymupdf.Point(b, y)))
+            levels = []
+            for it in sorted(hor, key=lambda it: it[1].y):
+                if levels and it[1].y - levels[-1][-1][1].y < 1.6:
+                    levels[-1].append(it)
+                else:
+                    levels.append([it])
+            for lv in levels:
+                yc = sum(it[1].y for it in lv) / len(lv)
+                lo = min(min(it[1].x, it[2].x) for it in lv)
+                hi = max(max(it[1].x, it[2].x) for it in lv)
+                for end in ("lo", "hi"):
+                    side = [q for q in pts if abs(q[1] - yc) < 5 and (q[0] <= lo + 0.5 if end == "lo" else q[0] >= hi - 0.5)]
+                    if not side:
+                        continue
+                    xe = min(q[0] for q in side) if end == "lo" else max(q[0] for q in side)
+                    head = [q for q in pts if abs(q[1] - yc) < 5 and abs(q[0] - xe) < 5]
+                    if not (any(q[1] < yc - 1.5 for q in head) and any(q[1] > yc + 1.5 for q in head)):
+                        continue                         # no arrowhead (barbs above and below): a curve, a stub
+                    ext = [q for q in side if abs(q[0] - xe) < 0.6]
+                    tip = any(abs(q[1] - yc) < 1.2 for q in ext) and len({round(q[1]) for q in ext}) <= 2
                     if end == "lo":
-                        chev.append((xe, yc, "L" if tip else "R"))
+                        chev.append((lo, yc, "L" if tip else "R"))
                     else:
-                        chev.append((xe, yc, "R" if tip else "L"))
+                        chev.append((hi, yc, "R" if tip else "L"))
             continue
         if dr["type"] not in ("s", "fs") or w < 0.15:
             continue
@@ -260,6 +284,27 @@ def assign_station(diagram, nb, axis):
 
 
 
+NOTE = re.compile(r"(?:Emplasemen|Empl\.?)?\s*([A-Z][a-z]{1,4})\s+[Pp]eriksa(?:\s+pada)?(?:\s+[Ll]intas\s+(\S+))?")
+
+
+def reference_notes(page, codes, extra_words=()):
+    """'Emplasemen Kh periksa pada lintas Ma-Cp': the station's diagram is drawn on another line (user: skip it
+    here). Returns [(code, y, line text, note)]"""
+    r = page.rect
+    lines = defaultdict(list)
+    for w in page.get_text("words"):
+        if w[0] > r.x1 - 430:
+            lines[(w[5], w[6])].append(w)
+    out = []
+    for ws in lines.values():
+        ws.sort(key=lambda w: w[0])
+        t = " ".join(w[4] for w in ws)
+        m = NOTE.search(t)
+        if m and m.group(1).upper() in codes:
+            out.append((m.group(1).upper(), (ws[0][1] + ws[0][3]) / 2, m.group(2) or "", t))
+    return out
+
+
 def read_all(doc, inf, rows_by_page, ocr=None):
     """inf: infra.db connection (stations, sections); rows_by_page: {page: [(code, y)]} station rows of the graph
     sheet (build_infra.page_profile); ocr: build_infra.OCR for sheets that draw names as outlines"""
@@ -280,7 +325,7 @@ def read_all(doc, inf, rows_by_page, ocr=None):
             nb[x].add(y)
             if y in halts:
                 todo += [(z, k + 1) for z in adj[y]]
-    out = []
+    out, refs = [], []
     for pg in GROUP_FIRST_PAGES:
         rows = rows_by_page.get(pg, [])
         page = doc[pg - 1]
@@ -293,6 +338,13 @@ def read_all(doc, inf, rows_by_page, ocr=None):
                 words, _ = ocr.read(page, pymupdf.Rect(r.x1 - 330, 0, r.x1 - 60, r.y1), tag="layouts")
                 extra = [w for w in words if w[4].strip(":,.").upper() in codes]
         D = read_page(page, codes, extra)
+        notes = reference_notes(page, codes)
+        # a note takes its station's row in that table: no diagram there is assigned to it by position
+        taken = set()
+        for code, ny, _, _ in notes:
+            cand = [r for r in rows if r[0] == code]
+            if cand:
+                taken.add(min(cand, key=lambda r: abs(r[1] - ny)))
         # two stations drawn touching each other (Semarang Poncol / Tawang): through tracks whose own end labels
         # point to different stations split the diagram; other tracks go with the nearest of those tracks
         split = []
@@ -317,7 +369,7 @@ def read_all(doc, inf, rows_by_page, ocr=None):
                 part["marks"] = [m for m in dg["marks"] if part["y0"] - 25 < m["y"] < part["y1"] + 25]
                 split.append(part)
         D = split
-        used = set()
+        used = {r[0] for r in taken if sum(1 for q in rows if q[0] == r[0]) == 1}
         for dg in D:
             ends = dg["left"] + dg["right"] + dg["inside"]
             st, how = None, None
@@ -374,22 +426,33 @@ def read_all(doc, inf, rows_by_page, ocr=None):
                     continue
             keep.append(dg)
         out += keep
-    return out
+        refs += [dict(station=c, page=pg, y=y, line=ln, note=t) for c, y, ln, t in notes]
+    return out, refs
 
 
 SCHEMA = """
-CREATE TABLE station_layouts(station TEXT, page INTEGER, y REAL, evidence TEXT, left_ends TEXT, right_ends TEXT,
+CREATE TABLE station_layout_refs(station TEXT, line_id TEXT, page INTEGER, y REAL, see_line TEXT, note TEXT);
+CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, evidence TEXT, left_ends TEXT, right_ends TEXT,
                              roman_tracks INTEGER, yard_tracks INTEGER, longest_roman_m REAL, ppka INTEGER, pap INTEGER);
-CREATE TABLE station_tracks(station TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
+CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
                             length_m REAL, arrows TEXT, towards TEXT, through INTEGER);
 """
 
 
-def write(inf, diagrams):
+def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
     track, 'yard' = Arabic-numbered stabling / yard track. arrows: normal running direction drawn at the track ends
-    (L / R on the sheet, LR = both, '' = none drawn); towards: the neighbour station(s) of that direction."""
+    (L / R on the sheet, LR = both, '' = none drawn); towards: the neighbour station(s) of that direction.
+    A station can have different diagrams on different lines (separate levels / isolated tracks): one row per line.
+    station_layout_refs: 'periksa lintas ...' notes, the station's diagram is on the line named there."""
     inf.executescript(SCHEMA)
+    line_of = {}
+    for lid, pages in inf.execute("select line_id, pages from lines"):
+        for pg in pages.split():
+            line_of[int(pg)] = lid
+    for r in refs:
+        inf.execute("INSERT INTO station_layout_refs VALUES(?,?,?,?,?,?)",
+                    (r["station"], line_of.get(r["page"]), r["page"], round(r["y"], 1), r["line"] or None, r["note"]))
     for d in diagrams:
         if not d.get("station"):
             continue
@@ -397,14 +460,14 @@ def write(inf, diagrams):
         rom = [t for t in tr if not t["no"].isdigit()]
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
-        inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                    (d["station"], d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
+        inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (d["station"], line_of.get(d["page"]), d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
                      len(tr) - len(rom), max((t["length"] for t in rom), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
-            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?)",
-                        (d["station"], d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        (d["station"], line_of.get(d["page"]), d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
                          "roman" if not t["no"].isdigit() else "yard", t["length"], t["arrows"], tw or None,
                          int(t["through"])))
 
@@ -414,5 +477,5 @@ if __name__ == "__main__":
     doc = pymupdf.open(sys.argv[1] if len(sys.argv) > 1 else "GAPEKA-JAWA-2026.pdf")
     inf = sqlite3.connect(sys.argv[2] if len(sys.argv) > 2 else "infra.db")
     rows = pickle.load(open(sys.argv[3], "rb")) if len(sys.argv) > 3 else {}
-    D = read_all(doc, inf, rows)
-    print(len(D), "diagrams,", sum(len(d["tracks"]) for d in D), "tracks")
+    D, refs = read_all(doc, inf, rows)
+    print(len(D), "diagrams,", sum(len(d["tracks"]) for d in D), "tracks,", len(refs), "see-other-line notes")

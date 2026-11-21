@@ -137,19 +137,26 @@ Read this first. It records decisions and findings from earlier sessions so they
   Train length: stamformasi tables (PDF ~1705-1745: loco type, cars per class, set length in cars).
   Crossing with a train that does not fit (user): the long train departs first, the other train must stop and fit
   (or the two use non-adjacent tracks). Overtake: every train must fit. Rules in rules/priority.csv.
-  Extraction (station_layouts.py, called by build_infra): 413 diagrams / 387 stations / 1637 tracks -> infra.db
+  Double / single transition (user, Cikadongdong): a train waiting on its own running track from the double-track
+  side never needs to fit (rear on the double track); the through train uses the other track.
+  'Emplasemen X periksa (pada) lintas Y' notes (user): X's diagram is drawn on line Y; skip X there (infra.db
+  station_layout_refs; the note takes X's row so no diagram there is assigned to X by position). A station can
+  have completely different diagrams on different lines (two levels, isolated tracks): keep one per line
+  (station_layouts.line_id), never merge them.
+  Extraction (station_layouts.py, called by build_infra): 419 diagrams / 388 stations / 1661 tracks -> infra.db
   station_layouts (evidence = how the station was identified: neighbours at both ends, one end + own name, own name,
   pointer arrow, nearest row; weak ones in the qa table) and station_tracks (track, kind roman / yard, length,
   arrows L / R / LR, towards = neighbour of the normal direction, through = runs over the whole diagram). Notes:
   end labels name the next STATIONS (halts skipped); some sheets draw tracks as filled outlines with arrowheads,
-  hairline outlines or thin 0.28 pt lines; double-track stations can be drawn as two unconnected halves; touching
+  hairline outlines or thin 0.28 pt lines, filled outlines can hold several tracks
+  and draw long edges as 2.6 pt pieces (Cikadongdong III-260 was lost), chevrons up to 4 pt; double-track stations can be drawn as two unconnected halves; touching
   diagrams (Semarang Poncol / Tawang) are split by the end labels of their through tracks; page 28 repeats its
   diagrams; pages 19 / 35 / 50 need OCR for names (cache tag "layouts"). Single-track mains show arrows both ways
   (LR) or none (Merak line). Consists: rosters.read_consists -> gapeka.db consists (415 trains: cars per set =
   SF / RANGK, locomotive class). Checks (research/layout_checks.py): peak standing trains never exceed Roman tracks
-  (2 exceptions = partly read diagrams BMA, LL); waiting trains fit the longest Roman track in 98.8 % (cars x 21 m +
-  16 m; p5 margin 32 m); the misfits follow the crossing rule above except Cikadongdong (184 m trains vs 2 x 160 m:
-  car length estimate?). 42 timetable stations still without a diagram (e.g. CNP, SB, SBI, RK, GDB, TPK).
+  (298 stations, 0 exceptions); waiting trains fit the longest Roman track in 99.2 % (cars x 21 m + 16 m; p5 margin
+  32 m); every misfit (Rogojampi, Temuguruh, Singosari) follows the crossing rule above. 40 timetable stations still
+  without a diagram (e.g. CNP, SB, RK, GDB, CBN, NMO, Surabaya-Sidoarjo halts-stations).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

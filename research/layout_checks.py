@@ -3,7 +3,11 @@
 1. capacity: the most trains standing at a station at the same time (GAPEKA) vs its Roman (main + siding) tracks
 2. fit: trains that wait for a crossing / overtake vs the station's longest Roman track (consists: cars x 21 m + 16 m
    locomotive; gapeka.db consists, or research/stam.json)
-3. timetable stations (not halts) without a diagram
+3. timetable stations (not halts) without a diagram (stations with a 'periksa lintas' note are drawn elsewhere)
+4. waits by trains that do not fit: user rules (crossing: the long train departs first, the other stops and fits;
+   double / single track transition: a train waiting on its own running track from the double-track side does not
+   need to fit, its rear stands on the double track)
+A station can have different diagrams on different lines; these checks use the one with the most Roman tracks.
 """
 import json
 import os
@@ -69,14 +73,29 @@ for k, v in m.items():
     v = np.array(v)
     print(f"2. fit, {k:12s}: n {len(v)}, train longer than the longest Roman track {np.mean(v < 0):.1%}, "
           f"margin p5 {np.percentile(v, 5):.0f} m")
-for b in sorted(set((b[0], b[2], b[3], b[4]) for b in bad)):
-    print("     ", b)
+dbl = {}
+for a, b_, d in i.execute("select a, b, double_track from sections"):
+    dbl[(a, b_)] = dbl[(b_, a)] = d
+prev_st = {}
+for no, s_, st in g.execute("select train_no, seq, station from stops where kind != 'halt' order by train_no, seq"):
+    prev_st.setdefault(no, []).append(st)
+def transition_ok(no, st):
+    """the train comes from the double-track side of a double / single transition station"""
+    path = prev_st.get(no, [])
+    if st not in path or path.index(st) == 0:
+        return False
+    p = path[path.index(st) - 1]
+    sides = {dbl.get((st, x)) for x in set(n for (a, n) in dbl if a == st)}
+    return dbl.get((p, st)) == 1 and 0 in sides
+for b in sorted(set((b[0], b[1], b[2], b[3], b[4]) for b in bad)):
+    print("     ", b, "OK: waits on its own track at a double/single transition" if transition_ok(b[1], b[0]) else "")
 
 # 3. stations without a diagram
 kind = dict(i.execute("select code, kind from stations"))
 names = dict(i.execute("select code, name from stations"))
 c = Counter(st for (st,) in g.execute("select station from stops where kind in ('stop', 'pass', 'origin_or_end')"))
-miss = [(s, names.get(s), n) for s, n in c.most_common() if s not in roman and kind.get(s) == "station"]
+refs = {s_ for (s_,) in i.execute("select station from station_layout_refs")}
+miss = [(s, names.get(s), n) for s, n in c.most_common() if s not in roman and s not in refs and kind.get(s) == "station"]
 print(f"3. timetable stations (not halts) without a diagram: {len(miss)}")
 print("    ", miss)
 
