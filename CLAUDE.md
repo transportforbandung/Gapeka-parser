@@ -195,7 +195,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   tracks both ways (the reader agrees); Cikarang mains VI eastbound only (pass-through) and VII westbound, VIII
   westbound only: manual/layout_track_directions.csv (page, station, track, usable, main). A missing end label
   (slanted / outside the diagram) is filled with the other neighbour station on that line (halts skipped).
-  After that: crossings with a usable track pair 749 / 753, overtakes 453 / 456.
+  After that: crossings with a usable track pair 749 / 753, overtakes 453 / 456. Then: tall vertical lines (icon
+  boxes) no longer join two diagrams (Bowerno was merged with the Gembong-side diagram below it); page 44 fixes:
+  Mesigit = 'Empl. Mst' I-232 / II-236, Kalimas = the terminus yard X-354 ... I-461 (arrows from the names),
+  Surabaya Pasarturi = VIII-337 ... I-281 (was taken by Kandangan). Now crossings 751 / 753, overtakes 457 / 458;
+  left: Sidotopo (yard drawn with curved ladders, no track readable as usable) and Kretek (IV-335 label not read).
+  'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
+  direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

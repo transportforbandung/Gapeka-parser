@@ -265,7 +265,7 @@ def read_page(page, codes, extra_words=()):
     W = W + [tuple(w[:5]) + (-1, -1) for w in extra_words]          # OCR'd names on outline pages
     segs, chev, boxes, dots, pointers = page_items(page, x_min)
     horiz = [i for i, s in enumerate(segs) if abs(s[1] - s[3]) < 0.4 and abs(s[0] - s[2]) > 4]
-    uf = components(segs)
+    uf = components([s_ if not (abs(s_[0] - s_[2]) < 0.3 and abs(s_[1] - s_[3]) > 8) else (s_[0], -1e5, s_[2], -1e5) for s_ in segs])   # tall vertical lines (icon boxes) link nothing
     tracks = []
     for l in labels:
         cx = (l["x0"] + l["x1"]) / 2
