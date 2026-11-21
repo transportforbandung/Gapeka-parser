@@ -204,6 +204,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   research/kai_jabo_extract.py -> reference/kai_krl_jabodetabek_2026.csv (20382 cells, 1238 train numbers, all in
   gapeka.db). At GAPEKA stops KAI prints the departure (8688) or, at the end, the arrival (1274); 9903 halt times to
   learn from. Basoetta trips carry two numbers (809 Bogor-Duri, 810 Duri-Bandara); KAI's Duri time is 810's departure.
+- KAI Jabodetabek KRL halts vs model (research/jabo_halts.py, 8709 halts in 4346 halt chains): KAI follows the SPLIT
+  rule (like Bandung), not front-loading (Surabaya): GAPEKA's time between the timed stations is shared by the
+  calibrated sub-leg times, 20 s dwell per halt, KAI time = arrival rounded to the minute. Held-out: 75 % exact,
+  99 % within 1 min, bias +0.04 min (front-loaded: 34-41 % exact). The misses sit on the rounding boundary (worst
+  halts bias +-0.5 min); a fitted offset per halt + direction (halt, previous point, next point; median of training
+  residuals) gives 91 % exact, 100 % within 1 min held-out. Raw model sub-legs between halts are ~50 s longer than
+  KAI's (each rest-to-rest sub-leg carries the full leg constants), so KRL halt chains need their own dwell /
+  start-stop constants if absolute times are wanted; the split rule makes this irrelevant for publication.
 - KAI Commuter published timetables (Bandung, Surabaya, Dec 2026): halt time = arrival at the halt, front-loaded:
   previous departure + fixed run time; spare time sits after the halt.
 
