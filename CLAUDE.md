@@ -90,6 +90,11 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Halts between Wonokromo and Sidoarjo are inactive but still in GAPEKA (user): keep them.
 - KA Dinas passing times (model, scaled to the index times) are OK for now (user will check the graph later); pass
   rows without a printed time stay empty (user).
+- Rolling-stock duties (rosters.py, pipeline step 6b): O.18 diagrams are time-bar charts, one row per unit per day.
+  Locomotive pages 1680-1700 (row label = number in the first column; train numbers with names above the bar,
+  KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates
+  station and train number: "Dp 1100 Boo 1145 Jakk"). 345 units (198 loco, 13 KRD, 134 KRL); 97 % of consecutive
+  trains connect (2011 of 2077). Tables roster_units / roster_duties in gapeka.db.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

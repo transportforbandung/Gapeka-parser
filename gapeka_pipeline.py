@@ -16,6 +16,7 @@ Steps
   4  link crossing/overtake notes   -> constraints
   5  extract graph train lines      -> graph_pages, graph_trains, graph_crossings   (optional)
   6  train index (Lampiran IV)      -> train_index; trains.type / class / facultative; KA Dinas trips
+  6b rolling-stock duties (O.18)    -> roster_units, roster_duties (rosters.py: loco / KRD / KRL diagrams)
   7  infrastructure                 -> infra.db   (build_infra.py: graph-sheet margins, manual/*.csv)
   8  rules and fitted model         -> rules.db   (build_rules.py: rules/*.csv + running-time model fitted on the
                                                     timetable; halt rules checked against KAI, reference/)
@@ -1203,6 +1204,39 @@ def extract_graph(db, pages):
     return tid, ok, fail
 
 
+# ---------------------------------------------------------------- 6b. rolling-stock duties (O.18 diagrams)
+def add_rosters(db, pdfs):
+    """roster_units: one locomotive / KRD set / KRL trainset per day (diagram row); roster_duties: its trains in
+    order, with a flag whether the train starts where the previous one ended"""
+    import rosters as ro
+    rows = []
+    for path in pdfs:
+        rows += ro.read_rosters(pymupdf.open(path))
+    db.executescript("""
+    DROP TABLE IF EXISTS roster_units; DROP TABLE IF EXISTS roster_duties;
+    CREATE TABLE roster_units(unit_id INTEGER PRIMARY KEY, kind TEXT, page INTEGER, row INTEGER, unit TEXT);
+    CREATE TABLE roster_duties(unit_id INTEGER, seq INTEGER, train_no TEXT, in_timetable INTEGER, connects INTEGER,
+                               PRIMARY KEY(unit_id, seq));
+    """)
+    first, last = {}, {}
+    for no, st in db.execute("select train_no, station from stops order by train_no, seq"):
+        first.setdefault(no, st)
+        last[no] = st
+    ok = tot = 0
+    for uid, r in enumerate(rows, 1):
+        db.execute("INSERT INTO roster_units VALUES(?,?,?,?,?)", (uid, r["kind"], r["page"], r["row"], r["unit"]))
+        prev = None
+        for k, no in enumerate(r["trains"], 1):
+            con = None
+            if prev in last and no in first:
+                con = int(last[prev] == first[no])
+                ok += con
+                tot += 1
+            db.execute("INSERT INTO roster_duties VALUES(?,?,?,?,?)", (uid, k, no, int(no in first), con))
+            prev = no
+    return len(rows), ok, tot
+
+
 # ---------------------------------------------------------------- 7. infrastructure, rules, model estimates
 def model_stages(db, out, pdfs, dwell, here):
     """[7] infra.db from the graph sheets, [8] rules.db (hand rules + fitted model), [9] halt times and KA Dinas
@@ -1330,6 +1364,9 @@ def main(argv):
     print(f"[6] train index: {n_idx} entries; KA Dinas added {n_dinas}; types {types}; facultative "
           f"{db.execute('select count(*) from trains where facultative=1').fetchone()[0]}; trains without an index "
           f"entry {untyped}; in the index but not on the timetable pages: {missing}")
+    n_units, ok, tot = add_rosters(db, pdfs)
+    kinds = dict(db.execute("select kind, count(*) from roster_units group by 1"))
+    print(f"[6b] rolling-stock duties: {n_units} units {kinds}; consecutive trains connect {ok} of {tot}")
     if model and graph:
         model_stages(db, out, pdfs, dwell, os.path.dirname(os.path.abspath(__file__)))
     db.commit()

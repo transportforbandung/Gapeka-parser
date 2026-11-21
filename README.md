@@ -133,6 +133,7 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 | `rules/*.csv` | Hand rules: station zones, buffers, wait gaps, halt rules per KAI region, KAI halt times (`halt_offsets.csv`) |
 | `reference/*.csv` | KAI published timetables used to check the halt rules |
 | `rules.db` | Rules database (hand rules + fitted values) |
+| `rosters.py` | Reads the rolling-stock duty diagrams (locomotive, KRD, KRL) |
 | `train_index.py` | Reads the train-number index (Lampiran IV): class, regular / facultative, KA Dinas |
 | `build_infra.py` | GAPEKA graph sheets → `infra.db` (stations, km, sections, speed limits, gradient, double track) |
 | `manual/*.csv` | Hand corrections for `infra.db` (station aliases, section lengths / Umum, restrictions) |
@@ -156,6 +157,9 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 - `schedule`: view of `stops` with the estimated halt times filled in. **Use this one for exports.**
 - `schedule_hhmm`: the same with times as HH:MM, as KAI publishes them (calculations keep seconds)
 - `train_index`: the train-number index as printed (number, regular / facultative, name, route, km, times, class)
+- `roster_units`, `roster_duties`: rolling-stock duties from the O.18 diagrams (one locomotive, KRD set or KRL
+  trainset per day and the trains it works in order, including KA Dinas moves; `connects` = the train starts where
+  the previous one ended)
 - `stations`, `station_links`: station codes, names and distances
 - `halt_est`, `halt_fit`: halt time estimates and the fitted running-time models
 - `constraints`: crossings and overtakes from the remarks
