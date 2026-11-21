@@ -82,6 +82,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   line with the halts (JNG-KLD-BUA-KLDB-CUK-RWB-KRI-BKS, used by KRL) and the new direct intercity line (JNG-BKS
   14.653 km, Umum 120, used by intercity and freight, which list JNG-BKS directly). Both marked double track in
   manual/section_overrides.csv (field double_track).
+- Single track (user): Cicalengka - Banjar - Gandrungmangu - Kawunganten - Jeruklegi - Kroya (the sheet's hu/hi tags
+  on Gandrungmangu-Jeruklegi are not double track): manual double_track 0. Kutoarjo-Purworejo has no speed data.
+  Kadipiro-Solo Balapan Umum 120 (cell empty); its restrictions are directional: 40 at km 104.800-107.200 "Dari KDO
+  ke SLO", 30 at km 107.315-107.799 "arah SK" (stored with the note, applied to both directions for now).
+  Kadipiro-Purwosari is a false pair (not adjacent; Purwosari is after Solo Balapan): manual delete.
+- Halts between Wonokromo and Sidoarjo are inactive but still in GAPEKA (user): keep them.
+- KA Dinas passing times (model, scaled to the index times) are OK for now (user will check the graph later); pass
+  rows without a printed time stay empty (user).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

@@ -825,6 +825,10 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     if os.path.exists(pth):
         for r in csv.DictReader(open(pth)):
             a, b = r["from"], r["to"]
+            if r["km"].strip().lower() == "delete":                 # a false pair (stations not adjacent)
+                gone = sections.pop((a, b), None) or sections.pop((b, a), None)
+                qa.append(("section deleted (manual)", f"{a}-{b}", r["note"] if gone else "not found"))
+                continue
             old = sections.pop((a, b), None) or sections.pop((b, a), None)
             base = old or dict(umum=None, restr=[], h_a=None, h_b=None, blocks=[], ruling=None, line=None, page=None,
                                via=None, km_a=None, km_b=None)
