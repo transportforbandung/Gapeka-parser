@@ -267,10 +267,12 @@ Read this first. It records decisions and findings from earlier sessions so they
   solved by geser (shift the departure at the origin), ulur (lengthen a stop) or batalkan (cancel); an extra train
   (KLB) is held at a station so regular trains stay on time; conflicts propagate (simulator actions).
 - Single track: crossing / overtaking only at stations; one train per petak jalan; the longest petak sets capacity.
-  Teaching example: the follower leaves B only when the leader is at C + 4 min safety. Tested on GAPEKA 2026
+  Teaching example (only an example, user): the follower leaves B when the leader is at C + 4 min safety. Use the
+  values learned from the GAPEKA graph, not the 4 min. Tested on GAPEKA 2026
   (research/headway_single.py, consecutive same-direction trains between timed stations): single track never has two
   trains in one section (0 of 908); gap >= 4 min in 97.5 %, the rest exactly 2-3 min (the 2 min dispatcher gap we
-  already use for waits); double track allows following inside the section (3 % gap < 0, block signals).
+  already use for waits). Simulator: following gaps come from the learned GAPEKA data (per line / section), not
+  from the teaching example; double track allows following inside the section (3 % gap < 0, block signals).
 - Double track: no crossings; overtakes only for speed differences or a late train. Turnaround trains wait for the
   incoming trainset (rosters). Window time (track work) forces re-scheduling for that day only.
 
