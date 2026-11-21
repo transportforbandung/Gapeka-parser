@@ -260,6 +260,13 @@ def page_profile(page, use_ocr=False):
                         bl.append(dict(o=round(o, 3), tag=b["tag"], no=b["no"], o_from_y=round(o_y, 3), src="km"))
                 elif 0 < frac < 1:
                     bl.append(dict(o=round(o_y, 3), tag=b["tag"], no="", src="sheet position"))
+        # automatic block signals have no km on the sheet (user): space them evenly over the section, per track
+        for tg in ("hu", "hi"):
+            auto = sorted((b for b in bl if b["src"] == "sheet position" and b["tag"] == tg), key=lambda b: b["o"])
+            for i, b in enumerate(auto, 1):
+                b["o_sheet"] = b["o"]
+                b["o"] = round(Lp * i / (len(auto) + 1), 3)
+                b["src"] = "automatic, evenly spaced"
         out.append(dict(a=A["code"], b=B["code"], up=kb > ka, km=round(abs(kb - ka), 3), umum=u, restr=rs,
                         h_a=elev_at(A["y"]), h_b=elev_at(B["y"]), blocks=bl))
     return out
