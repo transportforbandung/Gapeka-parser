@@ -256,6 +256,12 @@ def page_profile(page, names, ocr=None):
         split = (rx + 14) if not umh else (umh[0][0] - 3)
     speeds = [w for w in ints if split is not None and w[0] < split]
     umum = [(cy(w), int(w[4])) for w in ints if split is not None and w[0] >= split]
+    # numbers of the curve column (the one labelled HILIR / HULU, e.g. "2.000" on page 38) look like km values;
+    # they must not be paired as restriction ends
+    curve_x = [w[0] for w in left if w[4].upper() in ("HILIR", "HULU")]
+    if curve_x:
+        cx = statistics.median(curve_x)
+        tg = [w for w in tg if abs(w[0] - cx) > 6]
     restr, used = [], set()
     for s2 in sorted(speeds, key=cy):
         # the speed is printed midway between its own start and end km: take the pair of consecutive unused km
@@ -288,7 +294,7 @@ def page_profile(page, names, ocr=None):
         ux0 = min(w[0] for w in ints if w[0] >= split) - 3
         for d in page.get_drawings():
             for it in d["items"]:
-                if it[0] == "l" and abs(it[1].y - it[2].y) < .3 and min(it[1].x, it[2].x) <= ux0 + 4 \
+                if it[0] == "l" and abs(it[1].y - it[2].y) < 1.0 and min(it[1].x, it[2].x) <= ux0 + 4 \
                         and max(it[1].x, it[2].x) >= ux0 + 8:
                     hl.append(it[1].y)
     hl = sorted(set(round(y, 1) for y in hl))
@@ -296,8 +302,8 @@ def page_profile(page, names, ocr=None):
     def umum_at(y):
         lo = max([h for h in hl if h <= y] or [-1e9])
         hi = min([h for h in hl if h > y] or [1e9])
-        c = [v for yy, v in umum if lo <= yy <= hi]
-        return c[0] if c else None
+        c = [(abs(yy - y), v) for yy, v in umum if lo <= yy <= hi]
+        return min(c)[1] if c else None
 
     # ---- ruling gradient ("Lereng Penentu", per mil): first column under the first "Lereng" header
     hdr = sorted([w for w in ws if w[4] == "Lereng"], key=lambda w: w[0])
@@ -314,7 +320,7 @@ def page_profile(page, names, ocr=None):
                 grad_tok.append((cy(w), float(w[4].replace(",", "."))))
         for d in page.get_drawings():
             for it in d["items"]:
-                if it[0] == "l" and abs(it[1].y - it[2].y) < .3 and min(it[1].x, it[2].x) <= gx + 2 \
+                if it[0] == "l" and abs(it[1].y - it[2].y) < 1.0 and min(it[1].x, it[2].x) <= gx + 2 \
                         and max(it[1].x, it[2].x) >= gx + 8:
                     grad_hl.append(round(it[1].y, 1))
         grad_hl = sorted(set(grad_hl))

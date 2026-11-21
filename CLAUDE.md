@@ -52,6 +52,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   infra.db keeps both as section variants (variant + context = stations of the sheet table); pick the variant whose
   context holds the train's previous / next station.
 - Umum (user): Kebasen-Notog 80; Kemranjen-Sumpiuh 120 (Umum cell Kebasen-Kutoarjo). In manual/section_overrides.csv.
+- Umum (user): Masaran (from Kemiri) to Walikukun is 120 (one tall Umum cell; its bottom rule at Walikukun is
+  slightly slanted, so rules are now horizontal within 1 pt). The 105 near Sragen is Sragen-Kebonromo only
+  (km 230.000-229.400, hu). Restriction ends are never taken from the curve column (labelled HILIR / HULU).
+  Ngunut-Wlingi is Umum 90 (sheet); Panarukan-Kalisat has no Umum printed.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
