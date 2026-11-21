@@ -1,0 +1,5 @@
+region,applies_to,method,dwell_s,published,source,note
+bandung,service:Commuter Line Bandung Raya;Commuter Line Garut,split-min,0,arrival rounded,KAI timetable (Wilayah 2 Bandung 1 Des 2026),"the SHORTEST time of the same leg (any train of that type) is shared by the model's sub-leg times, counted from the train's own departure; 79 % exact, all within 1 min (178 halts)"
+surabaya,service:Commuter Line Dhoho;Commuter Line Penataran;Commuter Line Jenggala;Commuter Line Supas;Commuter Line Arjonegoro;Commuter Line Blorasura,split,0,arrival rounded,KAI timetable (Wilayah 8 Surabaya 1 Des 2026),"the train's own leg time shared by the model's sub-leg times: 84 % exact, all within 1 min (56 halts); front-loaded 79 % (the research model had front 86 %: small sample)"
+jabodetabek,type:krl,split,20,arrival rounded,KAI timetable (Jabodetabek / Nambo / Basoetta 1 Des 2026),"own leg time shared, 20 s dwell, plus fitted per-halt offsets: 91 % exact, 100 % within 1 min (9759 halts)"
+default,*,split,20,arrival rounded,assumed (same as Jabodetabek),no published KAI halt times to check against

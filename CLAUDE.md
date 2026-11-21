@@ -4,14 +4,20 @@ Read this first. It records decisions and findings from earlier sessions so they
 
 ## Decided: three outputs, built in stages (user, this round)
 
-1. **Infrastructure** `infra.db` (`build_infra.py`, DONE v1): from the graph sheets. Lines (one per sheet group),
+1. **Infrastructure** `infra.db` (`build_infra.py`, DONE): from the graph sheets. Lines (one per sheet group),
    stations (code, name, kind, CTC, sheet name), km + elevation per line, sections (sheet order a = upper row,
    b = lower row; HULU = trains a -> b), Umum, ruling gradient, restrictions (offsets from a, km, tracks, cell note),
    block signals, double track (header list "JALUR GANDA" OR hu/hi tags; header lists are not complete, e.g.
    Jatinegara-Bekasi), raw header (dispatching stations "Ks X untuk lintas ..."), QA table. Manual infra fixes are
    CSV in `manual/` (station_aliases, pair_overrides, restriction_overrides), stored with source 'manual: ...'.
    OCR (rapidocr-onnxruntime) is required for outlined pages; results cached in .cache/ocr. Runs in ~25 s (cached).
-2. **Timetable** `gapeka.db` (`gapeka_pipeline.py`, to improve): trains, stops, vmax, notes. Add: train type
+2. **Timetable** `gapeka.db` (`gapeka_pipeline.py`, DONE; step [6]: train index (train_index.py, PDF
+   pages 1825-1864, Lampiran IV, 2353 entries, every gapeka.db train is in it) -> trains.type / klasifikasi / kelas /
+   facultative (209) / operator / index_km, table train_index, 550 KA Dinas trips added as trains (type dinas, stops
+   kind 'via' between start and end, timed in step 9), view schedule_hhmm. Step [6] runs last so the distance / halt /
+   note steps see exactly the old trains; exporter output verified byte-identical. Train 90 (Gaya Baru Selatan) was lost
+   because its header words differ by 0.1 pt in height: text lines are now grouped by centres within 1.5 pt (fixed,
+   orphan rows 123 -> 0). trains, stops, vmax, notes. Add: train type
    (krl / commuter / intercity / freight / dinas), facultative flag (F trains: run when KAI wants, still in all
    calculations), KA Dinas (R... trainset, L... locomotive movements; only drawn on the graph sheets and listed in the
    train-number / roster tables near the end of the PDF, e.g. "R49 L49-2" on the locomotive roster from page 1680,
@@ -29,7 +35,22 @@ Read this first. It records decisions and findings from earlier sessions so they
   cross tables. Bandung row shares its line with a vertical label ("GELANG RAJA ..."): longest-matching word run.
   Duplicate names (Karangsari KRR / KRAI, Larangan LR / LRA) are resolved by timetable neighbours. Bypass sections
   from a row missed on one time page are dropped (only if no train runs them and other sections give the same km).
-  Coverage: 97.2 % of timetable legs by one section, 98.0 % with chains; 17 pairs uncovered (branches, OCR rows).
+  Coverage: 99.3 % of timetable legs by one section, 100 % with chains (see the coverage notes below).
+
+- Housekeeping (done): `check.py` (regression checks; `--run` rebuilds; `--update-baseline` accepts new TfB exports
+  in tests/baseline/), `requirements.txt`, the old distance-fit halt step only runs with --no-model, the
+  gapeka_missing_links.csv file is gone (infra.db's qa table lists uncovered pairs), research/README.md.
+
+## Next project: schedule simulator (planning stage, user)
+
+- Goal: a website where users modify / create trains and simulate them in a GAPEKA-style graph, timed with all
+  researched GAPEKA behaviour (running times, halts, waits, conflicts).
+- GAPEKA data is public (user): shipping the full data package to every browser is fine.
+- Direction agreed so far: the pipeline (this repo) builds one data package per edition offline; the simulation
+  engine runs in the user's browser (TypeScript / WASM in a Web Worker), checked against the Python engine with a
+  "replay the official GAPEKA" test; static hosting; a server only later for accounts / shared scenarios.
+- Open decisions: who uses it (TfB internal or public), starting scope (all of Java or one region), check-only
+  conflicts vs automatic re-planning first, station track counts (not in the GAPEKA margins).
 
 ## Domain rules from the user (do not re-guess these)
 
@@ -58,6 +79,114 @@ Read this first. It records decisions and findings from earlier sessions so they
   Ngunut-Blitar Umum 120, Blitar-Wlingi 90 (user). Page 41 draws its Umum / gradient cells as rectangles: cell
   borders are read from lines AND rectangle edges (also fixed page 41 gradients, e.g. Madiun-Babadan 4, Caruban-Saradan 8).
   Panarukan-Kalisat has no Umum printed.
+- Timetable DB policy (user): printed GAPEKA times are used as they are for every timed station; the physics model
+  only fills halts (and KA Dinas passing points, which have no printed times). Physics is for other uses later.
+  Verified: estimates never replace a printed time (halt_est = 9706 halts + KA Dinas passes).
+- Stations with two or more km values are junctions or historical termini (user): both values are the same station
+  on different lines; keep both (line_stations.km / km_alt; an extra km beside a known station joins that row, e.g.
+  Krenceng). Angke-Kampungbandan is 4.102 km (user; KPB 1.364 is on the Jakarta Kota-Cikampek line, 0.363 another
+  chainage near Jakarta Gudang): manual/pair_overrides.csv. KPB km 0.363 is probably the other yard track of
+  Kampungbandan (user); the unnamed sheet row ?row491 (page 19) next to it has no effect on calculations.
+- Names drawn as outlines on text pages (Tanjung p29, Cilaku p28) and missed by OCR (Karangtengah: italic km;
+  Ijo: spaced letters in a dashed box): build_infra OCRs single name / km cells where the Letak column has a km
+  without a name or a name without a km; unreadable names are taken from the timetable (the one station all trains
+  run between the neighbouring rows). Soka: name row without km, its km (447.916) printed below the signal lines:
+  SRW-SOA 5.041, SOA-KM 2.892 (timetable confirms 7.933 km SRW-KM; the old manual 3.396 / 1.645 was wrong, removed).
+  Coverage now 99.3 % of legs by one section, 100 % with chains.
+- Jatinegara-Bekasi is quadruple track (user): pages 13-18 (1-2A..1-2F) draw both double tracks: the old commuter
+  line with the halts (JNG-KLD-BUA-KLDB-CUK-RWB-KRI-BKS, used by KRL) and the new direct intercity line (JNG-BKS
+  14.653 km, Umum 120, used by intercity and freight, which list JNG-BKS directly). Both marked double track in
+  manual/section_overrides.csv (field double_track).
+- Single track (user): Cicalengka - Banjar - Gandrungmangu - Kawunganten - Jeruklegi - Kroya (the sheet's hu/hi tags
+  on Gandrungmangu-Jeruklegi are not double track): manual double_track 0. Kutoarjo-Purworejo has no speed data.
+  Kadipiro-Solo Balapan Umum 120 (cell empty); its restrictions are directional: 40 at km 104.800-107.200 "Dari KDO
+  ke SLO", 30 at km 107.315-107.799 "arah SK" (stored with the note, applied to both directions for now).
+  Kadipiro-Purwosari is a false pair (not adjacent; Purwosari is after Solo Balapan; page 38: the Adi Soemarmo -
+  Kadipiro table ends with an up triangle, the Purwosari - Solo Kota table starts with a down triangle). build_infra
+  never pairs an up-triangle row with the following down-triangle row (manual delete kept as a backup).
+  OCR names clipped at both ends match a station containing them ("rencen" = Krenceng); spaced letters on text
+  pages are joined ("S r o y o" = Sroyo). The unnamed Kampungbandan yard-track row keeps its empty name (user).
+- Halts between Wonokromo and Sidoarjo are inactive but still in GAPEKA (user): keep them.
+- KA Dinas passing times (model, scaled to the index times) are OK for now (user will check the graph later); pass
+  rows without a printed time stay empty (user).
+- Rolling-stock duties (rosters.py, pipeline step 6b): O.18 diagrams are time-bar charts, one row per unit per day.
+  Locomotive pages 1680-1700 (row label = number in the first column; train numbers with names above the bar,
+  KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates
+  station and train number: "Dp 1100 Boo 1145 Jakk"). 345 units (198 loco, 13 KRD, 134 KRL); 97 % of consecutive
+  trains connect (2011 of 2077). Tables roster_units / roster_duties in gapeka.db.
+- Priority (user): a lower train number has priority at crossings and overtakes; the higher number is usually the
+  one that stops and waits. Data (research/priority_numbers.py, priority_rules.py, waiting train from the notes):
+  overtakes 98 % (564; 100 % between different train types, 89 % within a type); crossings where only one train
+  stops 74 % (82 % between types, 67 % within a type); both-stop crossings 66 % (weak test: there "waiting" means
+  arriving first). Ranking by type / class (Argo > Eksekutif > ...) / regular-before-facultative before the number
+  adds nothing. Crossing exceptions are real waits (median 6 min, not at the train's usual stops): on single track
+  the train that reaches the loop first has to stop, so timing decides where priority cannot. The timetable data
+  needs no change (the notes say who waits); the simulator uses this rule to decide who yields.
+  User: real-world data follows the timing (sometimes the first train to arrive is the one that stops; keep the
+  printed waits); the simulation auto-calculates with the number rule. Written as hand rules in rules/priority.csv
+  (rules.db table priority): overtake -> higher number waits; crossing -> lower number keeps running, unless it
+  reaches the loop first while the other is still in the section, then the first to arrive waits; equal numbers ->
+  regular before facultative (assumed).
+- Station track diagrams (right of each graph sheet, user): label "track-effective length (m)" ("I-255,9").
+  Roman numerals = main or siding tracks; Arabic = stabling / yard only (no crossing / overtaking use). Arrows show
+  the NORMAL running direction; Indonesia runs on the RIGHT track on double track. Main straight through tracks are
+  usually one direction only (from where normal trains come to where they go); some sidings can take the other
+  direction if the layout allows. Box with a dot and a horizontal line = PPKA (station master) post; box with a dot
+  only = PAP. The icon boxes further right are facilities for staff: not relevant. A train must fit the track
+  (effective length) to wait for a crossing / overtake (ignore special cases). Diagrams show no speeds.
+  Train length: stamformasi tables (PDF ~1705-1745: loco type, cars per class, set length in cars).
+  Crossing with a train that does not fit (user): the long train departs first, the other train must stop and fit
+  (or the two use non-adjacent tracks). Overtake: every train must fit. Rules in rules/priority.csv.
+  Double / single transition (user, Cikadongdong): a train waiting on its own running track from the double-track
+  side never needs to fit (rear on the double track); the through train uses the other track.
+  'Emplasemen X periksa (pada) lintas Y' notes (user): X's diagram is drawn on line Y; skip X there (infra.db
+  station_layout_refs; the note takes X's row so no diagram there is assigned to X by position). A station can
+  have completely different diagrams on different lines (two levels, isolated tracks): keep one per line
+  (station_layouts.line_id), never merge them.
+  Extraction (station_layouts.py, called by build_infra): 419 diagrams / 388 stations / 1661 tracks -> infra.db
+  station_layouts (evidence = how the station was identified: neighbours at both ends, one end + own name, own name,
+  pointer arrow, nearest row; weak ones in the qa table) and station_tracks (track, kind roman / yard, length,
+  arrows L / R / LR, towards = neighbour of the normal direction, through = runs over the whole diagram). Notes:
+  end labels name the next STATIONS (halts skipped); some sheets draw tracks as filled outlines with arrowheads,
+  hairline outlines or thin 0.28 pt lines, filled outlines can hold several tracks
+  and draw long edges as 2.6 pt pieces (Cikadongdong III-260 was lost), chevrons up to 4 pt; double-track stations can be drawn as two unconnected halves; touching
+  diagrams (Semarang Poncol / Tawang) are split by the end labels of their through tracks; page 28 repeats its
+  diagrams; pages 19 / 35 / 50 need OCR for names (cache tag "layouts"). Single-track mains show arrows both ways
+  (LR) or none (Merak line). Consists: rosters.read_consists -> gapeka.db consists (415 trains: cars per set =
+  SF / RANGK, locomotive class). Checks (research/layout_checks.py): peak standing trains never exceed Roman tracks
+  (298 stations, 0 exceptions); waiting trains fit the longest Roman track in 99.2 % (cars x 21 m + 16 m; p5 margin
+  33 m); every misfit (Rogojampi, Temuguruh, Singosari, Kalisetail) follows the crossing rule above. Fit uses the
+  diagram of the train's line (a 'periksa' note copies the other line's diagram, user). Reader also handles: pointer
+  arrows from a name to a displaced diagram, combined end labels (WDW/TG), own-name labels only when on the
+  station's own row and not italic, Y-numbered yard tracks. Manual: layout_station_fixes.csv (which station),
+  layout_label_fixes.csv (misprinted end label, e.g. Gedebage Gdb -> KAC), layout_tracks.csv (unreadable tracks).
+- Cipeundeuy (CPD, user): every train stops at least 10 min for a brake check (summit 768 m between 25 permil
+  grades). GAPEKA: all 30 trains stop, 10-23 min, median 10; the only such station in Java. rules/mandatory_stops.csv.
+- Station diagrams (user): A = Surabaya Kota, B = Benteng, C = Sidotopo on page 44 (manual/layout_station_fixes.csv);
+  the 'Sb (Hilir)' label near Surabaya Kota belongs to another station. Italic names on the sheets are halts (no
+  diagram). Track names Y1..Y3 (Surabaya Kota) are yard tracks.
+- Halts on the graph sheets (user): their row line is drawn DASHED / DOTTED (e.g. Pondok Rajeg, Gunung Putri p19),
+  and their names are often in italics; halts have no track diagram. Page 19: Cibinong = II-403 / I-454, Nambo =
+  I-553 ... 8-530 (user). Page 35: Karangtalun I-368 II-656 III-628 IV-630 + yard 5-425 / 6-375 (cement loading,
+  labels too small to read: manual/layout_tracks.csv); the diagram below it is Gumilir; Balapulang has none.
+  Batutulis: one through track, no siding (manual). Saradan's diagram (ends Crb / Bgr): Wilangan has none.
+  Remaining timetable stations without a diagram (29) all have none on the sheet (halts, Sukabumi-line stops, Soka,
+  Cisomang, Sadang, ...).
+- Dashed connections on a station diagram = out of service (user, Dawuan IV-388 / I-288). station_tracks.out_of_service
+  (a non-through track reached only by dashed lines, dash pattern [2.4 2.4]); roman_tracks / longest_roman_m count
+  usable tracks only. Found: Dawuan IV, I; Pabuaran IV, I. Dawuan in GAPEKA: 158 intercity + 32 freight pass, 13
+  Walahar / Jatiluhur commuters stop 1 min on the mains, no waits: a two-track station in practice.
+- Track use by direction (user, Dawuan): a train only moves forward, so a track is usable in a direction only if
+  switches lead onto it from that direction's main and on to the exit main; through mains only in their arrow
+  direction. Dawuan (if in service): IV westbound only (no crossover from the west), III westbound, II eastbound,
+  I both ways. station_layouts.usable_directions() derives this from the switch geometry (connections = chains of
+  curve pieces, joined at ends and mid-way on ladders; tiny flat steps of polyline curves count; entry / exit mains
+  = tracks at that diagram edge with the direction's arrow, else every track there): station_tracks.usable (L / R
+  on the sheet), usable_towards (neighbour stations), enter (directions that can get onto it, termini / dead ends).
+  research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the direction 441 / 456 (97 %),
+  crossings with a usable track pair 697 / 732 (95 %); misses: Ciroyom (21 crossings, ask user), Cikarang (switches
+  not read), Malang Kotalama, Sumberpucung, Haurgeulis, Babat, Tanjungrasa. Roman tracks usable in no direction:
+  184 of 1635 (mostly termini and big yards).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
@@ -76,11 +205,11 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Semarang Tawang east side, west of the crossover: 30 km/h at km 0.400-0.800 (Tawang-Alastua). The sheet tags it
   hulu only, but GAPEKA slows westbound through trains there too; applied to both tracks as a manual override
   (user agreed: "if that's what the data proves"). Intercity through from the east -83 s -> +21 s.
-- Manual overrides of sheet restrictions live in manual/restriction_overrides.csv (moved from research/rules) (source = manual) and are
-  applied by physics_model.py on load, so re-extracting the sheets never loses them.
+- Manual overrides of sheet restrictions live in manual/restriction_overrides.csv (source = manual) and are
+  applied by build_infra.py when infra.db is built, so re-extracting the sheets never loses them.
 - Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
   GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"
-  (+120 s per leg, research/rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
+  (+120 s per leg, rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
 - Error sign convention in reports: model minus GAPEKA; minus = GAPEKA slower (allows more time) than physics.
   Say this explicitly to the user.
 - Yogyakarta freight: same tracks as other trains (user). Most freight services (Bungtalun, Karsolo, Kalem,
@@ -133,7 +262,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   departures; "overtaker reaches next station + ~0.5 min" fits best (40 %) where blocks are known; waiting trains
   (mostly freight) leave 5-8 min after the last train passed and ~20 min before the next one. Planners seem to work
   from the station lines of the graph even on double track.
-- Waiting-train departure rules (research/wait_fix*.py, passenger trains; gaps in research/rules/wait_gaps.csv):
+- Waiting-train departure rules (research/wait_fix*.py, passenger trains; gaps in rules/wait_gaps.csv):
   crossing, other passes: other pass + 2 min (89 % exact). Crossing, both stop: if the other train dwells <= 2 min
   the waiter leaves 2 min after the other DEPARTS (sequential departures), else 2 min after it ARRIVES (48 -> 80 %).
   Overtake: overtaker at next block point + gap per line and track (default single 2, double 2.5; Cikampek-Bandung 0,
@@ -145,7 +274,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   the km column tolerance is +-9 pt, OCR names are cleaned (stray marks from dashed CTC boxes, full-width letters).
   physics_model.profile() derives missing pairs: join through one sheet station (sheet wins over gapeka.db),
   split a sheet pair by gapeka.db distances or by shortest timetable running times, last resort gapeka.db
-  distance; manual pairs in research/rules/pair_overrides.csv (Sruweng-Soka-Kebumen from signals at Soka).
+  distance; manual pairs in manual/pair_overrides.csv.
   Legs with sheet data 85 % -> 99 % (missing only airport/JIS/YIA/Larangan-Songgom/Cibadak/Indro branches).
   Held-out, no notes: 81 / 15 / 4 % on 6001 legs.
 - Ka Feeder runs like an EMU (KRL accel/brake): physics bias +64 s -> +21 s, > 1 min 75 -> 25 % (EMU_LIKE in relearn).
@@ -158,7 +287,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   consistent bias worth checking for limits: Leces-Malasan, Lawang-Singosari, Kalisat-Kotok, Arjasa-Kotok,
   Malasan-Ranuyoso. (KLT is Kalisat, not Klakah: look station names up, never guess them from codes.)
 - Renamed stations: Klakah (KK in the timetable) is called Lumajang on the graph sheet (user). Aliases live in
-  research/rules/station_aliases.csv (copy next to line_profile.py when running it); RDA-KK 11.506 km, KK-RN 4.903 km.
+  manual/station_aliases.csv; RDA-KK 11.506 km, KK-RN 4.903 km.
 - Gradient check (research/grade_check.py, single-section pass->pass legs): the timetable does NOT lower the speed
   limit on steep sections (vmax < Umum only 3-14 % there vs 78 % on flat); instead GAPEKA adds time symmetrically
   uphill and downhill: time / time-at-limit 1.13 on flat (4.6 s/km), 1.22-1.29 at |grade| >= 5 permil (10-13 s/km).
@@ -170,13 +299,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   70 at km 211.4-209.2 on Kalisat-Kotok).
 - Dashed station boxes on the graph sheets = centrally controlled stations (CTC) (user). The marks OCR adds
   around names (":", "I", "F") come from these dashed boxes, not from halts. 26 CTC stations detected on the text
-  pages (Cikampek-Cirebon, Klaten-Solo-Sragen; OCR pages not yet), stored in research/rules/station_attributes.csv.
+  pages (Cikampek-Cirebon, Klaten-Solo-Sragen; OCR pages not yet), stored in rules/station_attributes.csv.
   Overtakes on double track: CTC releases the waiting train a bit sooner and more consistently (median +3.0 vs
   +4.0 min after the next block point; 28 % vs 6 % within 0.5 min; n = 50). No crossings at CTC stations found.
 - User decisions (this round): freight calculation is on hold (freight hardly follows GAPEKA; 1 min error is fine).
   Walahar and Jatiluhur are locomotive-hauled (stay in loco/KRD). Bandung halt misses: user does not know, leave.
   Kotok: covered by the gradient allowance (Kalisat-Kotok residual 77 s -> 21-35 s), no manual rule.
-- Slow-zone rules (research/fit_slow.py, fitted from training residuals; research/rules/station_buffers.csv and
+- Slow-zone rules (research/fit_slow.py, fitted from training residuals; rules/station_buffers.csv and
   section_buffers.csv): terminus time Gambir intercity +139 s arr / +97 s dep, Pasarsenen +124 / +147, Surabaya Kota
   commuter +117 / +115 (busy termini, trains held at the home signal); Ciroyom commuter stops +47 arr / +86 dep;
   Sukabumi line intercity +10.5 s/km; Prupuk-Purwokerto intercity +3.3 s/km. Rule kinds in relearn.py: buffer,
@@ -190,11 +319,28 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Errors below 0.5 min are acceptable (GAPEKA rounds to whole minutes). Goal: shrink the 0.5 to 1 min band
   and almost eliminate errors above 1 min.
 
+## Reference documents (user, Nov 2026): PM 110/2017, ITB "Perencanaan Operasi KA", PTDI "Pembuatan Gapeka"
+- PM 110/2017 Pasal 11(2): train numbers follow the train hierarchy -> confirms "lower number has priority".
+  Graph line styles: solid = passenger, dashed = freight, cross marks + "F" = facultative. Running time is set from
+  infrastructure / rolling-stock speed, train speed, distance and service type (Pasal 10).
+- Planning = minimum technical running time + time supplement (our calibration margin / buffers). Conflicts are
+  solved by geser (shift the departure at the origin), ulur (lengthen a stop) or batalkan (cancel); an extra train
+  (KLB) is held at a station so regular trains stay on time; conflicts propagate (simulator actions).
+- Single track: crossing / overtaking only at stations; one train per petak jalan; the longest petak sets capacity.
+  Teaching example (only an example, user): the follower leaves B when the leader is at C + 4 min safety. Use the
+  values learned from the GAPEKA graph, not the 4 min. Tested on GAPEKA 2026
+  (research/headway_single.py, consecutive same-direction trains between timed stations): single track never has two
+  trains in one section (0 of 908); gap >= 4 min in 97.5 %, the rest exactly 2-3 min (the 2 min dispatcher gap we
+  already use for waits). Simulator: following gaps come from the learned GAPEKA data (per line / section), not
+  from the teaching example; double track allows following inside the section (3 % gap < 0, block signals).
+- Double track: no crossings; overtakes only for speed differences or a late train. Turnaround trains wait for the
+  incoming trainset (rosters). Window time (track work) forces re-scheduling for that day only.
+
 ## Facts about the PDFs
 
 - Page numbers: use 1-based PDF page numbers when talking to the user. `gapeka.db` page labels ("0:34")
   are 1-based; pymupdf indexes are 0-based.
-- Graph sheets are PDF pages 7 to 51 (15 line groups, each over several time pages). Pages 19 to 24
+- Graph sheets are PDF pages 7 to 51 (13 line groups, each over several time pages). Pages 19 to 24
   (Kampungbandan, Duri, Tanahabang, Manggarai) and 35 to 37 (Prupuk, Purwokerto, Kroya, Kutoarjo) draw
   station names as outlines, not text: OCR is needed (rapidocr-onnxruntime works, ships its own models).
 - The margin "Jarak" column gives station-to-station distances that skip halts; use the "Letak" km positions.
@@ -212,10 +358,12 @@ Read this first. It records decisions and findings from earlier sessions so they
   residuals) gives 91 % exact, 100 % within 1 min held-out. Raw model sub-legs between halts are ~50 s longer than
   KAI's (each rest-to-rest sub-leg carries the full leg constants), so KRL halt chains need their own dwell /
   start-stop constants if absolute times are wanted; the split rule makes this irrelevant for publication.
-- KAI Commuter published timetables (Bandung, Surabaya, Dec 2026): halt time = arrival at the halt, front-loaded:
-  previous departure + fixed run time; spare time sits after the halt.
+- KAI Commuter published timetables (Bandung, Surabaya, Dec 2026): halt time = arrival at the halt. Current rules
+  (rules/halt_rules.csv, pipeline model): Bandung split-min (shortest leg time of the same leg shared, no dwell)
+  79 % exact; Surabaya split (own leg time, no dwell) 84 % (front-loaded 79 %, 56 halts only); Jabodetabek split +
+  20 s dwell + fitted offsets 90 % held-out. The older research notes below (front-loaded Surabaya) are superseded.
 
-## Research results (scripts in `research/`, not yet in the pipeline)
+## Research results (scripts in `research/`; the model is now in the pipeline as gapeka_model.py)
 
 - `research/line_profile.py`: extracts the sheet margins (585 station pairs, 352 restrictions) to `line_profile.json`.
 - `research/physics_model.py`: running-time simulation: speed cap = min(timetable vmax, Umum, restriction on the
@@ -246,7 +394,7 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Held-out, legs without notes: physics + calibration 63 / 25 / 12 %; with corrections 80 / 16 / 4 %
   (< 0.5 / 0.5-1 / > 1 min). KRL 90 / 8 / 2.
 - Timetable vmax on row i applies to the section i -> i+1 (tested against 'before' and 'min': slightly best).
-- Station zones (draft rules table): research/rules/station_zones.csv, used via rules.json (RULES env var).
+- Station zones: rules/station_zones.csv (pipeline); research scripts use research/rules/rules.json (RULES env var).
 - Extraction fixes: restriction start/end paired by midpoint closest to the speed (Madiun), long restrictions
   (Tarik-Sepanjang 31 km, Wates-Rewulu 10 km), joined tags 'hi-hu', notes in restriction cells (Jalur),
   validate_profile.py checks pair lengths against the timetable (fixed Gundih-Gambringan, Surabaya Kota-Gubeng).

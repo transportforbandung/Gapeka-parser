@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Gapeka pipeline: Gapeka PDF(s) -> one SQLite database.
+"""Gapeka pipeline: Gapeka PDF(s) -> gapeka.db (timetable), infra.db (infrastructure), rules.db (rules + fitted model).
 
-usage:  python3 gapeka_pipeline.py OUT.db FILE_OR_FOLDER [FILE_OR_FOLDER ...] [--dwell 30] [--no-graph]
+usage:  python3 gapeka_pipeline.py OUT.db FILE_OR_FOLDER [FILE_OR_FOLDER ...] [--dwell 30] [--no-graph] [--no-model]
 
 Any mix of PDFs may be given (timetable pages and graph pages can be in the same or in
 different files). Pages are classified automatically:
@@ -12,18 +12,20 @@ Give files in page order; a train that continues on the next file is re-joined b
 Steps
   1  parse timetable pages          -> stations, trains, stops, notes
   2  read station distances         -> station_links   (graph profile column "jarak antar stasiun")
-  3  estimate Berh/Sb halt times    -> halt_fit, halt_est, view schedule
+  3  halt tables                    -> halt_est, views schedule / schedule_hhmm (filled in step 9; with
+                                       --no-model the older distance fit estimates the halts here)
   4  link crossing/overtake notes   -> constraints
   5  extract graph train lines      -> graph_pages, graph_trains, graph_crossings   (optional)
-
-Halt model (general, no per-halt input):
-  run time of a leg between two timed stops  T = a*km + b      (robust least squares)
-  fitted on legs with no halt/pass between, per service label, falling back to one pooled
-  fit over all services when a service has too little data.
-  For a leg containing halts: (T - dwell*n_halts) is split over the sub-legs in proportion
-  to a*km_i + b; each halt gets arr = running time, dep = arr + dwell.
-  If distances are unknown the sub-legs are weighted equally (method 'equal').
-  All halt rows are ESTIMATES (method column), timetable prints no time for them.
+  6  train index (Lampiran IV)      -> train_index; trains.type / class / facultative; KA Dinas trips
+  6b rolling-stock duties (O.18)    -> roster_units, roster_duties (rosters.py: loco / KRD / KRL diagrams),
+                                        consists (stamformasi: cars per trainset, locomotive class)
+  7  infrastructure                 -> infra.db   (build_infra.py: graph-sheet margins, manual/*.csv)
+  8  rules and fitted model         -> rules.db   (build_rules.py: rules/*.csv + running-time model fitted on the
+                                                    timetable; halt rules checked against KAI, reference/)
+  9  model estimates                -> halt_est: halt times by the KAI rule of the region (rules/halt_rules.csv),
+                                       manual KAI halt times (rules/halt_offsets.csv) last; KA Dinas passing times
+--no-model skips steps 7-9 (step 3 estimates stay).
+All halt rows are ESTIMATES (method column); the timetable prints no time for them.
 Needs: pip install pymupdf numpy
 """
 import glob
@@ -94,9 +96,21 @@ def parse_notes(text):
 
 def page_rows(page):
     words = page.get_text("words")
+    # words of one text line: centres within 1.5 pt (rounding alone splits a line whose words differ by 0.1 pt,
+    # e.g. the header of KA 90, PDF page 265)
     lines = defaultdict(list)
-    for w in words:
-        lines[round((w[1] + w[3]) / 2)].append(w)
+    keys = []
+    for w in sorted(words, key=lambda w: (w[1] + w[3]) / 2):
+        c = (w[1] + w[3]) / 2
+        if keys and c - keys[-1][1] < 1.5:
+            keys[-1][1] = c
+            lines[keys[-1][0]].append(w)
+        else:
+            k = round(c)
+            while k in lines:
+                k += 0.01
+            keys.append([k, c])
+            lines[k].append(w)
     items, anchors = [], []
     for y, ws in sorted(lines.items()):
         ws.sort(key=lambda w: w[0])
@@ -231,6 +245,79 @@ def build_tables(db, trains):
                 db.execute("INSERT INTO notes VALUES(?,?,?,?,?,?)", (t["no"], r["no"], code, sym, other, int(own)))
         db.execute("INSERT INTO trains VALUES(?,?,?,?,?)", (t["no"], t["service"], t["route"], t["page"], len(t["rows"])))
     return problems
+
+
+# ---------------------------------------------------------------- 1b. train index (Lampiran IV) and train types
+def train_type(klasifikasi, kelas):
+    """krl / commuter / intercity / freight / dinas from the index headings"""
+    k, c = (klasifikasi or "").upper(), (kelas or "").upper()
+    if "DINAS" in k:
+        return "dinas"                                     # KA Dinas: R... trainset moves, L... locomotive moves
+    if c.startswith("BARANG"):
+        return "freight"
+    if c.startswith(("COMMUTER LINE DAOP 1", "COMMUTER LINE BANDARA SOETTA", "COMMUTER LINE DAOP 6")):
+        return "krl"                                       # electric KRL (Jabodetabek, airport express, Yogyakarta)
+    if "PERKOTAAN" in k:
+        return "commuter"
+    return "intercity"
+
+
+def add_train_index(db, pdfs):
+    """train_index table from the Lampiran IV tables; train type, class and facultative flag on trains;
+    KA Dinas (only in the index and on the graph sheets) added as trains with their route stations"""
+    import train_index as ti
+    rows = []
+    for path in pdfs:
+        rows += ti.read_index(pymupdf.open(path))
+    db.executescript("""
+    DROP TABLE IF EXISTS train_index;
+    CREATE TABLE train_index(number TEXT, train_no TEXT, jenis TEXT, name TEXT, identity TEXT, route TEXT, operator TEXT,
+                             km REAL, dep TEXT, arr TEXT, duration TEXT, klasifikasi TEXT, kelas TEXT, page INTEGER);
+    """)
+    for col, typ in (("type", "TEXT"), ("klasifikasi", "TEXT"), ("kelas", "TEXT"), ("facultative", "INTEGER"),
+                     ("operator", "TEXT"), ("index_km", "REAL")):
+        db.execute(f"ALTER TABLE trains ADD COLUMN {col} {typ}")
+    known = {n for (n,) in db.execute("select no from trains")}
+    by_no, added = {}, 0
+    for r in rows:
+        for no in ti.numbers(r["number"]):
+            db.execute("INSERT INTO train_index VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       (r["number"], no, r["jenis"], r["name"], r["identity"], r["route"], r["operator"], r["km"],
+                        r["dep"], r["arr"], r["duration"], r["klasifikasi"], r["kelas"], r["page"]))
+            by_no.setdefault(no, r)
+    for no, r in by_no.items():
+        typ = train_type(r["klasifikasi"], r["kelas"])
+        fac = int(r["jenis"] == "FAKULTATIF" or no.endswith("F"))
+        vals = (typ, r["klasifikasi"], r["kelas"], fac, r["operator"], r["km"])
+        if no in known:
+            db.execute("UPDATE trains SET type=?, klasifikasi=?, kelas=?, facultative=?, operator=?, index_km=? WHERE no=?",
+                       vals + (no,))
+            continue
+        if typ != "dinas" and not no.startswith(("R", "L")):
+            continue                                       # a regular train the timetable pages miss: reported below
+        # KA Dinas: route stations; departure at the first, arrival at the last; times between come later
+        sts = r["route"].split("-")
+        if not r["dep"] or not r["arr"] or len(sts) < 2:
+            continue
+        hm = lambda t: int(t[:2]) * 3600 + int(t[3:5]) * 60
+        dep, arr = hm(r["dep"]), hm(r["arr"])
+        if arr < dep:
+            arr += 86400
+        for st in sts:
+            db.execute("INSERT OR IGNORE INTO stations VALUES(?,?)", (st, st))     # name filled from infra.db in step 9
+        for i, st in enumerate(sts, 1):
+            kind = "origin_or_end" if i in (1, len(sts)) else "via"
+            db.execute("INSERT INTO stops VALUES(?,?,?,?,?,?,?,?,?)",
+                       (no, i, st, None, kind, arr if i == len(sts) else None, dep if i == 1 else None,
+                        None, f"index:{r['page']}"))
+        db.execute("INSERT INTO trains(no, service, route, first_page, n_stops, type, klasifikasi, kelas, facultative,"
+                   " operator, index_km) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                   (no, r["name"], r["route"].replace("-", " - "), f"index:{r['page']}", len(sts)) + vals)
+        added += 1
+    missing = sorted(n for n, r in by_no.items() if n not in known and train_type(r["klasifikasi"], r["kelas"]) != "dinas"
+                     and not n.startswith(("R", "L")))
+    untyped = db.execute("select count(*) from trains where type is null").fetchone()[0]
+    return len(rows), added, missing, untyped
 
 
 # ---------------------------------------------------------------- 2. station distances
@@ -636,6 +723,8 @@ def write_missing_links(db, path):
         for a, b in zip(lst, lst[1:]):
             if a != b and (a not in linked or b not in linked):
                 cnt[tuple(sorted((a, b)))] += 1
+    if path is None:
+        return len(cnt)
     with open(path, "w", encoding="utf-8") as f:
         f.write("# a,b,km,(names, trains using this pair) - fill in km and move the line to manual_links.csv\n")
         for (a, b), n in sorted(cnt.items(), key=lambda x: -x[1]):
@@ -815,6 +904,29 @@ def apply_halt_offsets(db, path, dwell):
     return n
 
 
+SCHEDULE_VIEWS = """DROP VIEW IF EXISTS schedule; DROP VIEW IF EXISTS schedule_hhmm;
+      CREATE VIEW schedule AS
+      SELECT s.train_no, s.seq, s.station, s.vmax, s.kind,
+             COALESCE(s.arr_s, h.arr_s) AS arr_s, COALESCE(s.dep_s, h.dep_s) AS dep_s,
+             CASE WHEN h.train_no IS NOT NULL THEN 1 ELSE 0 END AS estimated, h.method, s.note
+      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;
+      CREATE VIEW schedule_hhmm AS
+      SELECT sc.train_no, sc.seq, sc.station, sc.kind,
+             CASE WHEN sc.arr_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.arr_s + 30) / 3600) % 24, ((sc.arr_s + 30) / 60) % 60) END AS arr,
+             CASE WHEN sc.dep_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.dep_s + 30) / 3600) % 24, ((sc.dep_s + 30) / 60) % 60) END AS dep,
+             sc.estimated, sc.method, sc.vmax
+      FROM schedule sc;
+"""
+
+
+def init_halt_tables(db):
+    """empty halt_est + schedule views (step 9 fills halt_est from the running-time model)"""
+    db.executescript("""DROP TABLE IF EXISTS halt_fit; DROP TABLE IF EXISTS halt_est;
+      CREATE TABLE halt_est(train_no TEXT, seq INTEGER, station TEXT, arr_s INTEGER, dep_s INTEGER, method TEXT,
+                            PRIMARY KEY(train_no, seq));""")
+    db.executescript(SCHEDULE_VIEWS)
+
+
 def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
     """Estimate Berh/Sb times. Weight of each sub-leg, best source first:
       observed : median run time of that same station pair, taken from trains that time both stations
@@ -975,12 +1087,7 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
                 db.execute("INSERT OR REPLACE INTO halt_est VALUES(?,?,?,?,?,?)", (no, m[0], m[1], round(t), round(t + dwell), method))
                 nh += 1
                 counts[method] += 1
-    db.executescript("""DROP VIEW IF EXISTS schedule;
-      CREATE VIEW schedule AS
-      SELECT s.train_no, s.seq, s.station, s.vmax, s.kind,
-             COALESCE(s.arr_s, h.arr_s) AS arr_s, COALESCE(s.dep_s, h.dep_s) AS dep_s,
-             CASE WHEN h.train_no IS NOT NULL THEN 1 ELSE 0 END AS estimated, h.method, s.note
-      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;""")
+    db.executescript(SCHEDULE_VIEWS)
     return dict(counts), len(clean)
 
 
@@ -1112,9 +1219,105 @@ def extract_graph(db, pages):
     return tid, ok, fail
 
 
+# ---------------------------------------------------------------- 6b. rolling-stock duties (O.18 diagrams)
+def add_rosters(db, pdfs):
+    """roster_units: one locomotive / KRD set / KRL trainset per day (diagram row); roster_duties: its trains in
+    order, with a flag whether the train starts where the previous one ended"""
+    import rosters as ro
+    rows = []
+    for path in pdfs:
+        rows += ro.read_rosters(pymupdf.open(path))
+    db.executescript("""
+    DROP TABLE IF EXISTS roster_units; DROP TABLE IF EXISTS roster_duties;
+    CREATE TABLE roster_units(unit_id INTEGER PRIMARY KEY, kind TEXT, page INTEGER, row INTEGER, unit TEXT);
+    CREATE TABLE roster_duties(unit_id INTEGER, seq INTEGER, train_no TEXT, in_timetable INTEGER, connects INTEGER,
+                               PRIMARY KEY(unit_id, seq));
+    """)
+    first, last = {}, {}
+    for no, st in db.execute("select train_no, station from stops order by train_no, seq"):
+        first.setdefault(no, st)
+        last[no] = st
+    ok = tot = 0
+    for uid, r in enumerate(rows, 1):
+        db.execute("INSERT INTO roster_units VALUES(?,?,?,?,?)", (uid, r["kind"], r["page"], r["row"], r["unit"]))
+        prev = None
+        for k, no in enumerate(r["trains"], 1):
+            con = None
+            if prev in last and no in first:
+                con = int(last[prev] == first[no])
+                ok += con
+                tot += 1
+            db.execute("INSERT INTO roster_duties VALUES(?,?,?,?,?)", (uid, k, no, int(no in first), con))
+            prev = no
+    # consists (stamformasi): cars of one trainset and locomotive class per passenger train
+    trains = {n for (n,) in db.execute("select no from trains")}
+    cons = {}
+    for path in pdfs:
+        for n, c in ro.read_consists(pymupdf.open(path), trains).items():
+            cons.setdefault(n, c)
+    db.executescript("""DROP TABLE IF EXISTS consists;
+    CREATE TABLE consists(train_no TEXT PRIMARY KEY, cars INTEGER, sets INTEGER, total_cars INTEGER, locomotive TEXT,
+                          page INTEGER);""")
+    db.executemany("INSERT INTO consists VALUES(?,?,?,?,?,?)",
+                   [(n, c["cars"], c["sets"], c["total_cars"], c["locomotive"], c["page"]) for n, c in cons.items()])
+    return len(rows), ok, tot
+
+
+# ---------------------------------------------------------------- 7. infrastructure, rules, model estimates
+def model_stages(db, out, pdfs, dwell, here):
+    """[7] infra.db from the graph sheets, [8] rules.db (hand rules + fitted model), [9] halt times and KA Dinas
+    times from the running-time model; manual KAI halt offsets (rules/halt_offsets.csv) are applied last"""
+    import build_infra
+    import build_rules
+    import gapeka_model as gm
+    folder = os.path.dirname(os.path.abspath(out))
+    infra_path, rules_path = os.path.join(folder, "infra.db"), os.path.join(folder, "rules.db")
+    db.commit()
+    build_infra.build(pdfs[0], out, infra_path, os.path.join(here, "manual"))
+    print(f"[7] wrote {infra_path}")
+    model, offsets, est, stats = build_rules.build(os.path.join(here, "rules"), out, infra_path, rules_path,
+                                                   os.path.join(here, "reference"))
+    print(f"[8] wrote {rules_path}: model fitted on {stats['legs']} legs, {len(offsets)} fitted halt offsets")
+    build_rules.report(stats)
+    # [9] halt times from the model replace the distance-fit estimates; manual KAI offsets win
+    n = 0
+    for no, seq, st, a, d, meth in est:
+        cur = db.execute("UPDATE halt_est SET arr_s=?, dep_s=?, method=? WHERE train_no=? AND seq=?", (a, d, meth, no, seq))
+        if cur.rowcount == 0:
+            db.execute("INSERT INTO halt_est VALUES(?,?,?,?,?,?)", (no, seq, st, a, d, meth))
+        n += 1
+    apply_halt_offsets(db, os.path.join(here, "rules", "halt_offsets.csv"), dwell)
+    # KA Dinas: full path through the sheet sections, passing times from the model scaled to the index times
+    paths, times, n_ok = gm.estimate_dinas(model)
+    for (no, path), (_, tt) in zip(paths, times):
+        db.execute("DELETE FROM stops WHERE train_no=?", (no,))
+        db.execute("DELETE FROM halt_est WHERE train_no=?", (no,))
+        page = f"index"
+        for i, (st, t) in enumerate(zip(path, tt), 1):
+            end = i in (1, len(path))
+            db.execute("INSERT OR IGNORE INTO stations VALUES(?,?)", (st, st))
+            db.execute("INSERT INTO stops VALUES(?,?,?,?,?,?,?,?,?)",
+                       (no, i, st, None, "origin_or_end" if end else "pass", t if i == len(path) else None,
+                        t if i == 1 else None, None, page))
+            if not end:
+                db.execute("INSERT INTO halt_est VALUES(?,?,?,?,?,?)", (no, i, st, t, t, "dinas-model"))
+        db.execute("UPDATE trains SET n_stops=? WHERE no=?", (len(path), no))
+    # stations only KA Dinas use: name from infra.db (sheet name), else the code
+    inames = dict(sqlite3.connect(infra_path).execute("select code, name from stations"))
+    for (code,) in db.execute("select code from stations where name is null or name = code").fetchall():
+        nm = inames.get(code)
+        if nm:
+            db.execute("UPDATE stations SET name=? WHERE code=?", (nm, code))
+    n_dinas = sum(1 for (t,) in db.execute("select type from trains") if t == "dinas")
+    methods = dict(db.execute("select method, count(*) from halt_est group by 1"))
+    print(f"[9] halt times from the model: {n}; KA Dinas timed along their path: {n_ok} of {n_dinas}; "
+          f"estimate methods {methods}")
+    return stats
+
+
 # ---------------------------------------------------------------- main
 def main(argv):
-    dwell, graph, files = 30, True, []
+    dwell, graph, files, model = 30, True, [], True
     manual = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manual_links.csv")
     it = iter(argv[1:])
     for a in it:
@@ -1122,6 +1325,8 @@ def main(argv):
             dwell = float(next(it))
         elif a == "--no-graph":
             graph = False
+        elif a == "--no-model":
+            model = False
         elif a == "--links":
             manual = next(it)
         else:
@@ -1154,31 +1359,39 @@ def main(argv):
     n3 = read_km_columns(db, pages) if graph else 0
     n_bad = drop_implausible_links(db)
     n_man = load_manual_links(db, manual)
-    n_pairs = write_missing_links(db, os.path.splitext(out)[0] + "_missing_links.csv")
+    n_pairs = write_missing_links(db, None)   # count only: infra.db's QA table lists uncovered pairs now
     n_un = db.execute("select count(*) from km_unmatched").fetchone()[0]
-    print(f"[2] station links {n} from names + {n2} from matching drawn train lines to the timetable + {n3} from cumulative-km columns; {n_bad} dropped as implausible; {n_man} from manual_links.csv; {n_un} km columns left unmatched (table km_unmatched); {n_pairs} neighbour pairs still need a distance, listed in {os.path.splitext(os.path.basename(out))[0]}_missing_links.csv")
+    print(f"[2] station links {n} from names + {n2} from matching drawn train lines to the timetable + {n3} from cumulative-km columns; {n_bad} dropped as implausible; {n_man} from manual_links.csv; {n_un} km columns left unmatched (table km_unmatched); {n_pairs} neighbour pairs without a gapeka.db distance (infra.db covers them; see its qa table)")
     linked = {x for r in db.execute("select a,b from station_links") for x in r}
     miss = [(c, nm, k) for c, nm, k in db.execute(
         "select s.station, st.name, count(*) from stops s join stations st on st.code=s.station group by s.station order by 3 desc")
         if c not in linked]
     print(f"    stations with no distance on any graph page: {len(miss)} of "
           f"{db.execute('select count(*) from stations').fetchone()[0]}; most used: {[(c, nm) for c, nm, k in miss[:12]]}")
-    counts, nclean = estimate_halts(db, make_distance(db), dwell)
-    apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "halt_offsets.csv"), dwell)
-    counts = dict(db.execute("select method,count(*) from halt_est group by 1"))
-    print(f"[3] halts estimated {counts} (clean fit legs: {nclean}, dwell {dwell:.0f}s)")
-    left = db.execute(f"""select h.station, st.name, count(*) from halt_est h join trains t on t.no=h.train_no
-                          join stations st on st.code=h.station
-                          where h.method!='manual' and t.service in ({','.join('?' * len(TFB_SERVICES))})
-                          group by 1 order by 3 desc""", TFB_SERVICES).fetchall()
-    if left:
-        print(f"    TfB halts still estimated by the model (add a rule to halt_offsets.csv): {left}")
-    for r in db.execute("select grp,round(s_per_km,1),round(base_s),n_clean,round(rmse_s) from halt_fit"):
-        print("     fit", r)
+    if model and graph:
+        init_halt_tables(db)                 # halt times come from the running-time model in step 9
+        print("[3] halt times: from the running-time model (step 9)")
+    else:                                    # without the model: distance fit (the older method)
+        counts, nclean = estimate_halts(db, make_distance(db), dwell)
+        apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "rules", "halt_offsets.csv"), dwell)
+        counts = dict(db.execute("select method,count(*) from halt_est group by 1"))
+        print(f"[3] halts estimated by the distance fit {counts} (clean fit legs: {nclean}, dwell {dwell:.0f}s)")
     print("[4] constraints", link_notes(db))
     if graph:
         n, ok, fail = n_graph
         print(f"[5] graph trains {n} from {ok} pages; no hour axis on {fail}")
+    # after the distance / halt / note steps, so KA Dinas trips (route stations only) do not change them
+    n_idx, n_dinas, missing, untyped = add_train_index(db, pdfs)
+    types = dict(db.execute("select type, count(*) from trains group by 1"))
+    print(f"[6] train index: {n_idx} entries; KA Dinas added {n_dinas}; types {types}; facultative "
+          f"{db.execute('select count(*) from trains where facultative=1').fetchone()[0]}; trains without an index "
+          f"entry {untyped}; in the index but not on the timetable pages: {missing}")
+    n_units, ok, tot = add_rosters(db, pdfs)
+    kinds = dict(db.execute("select kind, count(*) from roster_units group by 1"))
+    print(f"[6b] rolling-stock duties: {n_units} units {kinds}; consecutive trains connect {ok} of {tot}; "
+          f"consists for {db.execute('select count(*) from consists').fetchone()[0]} trains")
+    if model and graph:
+        model_stages(db, out, pdfs, dwell, os.path.dirname(os.path.abspath(__file__)))
     db.commit()
     db.execute("VACUUM")
     print("wrote", out)

@@ -24,7 +24,34 @@ DX = 50.0
 import os as _os
 GRADE = _os.environ.get('GRADE', '0') == '1'
 G = 9.81
-PROF = json.load(open("line_profile.json"))
+INFRA_DB = _os.environ.get("INFRA_DB", "/home/user/Gapeka-parser/infra.db")
+
+
+def load_infra(path=INFRA_DB):
+    """profile dict in the old line_profile.json format, read from infra.db (build_infra.py); manual overrides are
+    already applied there (manual/*.csv), so apply_overrides / apply_pair_overrides find nothing to do"""
+    c = sqlite3.connect(path)
+    prof = {}
+    for a, b, km, ka, kb, up, umum, g, ha, hb, pg, via in c.execute(
+            "select a,b,km,km_a,km_b,km_increasing,umum_kmh,ruling_gradient_permil,elevation_a_m,elevation_b_m,page,via "
+            "from sections where variant=''"):
+        prof[f"{a}-{b}"] = dict(a=a, b=b, up=bool(up) if up is not None else True, km=km, umum=umum, restr=[], h_a=ha,
+                                h_b=hb, blocks=[], ruling=g, page=pg, **({"via": via} if via else {}))
+    for a, b, o0, o1, v, tracks, note in c.execute(
+            "select a,b,offset_from_km,offset_to_km,speed_kmh,tracks,note from restrictions where variant=''"):
+        p = prof.get(f"{a}-{b}")
+        if p is not None:
+            p["restr"].append(dict(o0=o0, o1=o1, v=v, tags={"both": "hu hi"}.get(tracks, tracks), note=note or "",
+                                   up=p["up"]))
+    for a, b, o, track, no, km, kind in c.execute("select a,b,offset_km,track,signal_no,km,kind from block_signals where variant=''"):
+        p = prof.get(f"{a}-{b}")
+        if p is not None:
+            p["blocks"].append(dict(o=o, tag=track, no=no or "", src=kind))
+    return prof
+
+
+PROF = load_infra() if _os.path.exists(INFRA_DB) and _os.environ.get("PROFILE", "infra") == "infra" \
+    else json.load(open("line_profile.json"))
 
 
 def apply_overrides(prof, path="restriction_overrides.csv"):
