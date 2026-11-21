@@ -58,7 +58,15 @@ def apply_zones(g, rules):
                 at, nb, rest = st[-1], st[-2], g["end_rest"]
             if at != z["station"] or (z["towards"] != "*" and nb != z["towards"]):
                 continue
-            if (z["when"] == "stop" and not rest) or (z["when"] == "pass" and rest):
+            terminal = g["first"] if side == "dep" else g["last"]          # train starts / ends its trip here
+            w = z["when"]
+            if w == "stop" and not rest:                                    # any stop (incl. terminal)
+                continue
+            if w == "pass" and rest:
+                continue
+            if w == "midstop" and not (rest and not terminal):              # intermediate stop only
+                continue
+            if w == "terminal" and not (rest and terminal):
                 continue
             cap = cap.copy()
             if side == "dep":
@@ -234,16 +242,25 @@ for (a, b, t), (e, n) in sorted(sec.items(), key=lambda kv: -abs(kv[1][0]))[:30]
           f"other types: {', '.join(f'{k} {v:+.0f}' for k, v in other_types.items()) or '-'}")
 
 print("\nRULE STATIONS (all legs, no note): mean error s, share |err|<0.5 / >1 min")
+_seen = set()
 for z in RULES:
+    if (z["station"], z["towards"]) in _seen:
+        continue
+    _seen.add((z["station"], z["towards"]))
     for side in z["sides"]:
         for tt in TYPES:
-            ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and
-                  ((side == "dep" and g["stations"][0] == z["station"] and (z["towards"] == "*" or g["stations"][1] == z["towards"])) or
-                   (side == "arr" and g["stations"][-1] == z["station"] and (z["towards"] == "*" or g["stations"][-2] == z["towards"])))]
-            if len(ii) < 3:
-                continue
-            e = (base[ii] - y[ii]) / 60
-            print(f"  {z['station']:4s} {side} {z['towards']:4s} {tt:9s} n={len(ii):3d}  physics only: mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+            for case in ("pass", "midstop", "terminal"):
+                def ok(g):
+                    rest = g["start_rest"] if side == "dep" else g["end_rest"]
+                    term = g["first"] if side == "dep" else g["last"]
+                    return {"pass": not rest, "midstop": rest and not term, "terminal": rest and term}[case]
+                ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and ok(g) and
+                      ((side == "dep" and g["stations"][0] == z["station"] and (z["towards"] == "*" or g["stations"][1] == z["towards"])) or
+                       (side == "arr" and g["stations"][-1] == z["station"] and (z["towards"] == "*" or g["stations"][-2] == z["towards"])))]
+                if len(ii) < 3:
+                    continue
+                e = (base[ii] - y[ii]) / 60
+                print(f"  {z['station']:4s} {side} {z['towards']:4s} {tt:9s} {case:8s} n={len(ii):3d}  physics only: mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
 
 print("\nSUKABUMI LINE (PDF page 28 sections), physics only, no note")
 sk = {"SI","RI","GDS","CRG","LP","SSI","CBB","CJ","MLB","TPR","SLJ","CRJ","CPY","RM","CPT","PDL"}

@@ -40,8 +40,17 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
   per end). Data still prefers about 1180 m for both; commuters fit a 600 m zone on their side.
-- Yogyakarta has no through track: every train gets the station restriction, stopping or passing. Not printed on the
-  sheet; fitted as 300 m (departure side) / 600 m (arrival side) at 30 km/h; freight fits better without it.
+- Yogyakarta: originally two emplacements (north, south), connected at both ends after the regauge. Stopping trains
+  always use sidings (speed limit + stopping). Through trains from Patukan normally get the west crossover and use
+  the south emplacement; through from Lempuyangan use the north one and get the east siding switches; using the
+  other emplacement means two restrictions. Fitted (30 km/h): stopping 300 m dep / 600 m arr; through trains
+  600 m entering + 300 m leaving (data says leaving is slowed too); freight fits better without zones.
+- Semarang Tawang: about 1400 m crossover to crossover; only terminating trains use all of it. But in GAPEKA every
+  train around Semarang (even passing ones) is 1-2 min slower than physics and the sheet shows nothing more
+  (Poncol-Tawang 50 km/h general, curves 200-250 m): unexplained, left to learned corrections.
+- Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track. GAPEKA runs the whole branch at about
+  37-39 km/h (limit 70, no restrictions on the sheet): unexplained, left to learned corrections.
+- Sepanjang: commuters use siding tracks in both directions; towards Wonokromo more switches (fitted 900 m).
 - Sukabumi line: trains do not use loops at crossing stations except maybe Sukabumi (enters slow). The line is
   slower than the rest of Java; its sheet restrictions were checked and are extracted correctly.
 - Ciroyom: commuters to Bandung are often held at Bandung's home signal (slip switches, one train at a time);

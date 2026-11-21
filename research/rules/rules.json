@@ -15,7 +15,7 @@
   ],
   "when": "stop",
   "source": "manual (user)",
-  "note": "crossover to crossover 1180 m; user: arrivals slightly shorter, data prefers ~1180"
+  "note": "crossover to crossover 1180 m, both directions (user: keep)"
  },
  {
   "station": "KAC",
@@ -32,7 +32,7 @@
   ],
   "when": "stop",
   "source": "fitted",
-  "note": "commuters use the other side of the station; 600 m fits"
+  "note": "commuters use the other side of the station"
  },
  {
   "station": "YK",
@@ -49,9 +49,27 @@
    "commuter",
    "intercity"
   ],
-  "when": "any",
+  "when": "stop",
   "source": "manual (user) + fitted length",
-  "note": "no through track at Yogyakarta; freight fits better without"
+  "note": "stopping trains use sidings (no through platform tracks)"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "arr"
+  ],
+  "dep_m": 0,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "pass",
+  "source": "manual (user) + fitted length",
+  "note": "through trains: restriction where they enter (west crossover from Patukan, east siding switches from Lempuyangan)"
  },
  {
   "station": "SPJ",
@@ -64,13 +82,28 @@
   "speed": 30,
   "types": [
    "krl",
-   "commuter",
    "intercity",
    "freight"
   ],
   "when": "any",
   "source": "manual (user) + fitted length",
-  "note": "switch onto single track towards Wonokromo, 30 km/h"
+  "note": "switch onto single track towards Wonokromo"
+ },
+ {
+  "station": "SPJ",
+  "towards": "WO",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 900,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "commuter"
+  ],
+  "when": "stop",
+  "source": "manual (user) + fitted length",
+  "note": "commuters use siding tracks; towards Wonokromo more switches"
  },
  {
   "station": "RK",
@@ -87,6 +120,24 @@
   ],
   "when": "any",
   "source": "manual (user) + fitted length",
-  "note": "KRL use tracks 3 and 5 at Rangkasbitung, 30 km/h through the switches"
+  "note": "KRL use tracks 3 and 5, 30 km/h switches from the Tanah Abang side"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 300,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "pass",
+  "source": "fitted",
+  "note": "through trains are also slowed leaving (data); fits trains using the other emplacement (two crossovers)"
  }
 ]
