@@ -24,7 +24,7 @@ best = {}
 for st, pg, n in i.execute("select station, page, roman_tracks from station_layouts"):
     if st not in best or n > best[st][1]:
         best[st] = (pg, n)
-for st, pg, tr, ln in i.execute("select station, page, track, length_m from station_tracks where kind = 'roman'"):
+for st, pg, tr, ln in i.execute("select station, page, track, length_m from station_tracks where kind = 'roman' and out_of_service = 0"):
     if best.get(st, (None,))[0] == pg:
         roman[st].append((tr, ln))
 
@@ -60,7 +60,7 @@ line_of_sec = {}
 for a, b_, ln in i.execute("select a, b, line_id from sections"):
     line_of_sec[(a, b_)] = line_of_sec[(b_, a)] = ln
 roman_line = defaultdict(list)
-for st, ln, tr, lnm in i.execute("select station, line_id, track, length_m from station_tracks where kind = 'roman'"):
+for st, ln, tr, lnm in i.execute("select station, line_id, track, length_m from station_tracks where kind = 'roman' and out_of_service = 0"):
     roman_line[(st, ln)].append((tr, lnm))
 route = defaultdict(list)
 for no, st in g.execute("select train_no, station from stops order by train_no, seq"):

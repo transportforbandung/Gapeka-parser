@@ -172,6 +172,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   Batutulis: one through track, no siding (manual). Saradan's diagram (ends Crb / Bgr): Wilangan has none.
   Remaining timetable stations without a diagram (29) all have none on the sheet (halts, Sukabumi-line stops, Soka,
   Cisomang, Sadang, ...).
+- Dashed connections on a station diagram = out of service (user, Dawuan IV-388 / I-288). station_tracks.out_of_service
+  (a non-through track reached only by dashed lines, dash pattern [2.4 2.4]); roman_tracks / longest_roman_m count
+  usable tracks only. Found: Dawuan IV, I; Pabuaran IV, I. Dawuan in GAPEKA: 158 intercity + 32 freight pass, 13
+  Walahar / Jatiluhur commuters stop 1 min on the mains, no waits: a two-track station in practice.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

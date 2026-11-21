@@ -44,7 +44,9 @@ class UF:
 
 def page_items(page, x_min):
     """segments (x0,y0,x1,y1) of drawn track lines, chevrons, small boxes, filled dots, right of x_min"""
+    global dashed, solid
     segs, chev, boxes, dots, pointers = [], [], [], [], []
+    dashed, solid = [], []
     for dr in page.get_drawings():
         r = dr["rect"]
         if r.x1 < x_min:
@@ -111,11 +113,17 @@ def page_items(page, x_min):
             continue
         if dr["type"] not in ("s", "fs") or w < 0.15:
             continue
+        is_dashed = bool(re.search(r"\[\s*\d", dr.get("dashes") or ""))
         for it in items:
             if it[0] == "l":
-                segs.append((it[1].x, it[1].y, it[2].x, it[2].y))
+                seg = (it[1].x, it[1].y, it[2].x, it[2].y)
             elif it[0] == "c":
-                segs.append((it[1].x, it[1].y, it[4].x, it[4].y))
+                seg = (it[1].x, it[1].y, it[4].x, it[4].y)
+            else:
+                continue
+            segs.append(seg)
+            if abs(seg[1] - seg[3]) > 0.4 and abs(seg[0] - seg[2]) > 1:   # a connection (switch curve / diagonal)
+                (dashed if is_dashed else solid).append(seg)
     return segs, chev, boxes, dots, pointers
 
 
@@ -256,6 +264,10 @@ def read_page(page, codes, extra_words=()):
             ptr_from = q.y0 if y0 - 10 < q.y1 < y1 + 10 else q.y1          # the end away from the diagram
         for t in ts:
             t["through"] = t["lo"] - x0 < 6 and x1 - t["hi"] < 6        # runs over the whole diagram
+            # connections drawn dashed = out of service (user, Dawuan IV / I): a siding reached only by dashed lines
+            touch = lambda segs_: sum(1 for sg in segs_ for (px, py) in ((sg[0], sg[1]), (sg[2], sg[3]))
+                                      if abs(py - t["line_y"]) < 1.2 and t["lo"] - 3 <= px <= t["hi"] + 3)
+            t["out_of_service"] = (not t["through"]) and touch(dashed) > 0 and touch(solid) == 0
             near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
             t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
@@ -518,9 +530,10 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
 SCHEMA = """
 CREATE TABLE station_layout_refs(station TEXT, line_id TEXT, page INTEGER, y REAL, see_line TEXT, note TEXT);
 CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, evidence TEXT, left_ends TEXT, right_ends TEXT,
-                             roman_tracks INTEGER, yard_tracks INTEGER, longest_roman_m REAL, ppka INTEGER, pap INTEGER);
+                             roman_tracks INTEGER, yard_tracks INTEGER, out_of_service_tracks INTEGER,
+                             longest_roman_m REAL, ppka INTEGER, pap INTEGER);
 CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
-                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER);
+                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER, out_of_service INTEGER);
 """
 
 
@@ -551,7 +564,8 @@ def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
 
 def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
-    track, 'yard' = Arabic-numbered stabling / yard track. arrows: normal running direction drawn at the track ends
+    track, 'yard' = Arabic-numbered stabling / yard track; out_of_service = connected only by dashed lines (user);
+    roman_tracks / longest_roman_m count usable (in-service) Roman tracks only. arrows: normal running direction drawn at the track ends
     (L / R on the sheet, LR = both, '' = none drawn); towards: the neighbour station(s) of that direction.
     A station can have different diagrams on different lines (separate levels / isolated tracks): one row per line.
     station_layout_refs: 'periksa lintas ...' notes, the station's diagram is on the line named there."""
@@ -580,19 +594,20 @@ def write(inf, diagrams, refs=()):
     for d in [x for x in diagrams if x.get("station")] + copies:
         ln = d.get("copy_line") or line_of.get(d["page"])
         tr = d["tracks"]
-        rom = [t for t in tr if is_roman(t["no"])]
+        rom = [t for t in tr if is_roman(t["no"]) and not t.get("out_of_service")]      # usable main / siding
+        oos = sum(1 for t in tr if t.get("out_of_service"))
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
-        inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
-                     len(tr) - len(rom), max((t["length"] for t in rom if t["length"] is not None), default=None),
+                     sum(1 for t in tr if not is_roman(t["no"])), oos, max((t["length"] for t in rom if t["length"] is not None), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
-            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if is_roman(t["no"]) else int(re.sub(r"\D", "", t["no"])),
                          "roman" if is_roman(t["no"]) else "yard", t["length"], t["arrows"], tw or None,
-                         int(t["through"])))
+                         int(t["through"]), int(bool(t.get("out_of_service")))))
 
 
 if __name__ == "__main__":
