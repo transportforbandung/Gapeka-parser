@@ -27,6 +27,31 @@ G = 9.81
 PROF = json.load(open("line_profile.json"))
 
 
+def apply_overrides(prof, path="restriction_overrides.csv"):
+    """manual changes on top of the sheet extraction (rules database: local restrictions, source = manual)"""
+    import csv
+    if not _os.path.exists(path):
+        return 0
+    n = 0
+    for o in csv.DictReader(open(path)):
+        p = prof.get(f"{o['from']}-{o['to']}")
+        o0, o1 = float(o["offset_from_km"]), float(o["offset_to_km"])
+        if p is None:                                   # stored the other way round: mirror the offsets
+            p = prof.get(f"{o['to']}-{o['from']}")
+            if p is None:
+                continue
+            o0, o1 = p["km"] - o1, p["km"] - o0
+        for r in p["restr"]:
+            if r["v"] == int(o["speed_kmh"]) and abs(r["o0"] - o0) < 0.05 and abs(r["o1"] - o1) < 0.05:
+                r["tags"] = o["set_tags"]
+                r["override"] = o["source"]
+                n += 1
+    return n
+
+
+N_OVERRIDES = apply_overrides(PROF)
+
+
 def track_kind(note):
     """classify the small note in a restriction cell"""
     n = note or ""

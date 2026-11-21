@@ -1,0 +1,2 @@
+from,to,offset_from_km,offset_to_km,speed_kmh,set_tags,source,note
+SMT,ATA,0.4,0.8,30,hu hi,manual (user) + data,"Semarang Tawang east side, west of the crossover: sheet says hulu only; GAPEKA slows westbound through trains there too (intercity through from the east -83 s -> +21 s)"

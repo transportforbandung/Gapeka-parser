@@ -50,7 +50,12 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   through trains from the west may be. Fitted (30 km/h): from the east 1000 m arriving + 1000 m leaving west; from
   the west 750 m arriving + 750 m leaving east; through from the west 750 m. Plus a buffer of +45 s per leg on
   Poncol-Tawang-Alastua for all trains (layout alone leaves 40-100 s). Mean bias over all Tawang cases 95 -> 36 s,
-  > 1 min 80 -> 22 %. Through trains from the east are still 1.5 min slower in GAPEKA (few legs: 5 and 3).
+  > 1 min 80 -> 22 %.
+- Semarang Tawang east side, west of the crossover: 30 km/h at km 0.400-0.800 (Tawang-Alastua). The sheet tags it
+  hulu only, but GAPEKA slows westbound through trains there too; applied to both tracks as a manual override
+  (user agreed: "if that's what the data proves"). Intercity through from the east -83 s -> +21 s.
+- Manual overrides of sheet restrictions live in research/rules/restriction_overrides.csv (source = manual) and are
+  applied by physics_model.py on load, so re-extracting the sheets never loses them.
 - Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
   GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"
   (+120 s per leg, research/rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
