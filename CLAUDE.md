@@ -176,6 +176,17 @@ Read this first. It records decisions and findings from earlier sessions so they
   (a non-through track reached only by dashed lines, dash pattern [2.4 2.4]); roman_tracks / longest_roman_m count
   usable tracks only. Found: Dawuan IV, I; Pabuaran IV, I. Dawuan in GAPEKA: 158 intercity + 32 freight pass, 13
   Walahar / Jatiluhur commuters stop 1 min on the mains, no waits: a two-track station in practice.
+- Track use by direction (user, Dawuan): a train only moves forward, so a track is usable in a direction only if
+  switches lead onto it from that direction's main and on to the exit main; through mains only in their arrow
+  direction. Dawuan (if in service): IV westbound only (no crossover from the west), III westbound, II eastbound,
+  I both ways. station_layouts.usable_directions() derives this from the switch geometry (connections = chains of
+  curve pieces, joined at ends and mid-way on ladders; tiny flat steps of polyline curves count; entry / exit mains
+  = tracks at that diagram edge with the direction's arrow, else every track there): station_tracks.usable (L / R
+  on the sheet), usable_towards (neighbour stations), enter (directions that can get onto it, termini / dead ends).
+  research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the direction 441 / 456 (97 %),
+  crossings with a usable track pair 697 / 732 (95 %); misses: Ciroyom (21 crossings, ask user), Cikarang (switches
+  not read), Malang Kotalama, Sumberpucung, Haurgeulis, Babat, Tanjungrasa. Roman tracks usable in no direction:
+  184 of 1635 (mostly termini and big yards).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

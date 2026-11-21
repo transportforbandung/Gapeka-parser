@@ -86,6 +86,10 @@ def page_items(page, x_min):
                 if b - a > 4:
                     segs.append((a, y, b, y))
                     hor.append((None, pymupdf.Point(a, y), pymupdf.Point(b, y)))
+            for it in items:
+                a, b = it[1], it[2]
+                if abs(a.y - b.y) > 0.4 and abs(a.x - b.x) > 1:
+                    solid.append((a.x, a.y, b.x, b.y))           # crossover / switch edges of the outline
             levels = []
             for it in sorted(hor, key=lambda it: it[1].y):
                 if levels and it[1].y - levels[-1][-1][1].y < 1.6:
@@ -122,9 +126,86 @@ def page_items(page, x_min):
             else:
                 continue
             segs.append(seg)
-            if abs(seg[1] - seg[3]) > 0.4 and abs(seg[0] - seg[2]) > 1:   # a connection (switch curve / diagonal)
+            ln_ = abs(seg[0] - seg[2]) + abs(seg[1] - seg[3])
+            if (abs(seg[1] - seg[3]) > 0.4 and abs(seg[0] - seg[2]) > 0.2) or \
+                    (len(items) > 2 and ln_ < 4 and abs(seg[0] - seg[2]) > 0.2):   # switch curves (also tiny flat steps)
                 (dashed if is_dashed else solid).append(seg)
     return segs, chev, boxes, dots, pointers
+
+
+def usable_directions(ts, pieces, x0, x1):
+    """per track: the directions ('L' / 'R' on the sheet) in which a train can use it, from the switch geometry.
+    A train only moves forward: it takes a connection (switch curve / crossover, a chain of pieces from a point on
+    one track to a point on another) only in the direction of travel. Usable in R = reachable moving right from an
+    entry main (a through track drawn with an R arrow, or any through track when no arrows are drawn) and able to
+    continue right to an exit main; likewise L. Through tracks with arrows are used only in their arrow direction
+    (user: main straight through tracks are one direction only)."""
+    pts = [(q[0], q[1]) for q in pieces] + [(q[2], q[3]) for q in pieces]
+    uf = UF(len(pieces))
+    ends = defaultdict(list)
+    for k, q in enumerate(pieces):
+        ends[(round(q[0]), round(q[1]))].append(k)
+        ends[(round(q[2]), round(q[3]))].append(k)
+    for k, q in enumerate(pieces):            # joined where an end meets another piece (also mid-way: ladders)
+        for (px, py) in ((q[0], q[1]), (q[2], q[3])):
+            for j, r in enumerate(pieces):
+                if j != k and min(r[0], r[2]) - 1 <= px <= max(r[0], r[2]) + 1 and \
+                        min(r[1], r[3]) - 1 <= py <= max(r[1], r[3]) + 1 and pt_seg(px, py, r) < 0.9:
+                    uf.union(k, j)
+    groups = defaultdict(list)
+    for k in range(len(pieces)):
+        groups[uf.find(k)].append(k)
+    conns = []                                     # (track a, x on a, track b, x on b)
+    for g in groups.values():
+        att = []
+        for k in g:
+            for (px, py) in ((pieces[k][0], pieces[k][1]), (pieces[k][2], pieces[k][3])):
+                for i, t in enumerate(ts):
+                    if abs(py - t["line_y"]) < 2.5 and t["lo"] - 3 <= px <= t["hi"] + 3:
+                        att.append((px, i))
+        att = sorted(set((round(px, 1), i) for px, i in att))
+        for (xa, a), (xb, b) in zip(att, att[1:]):
+            if a != b:
+                conns.append((a, xa, b, xb))
+    def edge(i, side):
+        return ts[i]["lo"] - x0 < 6 if side == "left" else x1 - ts[i]["hi"] < 6
+    def mains(d, role):
+        """entry / exit tracks of direction d: at that edge of the diagram, carrying a d arrow; when no track at
+        that edge carries one (single-track side of a transition, no arrows drawn): every track reaching it"""
+        side = ("left" if d == "R" else "right") if role == "entry" else ("right" if d == "R" else "left")
+        at = [i for i in range(len(ts)) if edge(i, side) and not ts[i]["no"].isdigit()]
+        with_arrow = [i for i in at if d in ts[i]["arrows"]]
+        return with_arrow or at
+    def run(d, start):                             # forward reachability: {track: first position reached}
+        fwd = (lambda a, b: b >= a - 0.5) if d == "R" else (lambda a, b: b <= a + 0.5)
+        reach = dict(start)
+        changed = True
+        while changed:
+            changed = False
+            for a, xa, b, xb in conns:
+                for (p, xp, q, xq) in ((a, xa, b, xb), (b, xb, a, xa)):
+                    if p in reach and fwd(reach[p], xp) and fwd(xp, xq):
+                        if q not in reach or (xq < reach[q] if d == "R" else xq > reach[q]):
+                            reach[q] = xq
+                            changed = True
+        return reach
+    for t in ts:
+        t["usable"] = t["enter"] = ""
+    for d in ("L", "R"):
+        entry = {i: (x0 if d == "R" else x1) for i in mains(d, "entry")}
+        exits = set(mains(d, "exit"))
+        reach = run(d, entry)
+        for i, t in enumerate(ts):
+            if i not in reach:
+                continue
+            t["enter"] += d                        # a train moving d can get onto it (to end / stand there)
+            if t["through"] and t["arrows"]:
+                ok = d in t["arrows"]
+            else:
+                onward = run(d, {i: reach[i]})
+                ok = any(j in onward for j in exits)
+            if ok:
+                t["usable"] += d
 
 
 def pt_seg(px, py, s):
@@ -271,6 +352,9 @@ def read_page(page, codes, extra_words=()):
             near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
             t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
+        box = lambda q: x0 - 10 <= min(q[0], q[2]) and max(q[0], q[2]) <= x1 + 10 and y0 - 12 <= min(q[1], q[3]) \
+            and max(q[1], q[3]) <= y1 + 12
+        usable_directions(ts, [q for q in solid + dashed if box(q)], x0, x1)
         out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,
                         right=right, inside=inside, marks=marks))
     # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
@@ -533,7 +617,8 @@ CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, e
                              roman_tracks INTEGER, yard_tracks INTEGER, out_of_service_tracks INTEGER,
                              longest_roman_m REAL, ppka INTEGER, pap INTEGER);
 CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
-                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER, out_of_service INTEGER);
+                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER, out_of_service INTEGER,
+                            usable TEXT, usable_towards TEXT, enter TEXT);
 """
 
 
@@ -565,7 +650,10 @@ def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
 def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
     track, 'yard' = Arabic-numbered stabling / yard track; out_of_service = connected only by dashed lines (user);
-    roman_tracks / longest_roman_m count usable (in-service) Roman tracks only. arrows: normal running direction drawn at the track ends
+    roman_tracks / longest_roman_m count usable (in-service) Roman tracks only. usable: directions (L / R on the
+    sheet) in which a train can stand on the track and continue (forward moves over the drawn switches; through
+    mains only in their arrow direction); usable_towards: the same as neighbour stations; enter: directions in
+    which a train can get onto it (also dead ends / termini, where trains end or reverse). arrows: normal running direction drawn at the track ends
     (L / R on the sheet, LR = both, '' = none drawn); towards: the neighbour station(s) of that direction.
     A station can have different diagrams on different lines (separate levels / isolated tracks): one row per line.
     station_layout_refs: 'periksa lintas ...' notes, the station's diagram is on the line named there."""
@@ -604,10 +692,13 @@ def write(inf, diagrams, refs=()):
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
-            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            ut = " ".join(([left[0]] if "L" in t.get("usable", "") and left else []) +
+                          ([right[0]] if "R" in t.get("usable", "") and right else []))
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if is_roman(t["no"]) else int(re.sub(r"\D", "", t["no"])),
                          "roman" if is_roman(t["no"]) else "yard", t["length"], t["arrows"], tw or None,
-                         int(t["through"]), int(bool(t.get("out_of_service")))))
+                         int(t["through"]), int(bool(t.get("out_of_service"))), t.get("usable"), ut or None,
+                         t.get("enter")))
 
 
 if __name__ == "__main__":
