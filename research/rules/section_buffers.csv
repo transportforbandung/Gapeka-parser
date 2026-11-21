@@ -1,3 +1,5 @@
-sections,seconds_per_leg,train_types,source,note
-CTA-PDRG PDRG-CBN CBN-GPI GPI-NMO,120,krl,fitted,Nambo branch: GAPEKA adds about 2 min per leg (buffer)
-SMC-SMT SMT-ATA,45,krl commuter intercity freight,fitted,Semarang Poncol-Tawang-Alastua: GAPEKA adds about 45 s per leg for all trains on top of the station layout
+kind,sections,seconds,train_types,source,note
+buffer,CTA-PDRG PDRG-CBN CBN-GPI GPI-NMO,120 per leg,krl,fitted,Nambo branch: GAPEKA adds about 2 min per leg (buffer)
+buffer,SMC-SMT SMT-ATA,45 per leg,krl commuter intercity freight,fitted,Semarang Poncol-Tawang-Alastua: GAPEKA adds about 45 s per leg for all trains on top of the station layout
+buffer_km,SI-RI RI-GDS GDS-CRG CRG-LP LP-SSI SSI-CBB CBB-CJ CJ-MLB MLB-TPR TPR-SLJ SLJ-CRJ CRJ-CPY CPY-RM RM-CPT CPT-?tagoapu ?tagoapu-PDL CPT-PDL,10.5 per km,intercity,fitted,Sukabumi line: GAPEKA plans slower than the limits and gradient allowance
+buffer_km,PPK-LG LG-BMA BMA-KRT KRT-PAT KRR-KGD KGD-PWT PAT-KRR,3.3 per km,intercity,fitted,Prupuk-Purwokerto: GAPEKA plans slower than the limits and gradient allowance

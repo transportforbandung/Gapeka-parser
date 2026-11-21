@@ -144,6 +144,15 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   pages (Cikampek-Cirebon, Klaten-Solo-Sragen; OCR pages not yet), stored in research/rules/station_attributes.csv.
   Overtakes on double track: CTC releases the waiting train a bit sooner and more consistently (median +3.0 vs
   +4.0 min after the next block point; 28 % vs 6 % within 0.5 min; n = 50). No crossings at CTC stations found.
+- User decisions (this round): freight calculation is on hold (freight hardly follows GAPEKA; 1 min error is fine).
+  Walahar and Jatiluhur are locomotive-hauled (stay in loco/KRD). Bandung halt misses: user does not know, leave.
+  Kotok: covered by the gradient allowance (Kalisat-Kotok residual 77 s -> 21-35 s), no manual rule.
+- Slow-zone rules (research/fit_slow.py, fitted from training residuals; research/rules/station_buffers.csv and
+  section_buffers.csv): terminus time Gambir intercity +139 s arr / +97 s dep, Pasarsenen +124 / +147, Surabaya Kota
+  commuter +117 / +115 (busy termini, trains held at the home signal); Ciroyom commuter stops +47 arr / +86 dep;
+  Sukabumi line intercity +10.5 s/km; Prupuk-Purwokerto intercity +3.3 s/km. Rule kinds in relearn.py: buffer,
+  buffer_km, station_buffer. Physics-only held-out 64/25/11 -> 66/24/10 %; terminus legs >1 min 95 -> 18 %;
+  full model unchanged (81/16/4).
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA

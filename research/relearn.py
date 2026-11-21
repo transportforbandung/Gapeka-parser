@@ -50,7 +50,7 @@ def apply_zones(g, rules):
     for the listed train types, for trains that stop / pass / either at that station"""
     cap, st = g["cap"], g["stations"]
     for z in rules:
-        if z.get("kind") == "buffer" or g["type"] not in z["types"]:
+        if z.get("kind") or g["type"] not in z["types"]:
             continue
         for side in z["sides"]:                                   # 'dep' = leg starts at the station, 'arr' = ends there
             L = z["dep_m"] if side == "dep" else z["arr_m"]
@@ -142,10 +142,33 @@ X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else 
 calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
 base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
 # section buffers (timetable padding, not physics): extra seconds per leg that runs over the listed sections
-BUFFERS = [z for z in RULES if z.get("kind") == "buffer"]
+BUFFERS = [z for z in RULES if z.get("kind") in ("buffer", "buffer_km", "station_buffer")]
 def buffer_s(g):
-    secs = set(zip(g["stations"], g["stations"][1:])) | set(zip(g["stations"][1:], g["stations"]))
-    return sum(b["seconds"] for b in BUFFERS if g["type"] in b["types"] and secs & {tuple(p) for p in b["sections"]})
+    """timetable padding rules (not physics):
+       buffer         seconds per leg that runs over any listed section
+       buffer_km      seconds per km run on the listed sections
+       station_buffer seconds for legs arriving at / departing from a station (when: stop / terminal / any)"""
+    pairs = list(zip(g["stations"], g["stations"][1:]))
+    secs = set(pairs) | {(b, a) for a, b in pairs}
+    tot = 0.0
+    for b in BUFFERS:
+        if g["type"] not in b["types"]:
+            continue
+        k = b["kind"]
+        if k == "buffer" and secs & {tuple(p) for p in b["sections"]}:
+            tot += b["seconds"]
+        elif k == "buffer_km":
+            want = {frozenset(p) for p in b["sections"]}
+            km = sum(L for (a_, b_), (L, _) in zip(pairs, g.get("sec_grade", [])) if frozenset((a_, b_)) in want)
+            tot += b["seconds_per_km"] * km
+        elif k == "station_buffer":
+            for side in b["sides"]:
+                at, rest, term = (g["stations"][0], g["start_rest"], g["first"]) if side == "dep" else (g["stations"][-1], g["end_rest"], g["last"])
+                if at != b["station"]: continue
+                w = b["when"]
+                if (w == "terminal" and rest and term) or (w == "stop" and rest) or w == "any":
+                    tot += b["seconds"]
+    return tot
 if BUFFERS:
     buf = np.array([buffer_s(g) for g in legs], float)
     # refit calibration with the buffer already added, so calibration is not distorted by the padded legs
@@ -278,7 +301,7 @@ for (a, b, t), (e, n) in sorted(sec.items(), key=lambda kv: -abs(kv[1][0]))[:30]
 
 print("\nRULE STATIONS (all legs, no note): mean error s, share |err|<0.5 / >1 min")
 _seen = set()
-for z in [z for z in RULES if z.get("kind") != "buffer"]:
+for z in [z for z in RULES if not z.get("kind")]:
     if (z["station"], z["towards"]) in _seen:
         continue
     _seen.add((z["station"], z["towards"]))
@@ -326,3 +349,18 @@ _st = np.array([(sum(L for L, gr in g.get("sec_grade", []) if gr is not None and
 mm = test & ~noted & _st
 print(f"  physics + calibration only      {bands((base - y)[mm])}")
 print(f"  + corrections                   {bands((pred - y)[mm])}")
+
+print("\\nSLOW-ZONE LEGS (held-out, no note): physics only")
+_SZ = {"term GMR/PSE intercity": lambda g: g["type"] == "intercity" and ((g["last"] and g["stations"][-1] in ("GMR", "PSE")) or (g["first"] and g["stations"][0] in ("GMR", "PSE"))),
+       "term SB commuter": lambda g: g["type"] == "commuter" and ((g["last"] and g["stations"][-1] == "SB") or (g["first"] and g["stations"][0] == "SB")),
+       "Ciroyom commuter": lambda g: g["type"] == "commuter" and "CIR" in (g["stations"][0], g["stations"][-1]),
+       "Sukabumi line intercity": lambda g: g["type"] == "intercity" and g.get("page_major") == 28,
+       "Prupuk-Purwokerto intercity": lambda g: g["type"] == "intercity" and set(g["stations"]) <= {"PPK", "LG", "BMA", "KRT", "PAT", "KRR", "KGD", "PWT"}}
+for g in legs:
+    import collections as _c
+    _pg = _c.Counter((pm.PROF.get(f"{a}-{b}") or pm.PROF.get(f"{b}-{a}") or {}).get("page") for a, b in zip(g["stations"], g["stations"][1:]))
+    g["page_major"] = _pg.most_common(1)[0][0] if _pg else None
+for lab, f in _SZ.items():
+    mm = np.array([f(g) for g in legs]) & test & ~noted
+    if mm.sum():
+        print(f"  {lab:28s} {bands((base - y)[mm])}   full model {bands((pred - y)[mm])}")
