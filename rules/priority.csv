@@ -1,0 +1,6 @@
+event,rule,applies_to,source,note
+overtake,the train with the higher number waits; the lower number overtakes,simulation,manual (user) + data,"GAPEKA overtakes follow it in 98 % (564; 100 % between train types, 89 % within a type)"
+cross,the lower number has priority: place the crossing where it keeps running (the higher number waits in the loop),simulation,manual (user) + data,"GAPEKA crossings follow it in 74 % (82 % between types, 67 % within a type)"
+cross,when the higher number cannot be held in time (the lower number reaches the crossing loop first and the other is still in the section) the train that arrives first waits,simulation,manual (user),"the exceptions in GAPEKA are of this kind: the first to arrive stops (user)"
+tie,equal numbers (e.g. 2501 / 2501F): the regular train before the facultative one,simulation,assumed,not tested (no data)
+existing,real GAPEKA trains keep who waits as printed (remarks x / = / //) and their printed times,timetable,manual (user),the priority rule is only for trains the simulator plans itself

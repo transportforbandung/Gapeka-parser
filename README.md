@@ -97,6 +97,7 @@ trains running back up use the **hilir** track.
 | `halt_rules` | hand | KAI's halt publication method per region |
 | `halt_offsets` | hand | KAI's published halt times for the TfB halts |
 | `wait_gaps` | hand | When a train waiting for a crossing / overtake leaves |
+| `priority` | hand | Who yields at crossings / overtakes in the simulator (lower train number has priority) |
 | `station_attributes` | hand | CTC stations |
 | `fitted_calibration` | fitted | Per train type: margin, fixed times, steep-section allowance |
 | `fitted_corrections` | fitted | Small per-section / station / halt adjustments where GAPEKA is consistently faster or slower than physics |
@@ -236,6 +237,7 @@ When the sheet is read wrongly or says too little, add a line to one of these fi
 | `rules/station_zones.csv` | Station-area speed zones (length, speed, train types, stopping / passing) |
 | `rules/section_buffers.csv`, `rules/station_buffers.csv` | Extra planning time on sections or at stations |
 | `rules/wait_gaps.csv` | Departure rules for trains waiting for a crossing / overtake |
+| `rules/priority.csv` | Who yields in the simulator: the higher train number waits (overtakes 98 %, crossings 74 % in GAPEKA); real GAPEKA trains keep their printed waits |
 | `rules/station_attributes.csv` | CTC stations |
 
 The KAI timetables in `reference/` are used to check the halt rules (step 8 report and `check.py`). When KAI

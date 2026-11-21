@@ -122,6 +122,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   adds nothing. Crossing exceptions are real waits (median 6 min, not at the train's usual stops): on single track
   the train that reaches the loop first has to stop, so timing decides where priority cannot. The timetable data
   needs no change (the notes say who waits); the simulator uses this rule to decide who yields.
+  User: real-world data follows the timing (sometimes the first train to arrive is the one that stops; keep the
+  printed waits); the simulation auto-calculates with the number rule. Written as hand rules in rules/priority.csv
+  (rules.db table priority): overtake -> higher number waits; crossing -> lower number keeps running, unless it
+  reaches the loop first while the other is still in the section, then the first to arrive waits; equal numbers ->
+  regular before facultative (assumed).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
