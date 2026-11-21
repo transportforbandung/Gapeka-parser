@@ -133,8 +133,10 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Gradient check (research/grade_check.py, single-section pass->pass legs): the timetable does NOT lower the speed
   limit on steep sections (vmax < Umum only 3-14 % there vs 78 % on flat); instead GAPEKA adds time symmetrically
   uphill and downhill: time / time-at-limit 1.13 on flat (4.6 s/km), 1.22-1.29 at |grade| >= 5 permil (10-13 s/km).
-  A planning allowance on steep sections, not a traction effect. Proposed: allowance by |ruling gradient| per type
-  (awaiting the user's go-ahead). User limits: Leces-Malasan 70, Malasan-Ranuyoso 100 with a 70 restriction,
+  A planning allowance on steep sections, not a traction effect. Tested (user agreed): ruling gradient ("Lereng
+  Penentu") extracted per pair (452 of 584; elevation gradient as fallback); calibration term per type for km on
+  sections >= 10 permil: intercity +4.0 s/km, commuter +4.4, freight +2.0, KRL ~0; 5-10 permil ~0. Physics-only
+  steep legs > 1 min 10 -> 8 %; full model unchanged (corrections already learned it). On by default (GRADE_ALLOW=1). User limits: Leces-Malasan 70, Malasan-Ranuyoso 100 with a 70 restriction,
   Lawang-Singosari 70 (all already extracted); Kotok "has complicated speed limits" (sheet shows only 90 general +
   70 at km 211.4-209.2 on Kalisat-Kotok).
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %

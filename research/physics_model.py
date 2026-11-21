@@ -256,6 +256,7 @@ def build(db, tag_rule, vmax_rule="after"):
             T = (t1 - t0) % 86400
             cells_cap, cells_grade, halts, ok, x = [], [], [], True, 0.0
             halt_st = []
+            sec_grade = []
             for i in range(p, n):
                 pr = profile(rows[i][1], rows[i + 1][1], train_class(service))
                 va, vb = rows[i][5], rows[i + 1][5]
@@ -280,6 +281,11 @@ def build(db, tag_rule, vmax_rule="after"):
                         cap[int(o0 * 1000 / DX):max(int(o1 * 1000 / DX), int(o0 * 1000 / DX) + 1)] = np.minimum(
                             cap[int(o0 * 1000 / DX):max(int(o1 * 1000 / DX), int(o0 * 1000 / DX) + 1)], rv)
                 cells_cap.append(cap)
+                pp = PROF.get(f"{rows[i][1]}-{rows[i + 1][1]}") or PROF.get(f"{rows[i + 1][1]}-{rows[i][1]}") or {}
+                g_rule = pp.get("ruling")
+                if g_rule is None and pp.get("h_a") is not None and pp.get("h_b") is not None and L > 0:
+                    g_rule = abs(pp["h_b"] - pp["h_a"]) / L            # fallback: elevation gradient, per mil
+                sec_grade.append((L, g_rule))
                 # gradient/curves are represented by the local limits (user); GRADE=1 tests acceleration on grades anyway
                 cells_grade.append(np.full(nc, grade if (GRADE and grade is not None) else 0.0))
                 x += L
@@ -294,7 +300,7 @@ def build(db, tag_rule, vmax_rule="after"):
                 continue
             legs.append(dict(train=no, service=service, cls=train_class(service), cap=cap, grade=np.concatenate(cells_grade),
                              halts=halts, start_rest=A[2] != "pass", end_rest=B[2] != "pass", T=T,
-                             stations=[r[1] for r in rows[p:n + 1]], noted=(no, A[1]) in noted or (no, B[1]) in noted, note_a=(no, A[1]) in noted, note_b=(no, B[1]) in noted, first=(p == 0), last=(n == len(rows) - 1), halt_st=halt_st,
+                             stations=[r[1] for r in rows[p:n + 1]], noted=(no, A[1]) in noted or (no, B[1]) in noted, note_a=(no, A[1]) in noted, note_b=(no, B[1]) in noted, first=(p == 0), last=(n == len(rows) - 1), halt_st=halt_st, sec_grade=sec_grade,
                              test=zlib.crc32(no.encode()) % 5 == 0))
     return legs, total
 

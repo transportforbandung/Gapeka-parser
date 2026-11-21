@@ -211,6 +211,37 @@ def page_profile(page, use_ocr=False):
         return c[0] if c else None
     # ---- elevation: profile column, integer tokens between the first gradient column and the curve column
     hdr = sorted([w for w in ws if w[4] == "Lereng"], key=lambda w: w[0])
+    # ---- ruling gradient ("Lereng Penentu", per mil): first column under the first "Lereng" header
+    grad_tok, grad_hl = [], []
+    gx = hdr[0][0] if hdr else None
+    if gx is None:                                       # OCR pages: no readable header, use the leftmost number column
+        xs = [w[0] for w in left if w[0] < 80 and re.match(r"^\d{1,2}([,.]\d)?$", w[4])]
+        if len(xs) >= 3:
+            gx = statistics.median(xs)
+            hdr = [(gx, 0, gx + 10, 0, "")]                 # pseudo header at the top of the page
+    if gx is not None:
+        for w in left:
+            if abs(w[0] - gx) < 9 and re.match(r"^\d{1,2}([,.]\d)?$", w[4]) and cy(w) > hdr[0][3] + 20:
+                grad_tok.append((cy(w), float(w[4].replace(",", "."))))
+        for d in page.get_drawings():
+            for it in d["items"]:
+                if it[0] == "l" and abs(it[1].y - it[2].y) < .3 and min(it[1].x, it[2].x) <= gx + 2 and max(it[1].x, it[2].x) >= gx + 8:
+                    grad_hl.append(round(it[1].y, 1))
+        grad_hl = sorted(set(grad_hl))
+
+    def grad_at(y0, y1):
+        """length-weighted ruling gradient over the rows y0..y1 (sections can span several gradient cells)"""
+        if not grad_tok:
+            return None
+        cuts = sorted({y0, y1} | {h for h in grad_hl if y0 < h < y1})
+        tot, acc = 0.0, 0.0
+        for a_, b_ in zip(cuts, cuts[1:]):
+            mid = (a_ + b_) / 2
+            lo = max([h for h in grad_hl if h <= mid] or [-1e9]); hi = min([h for h in grad_hl if h > mid] or [1e9])
+            v = [g for yy, g in grad_tok if lo <= yy <= hi]
+            if v:
+                acc += (b_ - a_) * v[0]; tot += b_ - a_
+        return round(acc / tot, 1) if tot else None
     elev = []
     if len(hdr) >= 2:
         x_lo, x_hi = hdr[0][2] + 4, hdr[-1][0] - 2
@@ -296,7 +327,7 @@ def page_profile(page, use_ocr=False):
                 b["o"] = round(Lp * i / (len(auto) + 1), 3)
                 b["src"] = "automatic, evenly spaced"
         out.append(dict(a=A["code"], b=B["code"], up=kb > ka, km=round(abs(kb - ka), 3), umum=u, restr=rs,
-                        h_a=elev_at(A["y"]), h_b=elev_at(B["y"]), blocks=bl))
+                        h_a=elev_at(A["y"]), h_b=elev_at(B["y"]), blocks=bl, ruling=grad_at(A["y"], B["y"])))
     return out
 
 

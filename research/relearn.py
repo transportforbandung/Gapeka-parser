@@ -122,6 +122,10 @@ first = np.array([float(g["first"]) for g in legs]); last = np.array([float(g["l
 TERM = os.environ.get("TERMINAL", "1") == "1"
 srest = np.array([float(g["start_rest"]) for g in legs]); erest = np.array([float(g["end_rest"]) for g in legs])
 ENDS = os.environ.get("ENDS", "1") == "1"         # separate fixed time for starting from / stopping at a station
+GRADE_ALLOW = os.environ.get("GRADE_ALLOW", "1") == "1"
+def _km_band(g, lo, hi):
+    return sum(L for L, gr in g.get("sec_grade", []) if gr is not None and lo <= gr < hi)
+GK = np.array([[_km_band(g, 5, 10), _km_band(g, 10, 99)] for g in legs]) if GRADE_ALLOW else None
 NOTE_FEATS = os.environ.get("NOTE_FEATS", "1") == "1"
 if NOTE_FEATS:
     _sym = {}
@@ -134,7 +138,7 @@ if NOTE_FEATS:
     NF = np.array([_role(g, "start") + _role(g, "end") for g in legs])
     train = np.array([not g["test"] for g in legs])          # noted legs now take part in training
 X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []) + ([srest, erest] if ENDS else [])
-                    + ([NF] if NOTE_FEATS else []))
+                    + ([NF] if NOTE_FEATS else []) + ([GK] if GRADE_ALLOW else []))
 calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
 base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
 # section buffers (timetable padding, not physics): extra seconds per leg that runs over the listed sections
@@ -150,8 +154,8 @@ if BUFFERS:
 for t in TYPES:
     c = calib[t]
     extra = f"  terminus arrival {c[3]:+4.0f} s  origin departure {c[4]:+4.0f} s" if TERM else ""
-    if ENDS:
-        extra += f"  start from stop {c[-2]:+4.0f} s  stop at end {c[-1]:+4.0f} s"
+    if GRADE_ALLOW:
+        extra += f"  steep 5-10 permil {c[-2]:+4.1f} s/km  >=10 permil {c[-1]:+4.1f} s/km"
     print(f"calibration {t:9s}: margin {c[0] - 1:+.1%}  const {c[1]:4.0f} s  per halt {c[2]:3.0f} s{extra}")
 
 # ---- correction features
@@ -316,3 +320,9 @@ for i, g in enumerate(legs):
 for sv, ii in sorted(_s.items(), key=lambda kv: -len(kv[1])):
     e = (base[ii] - y[ii])
     print(f"  {sv:30s} n={len(ii):4d}  mean {np.mean(e):+5.0f}  >1 min {np.mean(np.abs(e) > 60):4.0%}   stop->stop share {np.mean([legs[i]['start_rest'] and legs[i]['end_rest'] for i in ii]):.0%}")
+
+print("\nSTEEP LEGS (>= 50 % of the length at >= 10 permil), held-out, no note")
+_st = np.array([(sum(L for L, gr in g.get("sec_grade", []) if gr is not None and gr >= 10) / max(sum(L for L, _ in g.get("sec_grade", [])), 1e-6)) >= .5 for g in legs])
+mm = test & ~noted & _st
+print(f"  physics + calibration only      {bands((base - y)[mm])}")
+print(f"  + corrections                   {bands((pred - y)[mm])}")
