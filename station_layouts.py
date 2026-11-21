@@ -691,6 +691,26 @@ def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
     return diagrams
 
 
+def next_stations(inf, st, line_id):
+    """the stations next to st on a line, stepping over halts / sheet-only stops"""
+    kind = dict(inf.execute("select code, kind from stations"))
+    adj = defaultdict(set)
+    for a, b in inf.execute("select a, b from sections where line_id = ?", (line_id,)):
+        adj[a].add(b)
+        adj[b].add(a)
+    out, seen, todo = set(), {st}, list(adj[st])
+    while todo:
+        x = todo.pop()
+        if x in seen:
+            continue
+        seen.add(x)
+        if kind.get(x) in ("halt", "sheet only"):
+            todo += list(adj[x])
+        else:
+            out.add(x)
+    return sorted(out)
+
+
 def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
     track, 'yard' = Arabic-numbered stabling / yard track; out_of_service = connected only by dashed lines (user);
@@ -710,6 +730,20 @@ def write(inf, diagrams, refs=()):
         inf.execute("INSERT INTO station_layout_refs VALUES(?,?,?,?,?,?)",
                     (r["station"], line_of.get(r["page"]), r["page"], round(r["y"], 1), r["line"] or None, r["note"]))
     diagrams = manual_tracks(diagrams)
+    # track directions the drawing cannot show (mains drawn as unlabelled curves, e.g. Cikarang), user
+    import csv
+    import os
+    if os.path.exists("manual/layout_track_directions.csv"):
+        for r in csv.DictReader(open("manual/layout_track_directions.csv")):
+            for d in diagrams:
+                if d.get("station") == r["station"] and d["page"] == int(r["page"]):
+                    for t in d["tracks"]:
+                        if t["no"] == r["track"]:
+                            t["usable"] = r["usable"]
+                            if r.get("main") == "1":
+                                t["through"], t["arrows"] = True, r["usable"]
+                    if not d["how"].endswith("+ manual directions"):
+                        d["how"] += " + manual directions"
     # a 'periksa lintas' note instead of a diagram: the diagram on the other line is the same (user), copy it
     have = {(d["station"], line_of.get(d["page"])) for d in diagrams if d.get("station")}
     copies = []
@@ -730,6 +764,11 @@ def write(inf, diagrams, refs=()):
         oos = sum(1 for t in tr if t.get("out_of_service"))
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
+        if bool(left) != bool(right):
+            # one end label not read (slanted / outside the diagram): the other neighbour station on that line
+            other = [x for x in next_stations(inf, d["station"], ln) if x not in left + right]
+            if len(other) == 1:
+                (left if not left else right).append(other[0])
         inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
                      sum(1 for t in tr if not is_roman(t["no"])), oos, max((t["length"] for t in rom if t["length"] is not None), default=None),

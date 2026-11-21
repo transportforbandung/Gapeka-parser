@@ -1,0 +1,4 @@
+page,station,track,usable,main,note
+13,CKR,VI,R,1,"Cikarang: VI is the eastbound main (pass-through track), eastbound only (user)"
+13,CKR,VII,L,1,"Cikarang: VII is the westbound main (user)"
+13,CKR,VIII,L,0,"Cikarang: westbound only (user, confirms the reader)"

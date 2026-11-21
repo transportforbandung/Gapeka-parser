@@ -191,8 +191,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the direction 453 / 456
   (99.3 %), crossings with a usable track pair 730 / 732 (99.7 %); misses: Bowerno, Kalimas, Kretek (1-2 each).
   Roman tracks usable in no direction: 119 of 1635 (mostly termini and big yards; see 'enter'). Cikarang and
-  Malang Kotalama draw their running lines as unlabelled curves: no labelled track is a main there, so every
-  reachable track is treated as a loop (open question to the user).
+  Malang Kotalama draw their running lines as unlabelled curves (user): Malang Kotalama is single track, all Roman
+  tracks both ways (the reader agrees); Cikarang mains VI eastbound only (pass-through) and VII westbound, VIII
+  westbound only: manual/layout_track_directions.csv (page, station, track, usable, main). A missing end label
+  (slanted / outside the diagram) is filled with the other neighbour station on that line (halts skipped).
+  After that: crossings with a usable track pair 749 / 753, overtakes 453 / 456.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
