@@ -94,9 +94,21 @@ def parse_notes(text):
 
 def page_rows(page):
     words = page.get_text("words")
+    # words of one text line: centres within 1.5 pt (rounding alone splits a line whose words differ by 0.1 pt,
+    # e.g. the header of KA 90, PDF page 265)
     lines = defaultdict(list)
-    for w in words:
-        lines[round((w[1] + w[3]) / 2)].append(w)
+    keys = []
+    for w in sorted(words, key=lambda w: (w[1] + w[3]) / 2):
+        c = (w[1] + w[3]) / 2
+        if keys and c - keys[-1][1] < 1.5:
+            keys[-1][1] = c
+            lines[keys[-1][0]].append(w)
+        else:
+            k = round(c)
+            while k in lines:
+                k += 0.01
+            keys.append([k, c])
+            lines[k].append(w)
     items, anchors = [], []
     for y, ws in sorted(lines.items()):
         ws.sort(key=lambda w: w[0])

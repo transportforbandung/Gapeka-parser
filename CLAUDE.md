@@ -15,8 +15,9 @@ Read this first. It records decisions and findings from earlier sessions so they
    pages 1825-1864, Lampiran IV, 2353 entries, every gapeka.db train is in it) -> trains.type / klasifikasi / kelas /
    facultative (209) / operator / index_km, table train_index, 550 KA Dinas trips added as trains (type dinas, stops
    kind 'via' between start and end, no times yet), view schedule_hhmm. Step [6] runs last so the distance / halt /
-   note steps see exactly the old trains; exporter output verified byte-identical. Train 90 (Gaya Baru Selatan) is in
-   the index but not parsed from the timetable pages (open). trains, stops, vmax, notes. Add: train type
+   note steps see exactly the old trains; exporter output verified byte-identical. Train 90 (Gaya Baru Selatan) was lost
+   because its header words differ by 0.1 pt in height: text lines are now grouped by centres within 1.5 pt (fixed,
+   orphan rows 123 -> 0). trains, stops, vmax, notes. Add: train type
    (krl / commuter / intercity / freight / dinas), facultative flag (F trains: run when KAI wants, still in all
    calculations), KA Dinas (R... trainset, L... locomotive movements; only drawn on the graph sheets and listed in the
    train-number / roster tables near the end of the PDF, e.g. "R49 L49-2" on the locomotive roster from page 1680,
