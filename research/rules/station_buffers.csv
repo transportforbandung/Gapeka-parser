@@ -1,0 +1,9 @@
+station,side,applies_when,seconds,train_types,source,note
+GMR,arr,terminal,139,intercity,fitted,terminus time: trains held at the home signal of a busy terminus (user); arr
+GMR,dep,terminal,97,intercity,fitted,terminus time: trains held at the home signal of a busy terminus (user); dep
+PSE,arr,terminal,124,intercity,fitted,terminus time: trains held at the home signal of a busy terminus (user); arr
+PSE,dep,terminal,147,intercity,fitted,terminus time: trains held at the home signal of a busy terminus (user); dep
+SB,arr,terminal,117,commuter,fitted,terminus time: trains held at the home signal of a busy terminus (user); arr
+SB,dep,terminal,115,commuter,fitted,terminus time: trains held at the home signal of a busy terminus (user); dep
+CIR,arr,stop,47,commuter,fitted,commuters held at Bandung's home signal / waiting for main-line trains at Cimindi (user)
+CIR,dep,stop,86,commuter,fitted,commuters held at Bandung's home signal / waiting for main-line trains at Cimindi (user)

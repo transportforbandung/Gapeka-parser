@@ -1,0 +1,18 @@
+event,line,track,train_type,reference,gap_min,n,source
+cross,*,*,passenger,other train passes / arrives,2.0,,fitted (waits)
+cross_both_stop,*,*,passenger,other dwell <= 2 min: other departs; else other arrives,2.0,,fitted (waits)
+overtake,*,single,passenger,overtaker at next block point,2.0,,"fitted (waits), default"
+overtake,*,double,passenger,overtaker at next block point,2.5,,"fitted (waits), default"
+overtake,"Cepu-Surabaya, Mojokerto",double,passenger,overtaker at next block point,2.0,8,fitted (waits)
+overtake,"Cepu-Surabaya, Mojokerto",single,passenger,overtaker at next block point,2.0,5,fitted (waits)
+overtake,"Cikampek-Bandung-Banjar, Garut",double,passenger,overtaker at next block point,0.0,9,fitted (waits)
+overtake,"Cikampek-Cirebon-Tegal, Prupuk",double,passenger,overtaker at next block point,3.0,22,fitted (waits)
+overtake,"Cikampek-Cirebon-Tegal, Prupuk",single,passenger,overtaker at next block point,2.0,10,fitted (waits)
+overtake,"Jakartakota-Jatinegara-Bekasi, Tanjungpriuk",double,passenger,overtaker at next block point,1.9,34,fitted (waits)
+overtake,"Jakartakota-Jatinegara-Bekasi, Tanjungpriuk",single,passenger,overtaker at next block point,1.0,6,fitted (waits)
+overtake,Kertosono-Wlingi,single,passenger,overtaker at next block point,2.0,15,fitted (waits)
+overtake,Kutoarjo-Yogyakarta-Solo,double,passenger,overtaker at next block point,2.0,11,fitted (waits)
+overtake,Kutoarjo-Yogyakarta-Solo,single,passenger,overtaker at next block point,2.5,15,fitted (waits)
+overtake,Prupuk-Purwokerto-Kutoarjo,single,passenger,overtaker at next block point,2.0,13,fitted (waits)
+overtake,"Tegal-Semarang-Cepu, Gundih",double,passenger,overtaker at next block point,3.0,12,fitted (waits)
+overtake,"Tegal-Semarang-Cepu, Gundih",single,passenger,overtaker at next block point,2.0,8,fitted (waits)

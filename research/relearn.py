@@ -1,0 +1,366 @@
+"""Relearn the network: isolate errors per directed section and per station end, by train type and stop/pass.
+
+Base: physics (fixed accel/brake per rolling-stock group) + linear calibration (margin, const, halt dwell) per TRAIN TYPE
+      (krl / commuter / intercity / freight), so commuter and intercity no longer share corrections.
+Corrections (ridge regression on training residuals, seconds):
+  section[(a, b, type)]               every traversal of the directed pair a->b
+  station[(s, 'dep'|'arr', 'stop'|'pass', type)]   at the first / last timed point of a leg
+Writes station_effects.csv, section_effects.csv, relearn_test.csv; prints bands and a diagnosis.
+"""
+import csv
+import json
+import os
+import sqlite3
+from collections import defaultdict
+
+import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import lsqr
+
+import physics_model as pm
+
+KRL = {"Commuter Line Rangkasbitung", "Commuter Line Cikarang", "Commuter Line Bogor", "Commuter Line Yogyakarta",
+       "Commuter Line Tangerang", "Commuter Line Tanjungpriuk", "Commuter Line BST"}
+PHYS = {"krl": (0.45, 4.2, 0.85), "loco/krd": (0.15, 2.3, 0.15), "freight": (0.08, 1.2, 0.08)}
+TYPES = ("krl", "commuter", "intercity", "freight")
+
+
+def ttype(g):
+    s = g["service"]
+    if s in KRL:
+        return "krl"
+    if g["cls"] == "freight":
+        return "freight"
+    if s.startswith("Commuter") or s in ("Ka Feeder", "Bandara SMO"):
+        return "commuter"
+    return "intercity"
+
+
+EMU_LIKE = set(filter(None, os.environ.get("EMU_LIKE", "Ka Feeder").split(",")))   # non-KRL services with EMU performance
+
+
+def phys_group(t, service=""):
+    if service in EMU_LIKE:
+        return "krl"
+    return "krl" if t == "krl" else ("freight" if t == "freight" else "loco/krd")
+
+
+def apply_zones(g, rules):
+    """station zones: speed cap for `length_m` on the side of `station` facing `towards` ('*' = any side),
+    for the listed train types, for trains that stop / pass / either at that station"""
+    cap, st = g["cap"], g["stations"]
+    for z in rules:
+        if z.get("kind") or g["type"] not in z["types"]:
+            continue
+        for side in z["sides"]:                                   # 'dep' = leg starts at the station, 'arr' = ends there
+            L = z["dep_m"] if side == "dep" else z["arr_m"]
+            n = min(int(L / pm.DX), len(cap))
+            if not n:
+                continue
+            if side == "dep":
+                at, nb, rest = st[0], st[1], g["start_rest"]
+            else:
+                at, nb, rest = st[-1], st[-2], g["end_rest"]
+            if at != z["station"] or (z["towards"] != "*" and nb != z["towards"]):
+                continue
+            terminal = g["first"] if side == "dep" else g["last"]          # train starts / ends its trip here
+            w = z["when"]
+            if w == "stop" and not rest:                                    # any stop (incl. terminal)
+                continue
+            if w == "pass" and rest:
+                continue
+            if w == "midstop" and not (rest and not terminal):              # intermediate stop only
+                continue
+            if w == "terminal" and not (rest and terminal):
+                continue
+            cap = cap.copy()
+            if side == "dep":
+                cap[:n] = np.minimum(cap[:n], z["speed"])
+            else:
+                cap[-n:] = np.minimum(cap[-n:], z["speed"])
+    return cap
+
+
+RULES = json.load(open(os.environ.get("RULES", "rules.json"))) if os.path.exists(os.environ.get("RULES", "rules.json")) else []
+
+db = sqlite3.connect("/home/user/Gapeka-parser/gapeka.db")
+names = dict(db.execute("select code,name from stations"))
+VMAX_RULE = os.environ.get("VMAX_RULE", "after")
+legs, total = pm.build(db, "track", VMAX_RULE)
+print("vmax rule:", VMAX_RULE)
+for g in legs:
+    g["type"] = ttype(g)
+    g["cap"] = apply_zones(g, RULES)
+print(f"legs with profile: {len(legs)} of {total}")
+
+# ---- physics simulation per rolling-stock group
+sim = np.zeros(len(legs))
+by = defaultdict(list)
+for i, g in enumerate(legs):
+    by[phys_group(g["type"], g["service"])].append(i)
+for gr, idx in by.items():
+    sub = [legs[i] for i in idx]
+    sim[idx] = pm.simulate(pm.prepare(sub), len(sub), *PHYS[gr])
+
+y = np.array([g["T"] for g in legs], float)
+nh = np.array([len(g["halts"]) for g in legs], float)
+typ = np.array([g["type"] for g in legs])
+train = np.array([not g["test"] and not g["noted"] for g in legs])
+test = np.array([g["test"] for g in legs])
+noted = np.array([g["noted"] for g in legs])
+
+
+def lad(X, yy):
+    c = np.linalg.lstsq(X, yy, rcond=None)[0]
+    for _ in range(40):
+        w = 1 / np.maximum(np.abs(yy - X @ c), 5.0)
+        c = np.linalg.lstsq(X * w[:, None] ** .5, yy * w ** .5, rcond=None)[0]
+    return c
+
+
+first = np.array([float(g["first"]) for g in legs]); last = np.array([float(g["last"]) for g in legs])
+TERM = os.environ.get("TERMINAL", "1") == "1"
+srest = np.array([float(g["start_rest"]) for g in legs]); erest = np.array([float(g["end_rest"]) for g in legs])
+ENDS = os.environ.get("ENDS", "1") == "1"         # separate fixed time for starting from / stopping at a station
+GRADE_ALLOW = os.environ.get("GRADE_ALLOW", "1") == "1"
+def _km_band(g, lo, hi):
+    return sum(L for L, gr in g.get("sec_grade", []) if gr is not None and lo <= gr < hi)
+GK = np.array([[_km_band(g, 5, 10), _km_band(g, 10, 99)] for g in legs]) if GRADE_ALLOW else None
+NOTE_FEATS = os.environ.get("NOTE_FEATS", "1") == "1"
+if NOTE_FEATS:
+    _sym = {}
+    for _no, _st, _s in db.execute("select train_no, station, symbol from notes"):
+        _sym.setdefault((_no, _st), set()).add(_s)
+    def _role(g, end):
+        st, rest = (g["stations"][0], g["start_rest"]) if end == "start" else (g["stations"][-1], g["end_rest"])
+        s = _sym.get((g["train"], st), set())
+        return [float(rest and "x" in s), float(rest and "=" in s), float((not rest) and bool(s & {"x", "//"}))]
+    NF = np.array([_role(g, "start") + _role(g, "end") for g in legs])
+    train = np.array([not g["test"] for g in legs])          # noted legs now take part in training
+X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []) + ([srest, erest] if ENDS else [])
+                    + ([NF] if NOTE_FEATS else []) + ([GK] if GRADE_ALLOW else []))
+calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
+base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
+# section buffers (timetable padding, not physics): extra seconds per leg that runs over the listed sections
+BUFFERS = [z for z in RULES if z.get("kind") in ("buffer", "buffer_km", "station_buffer")]
+def buffer_s(g):
+    """timetable padding rules (not physics):
+       buffer         seconds per leg that runs over any listed section
+       buffer_km      seconds per km run on the listed sections
+       station_buffer seconds for legs arriving at / departing from a station (when: stop / terminal / any)"""
+    pairs = list(zip(g["stations"], g["stations"][1:]))
+    secs = set(pairs) | {(b, a) for a, b in pairs}
+    tot = 0.0
+    for b in BUFFERS:
+        if g["type"] not in b["types"]:
+            continue
+        k = b["kind"]
+        if k == "buffer" and secs & {tuple(p) for p in b["sections"]}:
+            tot += b["seconds"]
+        elif k == "buffer_km":
+            want = {frozenset(p) for p in b["sections"]}
+            km = sum(L for (a_, b_), (L, _) in zip(pairs, g.get("sec_grade", [])) if frozenset((a_, b_)) in want)
+            tot += b["seconds_per_km"] * km
+        elif k == "station_buffer":
+            for side in b["sides"]:
+                at, rest, term = (g["stations"][0], g["start_rest"], g["first"]) if side == "dep" else (g["stations"][-1], g["end_rest"], g["last"])
+                if at != b["station"]: continue
+                w = b["when"]
+                if (w == "terminal" and rest and term) or (w == "stop" and rest) or w == "any":
+                    tot += b["seconds"]
+    return tot
+if BUFFERS:
+    buf = np.array([buffer_s(g) for g in legs], float)
+    # refit calibration with the buffer already added, so calibration is not distorted by the padded legs
+    calib = {t: lad(X[train & (typ == t)], (y - buf)[train & (typ == t)]) for t in TYPES}
+    base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))]) + buf
+for t in TYPES:
+    c = calib[t]
+    extra = f"  terminus arrival {c[3]:+4.0f} s  origin departure {c[4]:+4.0f} s" if TERM else ""
+    if GRADE_ALLOW:
+        extra += f"  steep 5-10 permil {c[-2]:+4.1f} s/km  >=10 permil {c[-1]:+4.1f} s/km"
+    print(f"calibration {t:9s}: margin {c[0] - 1:+.1%}  const {c[1]:4.0f} s  per halt {c[2]:3.0f} s{extra}")
+
+# ---- correction features
+def feats(g):
+    f = []
+    st, t = g["stations"], g["type"]
+    for a, b in zip(st, st[1:]):
+        f.append(("sec", a, b, t))
+    if os.environ.get("HALT_DWELL", "1") == "1":
+        for h in g.get("halt_st", []):
+            f.append(("halt", h, t))                       # dwell (+ stop/start) at each halt, per halt station and type
+    f.append(("dep", st[0], "stop" if g["start_rest"] else "pass", t))
+    f.append(("arr", st[-1], "stop" if g["end_rest"] else "pass", t))
+    return f
+
+
+F = [feats(g) for g in legs]
+col = {}
+rows, cols = [], []
+tr_idx = np.where(train)[0]
+for r, i in enumerate(tr_idx):
+    for k in F[i]:
+        rows.append(r)
+        cols.append(col.setdefault(k, len(col)))
+A = csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(len(tr_idx), len(col)))
+res = y[tr_idx] - base[tr_idx]
+keep = np.ones(len(res), bool)
+for _ in range(3):
+    eff = lsqr(A[keep], res[keep], damp=2.0)[0]
+    keep = np.abs(res - A @ eff) < 150
+support = np.asarray(A[keep].sum(0)).ravel()
+
+
+def correction(i):
+    return sum(eff[col[k]] for k in F[i] if k in col)
+
+
+pred = base + np.array([correction(i) for i in range(len(legs))])
+
+
+def bands(e):
+    a = np.abs(e) / 60
+    return f"<0.5 {np.mean(a < .5):4.0%}  0.5-1 {np.mean((a >= .5) & (a <= 1)):4.0%}  >1 {np.mean(a > 1):4.0%}  (n {len(a)})"
+
+
+print("\nheld-out trains, legs without crossing/overtake note")
+m = test & ~noted
+print(f"  physics + calibration only      {bands((base - y)[m])}")
+print(f"  + section/station corrections   {bands((pred - y)[m])}")
+for t in TYPES:
+    mm = m & (typ == t)
+    print(f"     {t:9s}                    {bands((pred - y)[mm])}")
+print(f"  legs with a note                {bands((pred - y)[test & noted])}")
+
+# ---- outputs
+SUFFIX = "" if VMAX_RULE == "after" else "_" + VMAX_RULE
+with open(f"station_effects{SUFFIX}.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["station", "name", "end", "stop_or_pass", "train_type", "effect_s", "legs"])
+    for k, j in col.items():
+        if k[0] in ("dep", "arr"):
+            w.writerow([k[1], names.get(k[1], ""), k[0], k[2], k[3], round(eff[j]), int(support[j])])
+        if k[0] == "halt":
+            w.writerow([k[1], names.get(k[1], ""), "halt", "stop", k[2], round(eff[j]), int(support[j])])
+with open(f"section_effects{SUFFIX}.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["from", "to", "train_type", "effect_s", "legs"])
+    for k, j in col.items():
+        if k[0] == "sec":
+            w.writerow([k[1], k[2], k[3], round(eff[j]), int(support[j])])
+with open(f"relearn_test{SUFFIX}.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["train", "service", "type", "from", "to", "ends", "note", "T_min", "pred_min", "err_min"])
+    for i in np.where(test)[0]:
+        g = legs[i]
+        w.writerow([g["train"], g["service"], g["type"], g["stations"][0], g["stations"][-1],
+                    ("stop" if g["start_rest"] else "pass") + "->" + ("stop" if g["end_rest"] else "pass"),
+                    g["noted"], y[i] / 60, round(pred[i] / 60, 2), round((pred[i] - y[i]) / 60, 2)])
+
+# ---- diagnosis: station ends -- which station effects are big, and do they depend on type / stop-pass / side?
+print("\nSTATION ENDS: effects >= 45 s with >= 5 legs (seconds; + = GAPEKA slower than physics)")
+st_eff = defaultdict(dict)
+for k, j in col.items():
+    if k[0] in ("dep", "arr") and support[j] >= 5:
+        st_eff[k[1]][(k[0], k[2], k[3])] = (eff[j], int(support[j]))
+rank = sorted(st_eff, key=lambda s: -max(abs(v[0]) for v in st_eff[s].values()))
+for s in rank[:30]:
+    big = {k: v for k, v in st_eff[s].items() if abs(v[0]) >= 45}
+    if not big:
+        break
+    allv = st_eff[s]
+    cells = "  ".join(f"{e}/{sp}/{t}:{v[0]:+.0f}({v[1]})" for (e, sp, t), v in sorted(allv.items()))
+    # classify the pattern
+    tags = []
+    ts = {k[2] for k in big}
+    if len({k[2] for k in allv}) > 1 and len(ts) < len({k[2] for k in allv}):
+        tags.append("TYPE-SPECIFIC:" + ",".join(sorted(ts)))
+    if {k[1] for k in big} == {"stop"} and any(k[1] == "pass" for k in allv):
+        tags.append("STOP-ONLY")
+    if {k[1] for k in big} == {"pass"} and any(k[1] == "stop" for k in allv):
+        tags.append("PASS-ONLY")
+    if len({k[0] for k in big}) == 1 and len({k[0] for k in allv}) == 2:
+        tags.append("ONE-SIDE:" + next(iter({k[0] for k in big})))
+    print(f"  {s:5s} {names.get(s, ''):18s} {' '.join(tags) or 'GENERAL'}")
+    print(f"        {cells}")
+
+# ---- diagnosis: directed sections -- direction asymmetry and type dependence
+print("\nSECTIONS: largest effects with >= 5 legs, with the opposite direction alongside (seconds)")
+sec = {}
+for k, j in col.items():
+    if k[0] == "sec" and support[j] >= 5:
+        sec[(k[1], k[2], k[3])] = (eff[j], int(support[j]))
+for (a, b, t), (e, n) in sorted(sec.items(), key=lambda kv: -abs(kv[1][0]))[:30]:
+    if abs(e) < 30:
+        break
+    opp = sec.get((b, a, t))
+    other_types = {tt: sec[(a, b, tt)][0] for tt in TYPES if tt != t and (a, b, tt) in sec}
+    print(f"  {a:>5s} -> {b:<5s} {t:9s} {e:+5.0f} s ({n:3d})   opposite: {('%+.0f' % opp[0]) if opp else '  -':>5s}   "
+          f"other types: {', '.join(f'{k} {v:+.0f}' for k, v in other_types.items()) or '-'}")
+
+print("\nRULE STATIONS (all legs, no note): mean error s, share |err|<0.5 / >1 min")
+_seen = set()
+for z in [z for z in RULES if not z.get("kind")]:
+    if (z["station"], z["towards"]) in _seen:
+        continue
+    _seen.add((z["station"], z["towards"]))
+    for side in z["sides"]:
+        for tt in TYPES:
+            for case in ("pass", "midstop", "terminal"):
+                def ok(g):
+                    rest = g["start_rest"] if side == "dep" else g["end_rest"]
+                    term = g["first"] if side == "dep" else g["last"]
+                    return {"pass": not rest, "midstop": rest and not term, "terminal": rest and term}[case]
+                ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and ok(g) and
+                      ((side == "dep" and g["stations"][0] == z["station"] and (z["towards"] == "*" or g["stations"][1] == z["towards"])) or
+                       (side == "arr" and g["stations"][-1] == z["station"] and (z["towards"] == "*" or g["stations"][-2] == z["towards"])))]
+                if len(ii) < 3:
+                    continue
+                e = (base[ii] - y[ii]) / 60
+                print(f"  {z['station']:4s} {side} {z['towards']:4s} {tt:9s} {case:8s} n={len(ii):3d}  physics only: mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nSUKABUMI LINE (PDF page 28 sections), physics only, no note")
+sk = {"SI","RI","GDS","CRG","LP","SSI","CBB","CJ","MLB","TPR","SLJ","CRJ","CPY","RM","CPT","PDL"}
+for tt in ("intercity", "commuter"):
+    for lab, f in (("stop->stop", lambda g: g["start_rest"] and g["end_rest"]), ("other", lambda g: not (g["start_rest"] and g["end_rest"]))):
+        ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and set(g["stations"]) <= sk and f(g)]
+        if len(ii) >= 3:
+            e = (base[ii] - y[ii]) / 60
+            print(f"  {tt:9s} {lab:10s} n={len(ii):3d}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nNAMBO BRANCH KRL (physics only, no note)")
+ii = [i for i, g in enumerate(legs) if g["type"] == "krl" and not g["noted"] and set(g["stations"]) & {"CBN", "NMO", "GPI", "PDRG"}]
+if ii:
+    e = (base[ii] - y[ii]) / 60
+    print(f"  n={len(ii)}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nCOMMUTER SERVICES, physics only, no note: mean error (s), > 1 min")
+from collections import defaultdict as _dd
+_s = _dd(list)
+for i, g in enumerate(legs):
+    if g["type"] == "commuter" and not g["noted"]: _s[g["service"]].append(i)
+for sv, ii in sorted(_s.items(), key=lambda kv: -len(kv[1])):
+    e = (base[ii] - y[ii])
+    print(f"  {sv:30s} n={len(ii):4d}  mean {np.mean(e):+5.0f}  >1 min {np.mean(np.abs(e) > 60):4.0%}   stop->stop share {np.mean([legs[i]['start_rest'] and legs[i]['end_rest'] for i in ii]):.0%}")
+
+print("\nSTEEP LEGS (>= 50 % of the length at >= 10 permil), held-out, no note")
+_st = np.array([(sum(L for L, gr in g.get("sec_grade", []) if gr is not None and gr >= 10) / max(sum(L for L, _ in g.get("sec_grade", [])), 1e-6)) >= .5 for g in legs])
+mm = test & ~noted & _st
+print(f"  physics + calibration only      {bands((base - y)[mm])}")
+print(f"  + corrections                   {bands((pred - y)[mm])}")
+
+print("\\nSLOW-ZONE LEGS (held-out, no note): physics only")
+_SZ = {"term GMR/PSE intercity": lambda g: g["type"] == "intercity" and ((g["last"] and g["stations"][-1] in ("GMR", "PSE")) or (g["first"] and g["stations"][0] in ("GMR", "PSE"))),
+       "term SB commuter": lambda g: g["type"] == "commuter" and ((g["last"] and g["stations"][-1] == "SB") or (g["first"] and g["stations"][0] == "SB")),
+       "Ciroyom commuter": lambda g: g["type"] == "commuter" and "CIR" in (g["stations"][0], g["stations"][-1]),
+       "Sukabumi line intercity": lambda g: g["type"] == "intercity" and g.get("page_major") == 28,
+       "Prupuk-Purwokerto intercity": lambda g: g["type"] == "intercity" and set(g["stations"]) <= {"PPK", "LG", "BMA", "KRT", "PAT", "KRR", "KGD", "PWT"}}
+for g in legs:
+    import collections as _c
+    _pg = _c.Counter((pm.PROF.get(f"{a}-{b}") or pm.PROF.get(f"{b}-{a}") or {}).get("page") for a, b in zip(g["stations"], g["stations"][1:]))
+    g["page_major"] = _pg.most_common(1)[0][0] if _pg else None
+for lab, f in _SZ.items():
+    mm = np.array([f(g) for g in legs]) & test & ~noted
+    if mm.sum():
+        print(f"  {lab:28s} {bands((base - y)[mm])}   full model {bands((pred - y)[mm])}")

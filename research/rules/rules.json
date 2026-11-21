@@ -1,0 +1,502 @@
+[
+ {
+  "station": "KAC",
+  "towards": "GDB",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 1180,
+  "arr_m": 1180,
+  "speed": 30,
+  "types": [
+   "intercity",
+   "freight"
+  ],
+  "when": "stop",
+  "source": "manual (user)",
+  "note": "crossover to crossover 1180 m, both directions (user: keep)"
+ },
+ {
+  "station": "KAC",
+  "towards": "GDB",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 600,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "commuter"
+  ],
+  "when": "stop",
+  "source": "fitted",
+  "note": "commuters use the other side of the station"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 300,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "stop",
+  "source": "manual (user) + fitted length",
+  "note": "stopping trains use sidings (no through platform tracks)"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "arr"
+  ],
+  "dep_m": 0,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "pass",
+  "source": "manual (user) + fitted length",
+  "note": "through trains: restriction where they enter (west crossover from Patukan, east siding switches from Lempuyangan)"
+ },
+ {
+  "station": "SPJ",
+  "towards": "WO",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 200,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "krl",
+   "intercity",
+   "freight"
+  ],
+  "when": "any",
+  "source": "manual (user) + fitted length",
+  "note": "switch onto single track towards Wonokromo"
+ },
+ {
+  "station": "SPJ",
+  "towards": "WO",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 900,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "commuter"
+  ],
+  "when": "stop",
+  "source": "manual (user) + fitted length",
+  "note": "commuters use siding tracks; towards Wonokromo more switches"
+ },
+ {
+  "station": "RK",
+  "towards": "CTR",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 1200,
+  "arr_m": 1200,
+  "speed": 30,
+  "types": [
+   "krl"
+  ],
+  "when": "any",
+  "source": "manual (user) + fitted length",
+  "note": "KRL use tracks 3 and 5, 30 km/h switches from the Tanah Abang side"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 300,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "pass",
+  "source": "fitted",
+  "note": "through trains are also slowed leaving (data); fits trains using the other emplacement (two crossovers)"
+ },
+ {
+  "kind": "buffer",
+  "sections": [
+   [
+    "CTA",
+    "PDRG"
+   ],
+   [
+    "PDRG",
+    "CBN"
+   ],
+   [
+    "CBN",
+    "GPI"
+   ],
+   [
+    "GPI",
+    "NMO"
+   ]
+  ],
+  "seconds": 120,
+  "types": [
+   "krl"
+  ],
+  "source": "fitted",
+  "note": "Nambo branch: GAPEKA adds about 2 min per leg (buffer)"
+ },
+ {
+  "station": "SMT",
+  "towards": "ATA",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 750,
+  "arr_m": 1000,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "when": "stop",
+  "source": "manual (user) + fitted length",
+  "note": "stopping: from the east arrival via both crossovers (~1.5 km apart; 1000 m fits); leaving east after arriving from the west: siding switches (750 m)"
+ },
+ {
+  "station": "SMT",
+  "towards": "SMC",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 1000,
+  "arr_m": 750,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "when": "stop",
+  "source": "manual (user) + fitted length",
+  "note": "stopping: leaving west after arriving from the east via both crossovers (1000 m); arriving from the west: siding switches (750 m fits; user ~750 m apart)"
+ },
+ {
+  "station": "SMT",
+  "towards": "SMC",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 0,
+  "arr_m": 750,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "when": "pass",
+  "source": "manual (user) + fitted length",
+  "note": "through trains from the west (750 m); through from the east not given a zone (user), though GAPEKA is still slow for them"
+ },
+ {
+  "station": "SMT",
+  "towards": "ATA",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 750,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "when": "pass",
+  "source": "manual (user) + fitted length",
+  "note": "through trains from the west (750 m); through from the east not given a zone (user), though GAPEKA is still slow for them"
+ },
+ {
+  "kind": "buffer",
+  "sections": [
+   [
+    "SMC",
+    "SMT"
+   ],
+   [
+    "SMT",
+    "ATA"
+   ]
+  ],
+  "seconds": 45,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "source": "fitted",
+  "note": "Semarang Poncol-Tawang-Alastua: GAPEKA adds about 45 s per leg for all trains on top of the station layout"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "GMR",
+  "sides": [
+   "arr"
+  ],
+  "when": "terminal",
+  "seconds": 139,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); arr"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "GMR",
+  "sides": [
+   "dep"
+  ],
+  "when": "terminal",
+  "seconds": 97,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); dep"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "PSE",
+  "sides": [
+   "arr"
+  ],
+  "when": "terminal",
+  "seconds": 124,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); arr"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "PSE",
+  "sides": [
+   "dep"
+  ],
+  "when": "terminal",
+  "seconds": 147,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); dep"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "SB",
+  "sides": [
+   "arr"
+  ],
+  "when": "terminal",
+  "seconds": 117,
+  "types": [
+   "commuter"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); arr"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "SB",
+  "sides": [
+   "dep"
+  ],
+  "when": "terminal",
+  "seconds": 115,
+  "types": [
+   "commuter"
+  ],
+  "source": "fitted",
+  "note": "terminus time: trains held at the home signal of a busy terminus (user); dep"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "CIR",
+  "sides": [
+   "arr"
+  ],
+  "when": "stop",
+  "seconds": 47,
+  "types": [
+   "commuter"
+  ],
+  "source": "fitted",
+  "note": "commuters held at Bandung's home signal / waiting for main-line trains at Cimindi (user)"
+ },
+ {
+  "kind": "station_buffer",
+  "station": "CIR",
+  "sides": [
+   "dep"
+  ],
+  "when": "stop",
+  "seconds": 86,
+  "types": [
+   "commuter"
+  ],
+  "source": "fitted",
+  "note": "commuters held at Bandung's home signal / waiting for main-line trains at Cimindi (user)"
+ },
+ {
+  "kind": "buffer_km",
+  "sections": [
+   [
+    "SI",
+    "RI"
+   ],
+   [
+    "RI",
+    "GDS"
+   ],
+   [
+    "GDS",
+    "CRG"
+   ],
+   [
+    "CRG",
+    "LP"
+   ],
+   [
+    "LP",
+    "SSI"
+   ],
+   [
+    "SSI",
+    "CBB"
+   ],
+   [
+    "CBB",
+    "CJ"
+   ],
+   [
+    "CJ",
+    "MLB"
+   ],
+   [
+    "MLB",
+    "TPR"
+   ],
+   [
+    "TPR",
+    "SLJ"
+   ],
+   [
+    "SLJ",
+    "CRJ"
+   ],
+   [
+    "CRJ",
+    "CPY"
+   ],
+   [
+    "CPY",
+    "RM"
+   ],
+   [
+    "RM",
+    "CPT"
+   ],
+   [
+    "CPT",
+    "?tagoapu"
+   ],
+   [
+    "?tagoapu",
+    "PDL"
+   ],
+   [
+    "CPT",
+    "PDL"
+   ]
+  ],
+  "seconds_per_km": 10.5,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "Sukabumi line: GAPEKA plans slower than the limits and gradient allowance"
+ },
+ {
+  "kind": "buffer_km",
+  "sections": [
+   [
+    "PPK",
+    "LG"
+   ],
+   [
+    "LG",
+    "BMA"
+   ],
+   [
+    "BMA",
+    "KRT"
+   ],
+   [
+    "KRT",
+    "PAT"
+   ],
+   [
+    "KRR",
+    "KGD"
+   ],
+   [
+    "KGD",
+    "PWT"
+   ],
+   [
+    "PAT",
+    "KRR"
+   ]
+  ],
+  "seconds_per_km": 3.3,
+  "types": [
+   "intercity"
+  ],
+  "source": "fitted",
+  "note": "Prupuk-Purwokerto: GAPEKA plans slower than the limits and gradient allowance"
+ }
+]

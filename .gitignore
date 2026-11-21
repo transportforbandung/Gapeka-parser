@@ -1,0 +1,6 @@
+__pycache__/*.cpython-3[1-9]*.pyc
+research/*.json
+research/*.pkl
+research/*.csv
+research/*.npy
+.cache/

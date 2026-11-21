@@ -1,0 +1,3 @@
+from,to,field,value,source,note
+KBS,NTG,umum_kmh,80,manual (user),"Kebasen-Notog: Umum 80 (not read from the sheet)"
+KJ,SPH,umum_kmh,120,manual (user),"Kemranjen-Sumpiuh: Umum cell Kebasen-Kutoarjo, 120 (not read from the sheet)"
