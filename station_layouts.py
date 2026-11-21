@@ -227,9 +227,12 @@ def read_page(page, codes, extra_words=()):
     for comp, ts in diag.items():
         y0, y1 = min(t["line_y"] for t in ts), max(t["line_y"] for t in ts)
         x0, x1 = min(t["lo"] for t in ts), max(t["hi"] for t in ts)
-        ends = [w for w in W if w[4].strip(":,.").upper() in codes and y0 - 14 < (w[1] + w[3]) / 2 < y1 + 14
-                and x0 - 70 < w[0] and w[2] < x1 + 25]
+        ends = [w for w in W if any(q.strip(":,.").upper() in codes for q in w[4].split("/"))
+                and y0 - 14 < (w[1] + w[3]) / 2 < y1 + 14 and x0 - 70 < w[0] and w[2] < x1 + 25]
         yc = (y0 + y1) / 2
+        # combined end labels ("WDW/TG", "LWG/PPK"): one word per code
+        ends = [w[:4] + (part,) + tuple(w[5:]) for w in ends for part in w[4].split("/") if part.strip(":,.").upper() in codes]
+        own_y = [((w[1] + w[3]) / 2, w[4].strip(":,.").upper()) for w in ends if w[2] < x0 - 2]
         own = [w[4].strip(":,.").upper() for w in sorted(ends, key=lambda w: abs((w[1] + w[3]) / 2 - yc))
                if w[2] < x0 - 2 and y0 - 6 < (w[1] + w[3]) / 2 < y1 + 6
                and (w[3] - w[1] > 7 or w[5] < 0)]          # name beside the diagram (large print; OCR: any size)
@@ -254,7 +257,7 @@ def read_page(page, codes, extra_words=()):
             near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
             t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
-        out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, left=left,
+        out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,
                         right=right, inside=inside, marks=marks))
     # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
     out.sort(key=lambda d: d["y0"])
@@ -305,7 +308,25 @@ def reference_notes(page, codes, extra_words=()):
     return out
 
 
-def read_all(doc, inf, rows_by_page, ocr=None):
+def label_fixes(path="manual/layout_label_fixes.csv"):
+    """misprinted end labels on the diagrams: page, station, printed, correct"""
+    import csv
+    import os
+    if not os.path.exists(path):
+        return []
+    return [r for r in csv.DictReader(open(path)) if r.get("page")]
+
+
+def station_fixes(path="manual/layout_station_fixes.csv"):
+    """diagrams whose station the reader cannot tell (user): page, y (top track of the diagram, +-15 pt), station"""
+    import csv
+    import os
+    if not os.path.exists(path):
+        return []
+    return [r for r in csv.DictReader(open(path)) if r.get("page")]
+
+
+def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
     """inf: infra.db connection (stations, sections); rows_by_page: {page: [(code, y)]} station rows of the graph
     sheet (build_infra.page_profile); ocr: build_infra.OCR for sheets that draw names as outlines"""
     codes = {c for (c,) in inf.execute("select code from stations")}
@@ -313,8 +334,9 @@ def read_all(doc, inf, rows_by_page, ocr=None):
     for a, b in inf.execute("select a, b from sections"):
         adj[a].add(b)
         adj[b].add(a)
-    halts = {c for (c,) in inf.execute("select code from stations where kind = 'halt'")}
+    halts = {c for (c,) in inf.execute("select code from stations where kind in ('halt', 'sheet only')")}
     nb = defaultdict(set)              # neighbours as the diagrams name them: the next stations, stepping over halts
+    hops = defaultdict(dict)           # stops between two stations (any kind; some halts are listed as stations)
     for x in list(adj):
         seen, todo = {x}, [(y, 1) for y in adj[x]]
         while todo:
@@ -325,6 +347,12 @@ def read_all(doc, inf, rows_by_page, ocr=None):
             nb[x].add(y)
             if y in halts:
                 todo += [(z, k + 1) for z in adj[y]]
+        dist, frontier = {x: 0}, [x]
+        for k in range(1, 5):
+            frontier = [z for y in frontier for z in adj[y] if z not in dist]
+            for z in frontier:
+                dist.setdefault(z, k)
+        hops[x] = dist
     out, refs = [], []
     for pg in GROUP_FIRST_PAGES:
         rows = rows_by_page.get(pg, [])
@@ -369,6 +397,50 @@ def read_all(doc, inf, rows_by_page, ocr=None):
                 part["marks"] = [m for m in dg["marks"] if part["y0"] - 25 < m["y"] < part["y1"] + 25]
                 split.append(part)
         D = split
+        # italic names are halts (no diagram of their own): not an own-name label
+        italic = []
+        for b in page.get_text("dict")["blocks"]:
+            for l in b.get("lines", []):
+                for sp in l["spans"]:
+                    if sp["flags"] & 2 or "Italic" in sp["font"]:
+                        italic.append(((sp["bbox"][1] + sp["bbox"][3]) / 2, sp["text"].strip().upper()))
+        for dg in D:
+            dg["own_y"] = [(y, c) for y, c in dg["own_y"] if not any(abs(y - iy) < 2 and c == it for iy, it in italic)]
+        # a name beside the diagram counts as its own name only when it is that station's row label (rotated end
+        # labels and neighbouring rows' labels are not)
+        for dg in D:
+            dg["own"] = [c for c in dg["own"] if any(r[0] == c and any(abs(r[1] - y) < 5 for y, c2 in dg["own_y"] if c2 == c)
+                                                     for r in rows)]
+        # arrows from a station's row label to its diagram drawn further down / up (small filled shapes)
+        labels = [w for w in page.get_text("words") if w[4].strip(":,.").upper() in codes
+                  and any(r[0] == w[4].strip(":,.").upper() and abs(r[1] - (w[1] + w[3]) / 2) < 5 for r in rows)]
+        for dr in page.get_drawings():
+            q = dr["rect"]
+            if not (dr.get("fill") and dr["type"] == "f" and len(dr["items"]) >= 5 and q.width < 26 and 8 < q.height < 160):
+                continue
+            src = [w for w in labels if abs(q.x0 - w[0]) < 22 and q.x0 < w[2] + 5 and (abs(q.y0 - w[3]) < 8 or abs(q.y1 - w[1]) < 8)
+                   and not (w[0] - 2 < (q.x0 + q.x1) / 2 < w[2] + 2 and w[1] - 2 < (q.y0 + q.y1) / 2 < w[3] + 2)]
+            if not src:
+                continue
+            w = min(src, key=lambda w: abs(q.x0 - w[0]))
+            down = abs(q.y0 - w[3]) < 8
+            tip = (q.x1, q.y1 if down else q.y0)
+            hit = [dg for dg in D if dg["x0"] - 45 < tip[0] < dg["x0"] + 60 and dg["y0"] - 25 < tip[1] < dg["y1"] + 10]
+            wy = (w[1] + w[3]) / 2
+            hit = [dg for dg in hit if not (dg["y0"] - 6 < wy < dg["y1"] + 6)]       # points away from its own row
+            if hit:
+                dg = min(hit, key=lambda dg: abs(dg["y0"] - tip[1]))
+                dg["pointed"] = w[4].strip(":,.").upper()
+        for f in (label_fixes() if fixes is None else fixes):
+            for dg in D:
+                if pg == int(f["page"]) and (dg.get("pointed") == f["station"] or f["station"] in dg["own"]) \
+                        and f["printed"] in dg["left"] + dg["right"]:
+                    for side in ("left", "right"):
+                        dg[side] = [f["correct"] if x == f["printed"] else x for x in dg[side]]
+                    for t in dg["tracks"]:
+                        t["end_l"] = [f["correct"] if x == f["printed"] else x for x in t.get("end_l", [])]
+                        t["end_r"] = [f["correct"] if x == f["printed"] else x for x in t.get("end_r", [])]
+                    dg["fix"] = f" (label fix: {f['printed']} -> {f['correct']})"
         used = {r[0] for r in taken if sum(1 for q in rows if q[0] == r[0]) == 1}
         for dg in D:
             ends = dg["left"] + dg["right"] + dg["inside"]
@@ -376,8 +448,12 @@ def read_all(doc, inf, rows_by_page, ocr=None):
             # 1. neighbours printed at both ends, 2. one end + own name / row, 3. own name, 4. pointer arrow
             both = [r for r in rows if dg["left"] and dg["right"] and nb[r[0]] & set(dg["left"]) and nb[r[0]] & set(dg["right"])]
             one = [r for r in rows if ends and r[0] not in ends and all(nb[r[0]] & {e} for e in set(ends) - set(dg["own"]))]
-            if both:
+            if dg.get("pointed") and (not both or dg["pointed"] in [r[0] for r in both]):
+                st, how = dg["pointed"], "pointer arrow from the name"
+            elif both:
                 st, how = min(both, key=lambda r: abs(r[1] - (dg["y0"] + dg["y1"]) / 2))[0], "neighbours"
+            elif dg["own"]:
+                st, how = dg["own"][0], "own name"
             elif one:
                 pick = [r for r in one if r[0] in dg["own"]]
                 c = (dg["y0"] + dg["y1"]) / 2
@@ -386,7 +462,7 @@ def read_all(doc, inf, rows_by_page, ocr=None):
                 st, how = dg["own"][0], "own name"
             elif dg["ptr_from"] is not None and rows:
                 st, how = min(rows, key=lambda r: abs(r[1] - dg["ptr_from"]))[0], "pointer"
-            dg.update(page=pg, station=st, how=how)
+            dg.update(page=pg, station=st, how=(how or "") + dg.get("fix", "") if how else how)
             if st:
                 used.add(st)
         # 2. the rest: nearest unused row
@@ -394,6 +470,7 @@ def read_all(doc, inf, rows_by_page, ocr=None):
             if dg["station"] is None and rows:
                 c = (dg["y0"] + dg["y1"]) / 2
                 free = [r for r in rows if r[0] not in used]
+                free = [r for r in free if abs(r[1] - c) < 60]
                 if free:
                     r = min(free, key=lambda r: abs(r[1] - c))
                     dg.update(station=r[0], how=f"nearest row ({abs(r[1] - c):.0f} pt)")
@@ -410,6 +487,10 @@ def read_all(doc, inf, rows_by_page, ocr=None):
             best = min(group, key=rank)
             for dg in group:
                 dg["station"], dg["how"] = best["station"], best["how"]
+        for f in station_fixes():
+            for dg in D:
+                if pg == int(f["page"]) and abs(dg["y0"] - float(f["y"])) < 15:
+                    dg["station"], dg["how"] = f["station"], "manual (user)"
         # pieces of one station (some sheets draw the two halves of a double-track station unconnected) and
         # repeated copies of a diagram on the same sheet
         keep = []
@@ -453,21 +534,33 @@ def write(inf, diagrams, refs=()):
     for r in refs:
         inf.execute("INSERT INTO station_layout_refs VALUES(?,?,?,?,?,?)",
                     (r["station"], line_of.get(r["page"]), r["page"], round(r["y"], 1), r["line"] or None, r["note"]))
-    for d in diagrams:
-        if not d.get("station"):
+    # a 'periksa lintas' note instead of a diagram: the diagram on the other line is the same (user), copy it
+    have = {(d["station"], line_of.get(d["page"])) for d in diagrams if d.get("station")}
+    copies = []
+    for r in refs:
+        ln = line_of.get(r["page"])
+        if (r["station"], ln) in have:
             continue
+        src = [d for d in diagrams if d.get("station") == r["station"]]
+        if src:
+            d = max(src, key=lambda d: len(d["tracks"]))
+            copies.append(dict(d, how=f"copy of line {line_of.get(d['page'])} page {d['page']} ({r['note']})",
+                               copy_line=ln))
+            have.add((r["station"], ln))
+    for d in [x for x in diagrams if x.get("station")] + copies:
+        ln = d.get("copy_line") or line_of.get(d["page"])
         tr = d["tracks"]
         rom = [t for t in tr if not t["no"].isdigit()]
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
         inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (d["station"], line_of.get(d["page"]), d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
+                    (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
                      len(tr) - len(rom), max((t["length"] for t in rom), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
             inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                        (d["station"], line_of.get(d["page"]), d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
+                        (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
                          "roman" if not t["no"].isdigit() else "yard", t["length"], t["arrows"], tw or None,
                          int(t["through"])))
 

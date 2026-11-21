@@ -54,7 +54,26 @@ print(f"1. capacity: {len(res)} stations; peak standing trains > Roman tracks at
 for st, p, n, at in over:
     print(f"     {st}: peak {p} at {at // 3600:02d}:{at % 3600 // 60:02d}, Roman tracks {roman[st]}")
 
-# 2. fit
+# 2. fit: the diagram of the line the train runs on at that station (the section it arrives on, else leaves on);
+#    if that line has no diagram of the station, the station's diagram on another line (drawn once, user)
+line_of_sec = {}
+for a, b_, ln in i.execute("select a, b, line_id from sections"):
+    line_of_sec[(a, b_)] = line_of_sec[(b_, a)] = ln
+roman_line = defaultdict(list)
+for st, ln, tr, lnm in i.execute("select station, line_id, track, length_m from station_tracks where kind = 'roman'"):
+    roman_line[(st, ln)].append((tr, lnm))
+route = defaultdict(list)
+for no, st in g.execute("select train_no, station from stops order by train_no, seq"):
+    route[no].append(st)
+def tracks_on_line(no, st):
+    r = route[no]
+    k = r.index(st)
+    for a, b_ in ((r[k - 1], st) if k else (None, None), (st, r[k + 1]) if k + 1 < len(r) else (None, None)):
+        ln = line_of_sec.get((a, b_))
+        if ln and roman_line.get((st, ln)):
+            return roman_line[(st, ln)], ln
+    return roman.get(st), None
+
 try:
     cons = {n: c for n, c in g.execute("select train_no, cars from consists")}
 except sqlite3.OperationalError:
@@ -62,13 +81,17 @@ except sqlite3.OperationalError:
 m = defaultdict(list)
 bad = []
 for no, st, kind, note in g.execute("select train_no, station, kind, note from stops where kind = 'stop'"):
-    if no in cons and roman.get(st):
+    tr_here, ln = tracks_on_line(no, st) if no in cons else (None, None)
+    if no in cons and tr_here:
         L = cons[no] * 21 + 16
-        longest = max(x[1] for x in roman[st])
+        longest = max(x[1] for x in tr_here)
+        m["diagram of the train's line" if ln else "diagram of another line"].append(0)
         k = "waits (note)" if note and "ka " in note else "other stops"
         m[k].append(longest - L)
         if k == "waits (note)" and longest < L:
             bad.append((st, no, cons[no], L, longest))
+for k in [k for k in m if k.startswith("diagram")]:
+    print(f"2. fit uses the {k}: {len(m.pop(k))} stops")
 for k, v in m.items():
     v = np.array(v)
     print(f"2. fit, {k:12s}: n {len(v)}, train longer than the longest Roman track {np.mean(v < 0):.1%}, "
@@ -116,12 +139,13 @@ def direction_same(a, b, st):
     return (sa[x] > sa[st]) == (sb[x] > sb[st])
 print("4. waits by trains longer than the longest Roman track:")
 for no, st, a, d, note in g.execute("select train_no, station, arr_s, dep_s, note from stops where kind = 'stop' and note like '%ka %'"):
-    if no not in cons or not roman.get(st):
+    tr_here, _ = tracks_on_line(no, st) if no in cons else (None, None)
+    if not tr_here:
         continue
-    L, longest = cons[no] * 21 + 16, max(x[1] for x in roman[st])
+    L, longest = cons[no] * 21 + 16, max(x[1] for x in tr_here)
     if L <= longest:
         continue
-    for other in re.findall(r"ka (\d{1,4}F?)", note):
+    for other in dict.fromkeys(x.upper() for x in re.findall(r"ka (\d{1,4}[fF]?)", note)):
         o = g.execute("select kind, arr_s, dep_s from stops where train_no = ? and station = ?", (other, st)).fetchone()
         if not o:
             continue
