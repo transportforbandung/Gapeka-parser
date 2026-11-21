@@ -2,6 +2,7 @@
 
     python check.py                 # check gapeka.db / infra.db / rules.db in this folder
     python check.py --run           # rebuild all three into a temporary folder first (8-10 min), then check those
+    python check.py --run --pdf NEW.pdf   # the same with another GAPEKA PDF (a new edition)
     python check.py --update-baseline   # accept the current TfB exports as the new baseline (after a wanted change)
 
 Checks (a failed check prints FAIL and the script exits with code 1):
@@ -55,8 +56,9 @@ def main():
     if "--run" in args:
         folder = tempfile.mkdtemp()
         print(f"building into {folder} ...")
+        pdf = args[args.index("--pdf") + 1] if "--pdf" in args else os.path.join(HERE, "GAPEKA-JAWA-2026.pdf")
         subprocess.run([sys.executable, os.path.join(HERE, "gapeka_pipeline.py"), os.path.join(folder, "gapeka.db"),
-                        os.path.join(HERE, "GAPEKA-JAWA-2026.pdf")], check=True, cwd=HERE)
+                        os.path.abspath(pdf)], check=True, cwd=HERE)
     g = sqlite3.connect(os.path.join(folder, "gapeka.db"))
     infra = sqlite3.connect(os.path.join(folder, "infra.db"))
     rules = sqlite3.connect(os.path.join(folder, "rules.db"))
