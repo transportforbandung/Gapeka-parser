@@ -84,7 +84,9 @@ for no, st, kind, note in g.execute("select train_no, station, kind, note from s
     tr_here, ln = tracks_on_line(no, st) if no in cons else (None, None)
     if no in cons and tr_here:
         L = cons[no] * 21 + 16
-        longest = max(x[1] for x in tr_here)
+        longest = max((x[1] for x in tr_here if x[1] is not None), default=None)
+        if longest is None:
+            continue                                   # track length not printed (e.g. Batutulis)
         m["diagram of the train's line" if ln else "diagram of another line"].append(0)
         k = "waits (note)" if note and "ka " in note else "other stops"
         m[k].append(longest - L)
@@ -142,7 +144,7 @@ for no, st, a, d, note in g.execute("select train_no, station, arr_s, dep_s, not
     tr_here, _ = tracks_on_line(no, st) if no in cons else (None, None)
     if not tr_here:
         continue
-    L, longest = cons[no] * 21 + 16, max(x[1] for x in tr_here)
+    L, longest = cons[no] * 21 + 16, max((x[1] for x in tr_here if x[1] is not None), default=0)
     if L <= longest:
         continue
     for other in dict.fromkeys(x.upper() for x in re.findall(r"ka (\d{1,4}[fF]?)", note)):

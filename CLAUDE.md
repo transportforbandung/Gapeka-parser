@@ -155,13 +155,23 @@ Read this first. It records decisions and findings from earlier sessions so they
   (LR) or none (Merak line). Consists: rosters.read_consists -> gapeka.db consists (415 trains: cars per set =
   SF / RANGK, locomotive class). Checks (research/layout_checks.py): peak standing trains never exceed Roman tracks
   (298 stations, 0 exceptions); waiting trains fit the longest Roman track in 99.2 % (cars x 21 m + 16 m; p5 margin
-  32 m); every misfit (Rogojampi, Temuguruh, Singosari) follows the crossing rule above. 40 timetable stations still
-  without a diagram (e.g. CNP, SB, RK, GDB, CBN, NMO, Surabaya-Sidoarjo halts-stations).
+  33 m); every misfit (Rogojampi, Temuguruh, Singosari, Kalisetail) follows the crossing rule above. Fit uses the
+  diagram of the train's line (a 'periksa' note copies the other line's diagram, user). Reader also handles: pointer
+  arrows from a name to a displaced diagram, combined end labels (WDW/TG), own-name labels only when on the
+  station's own row and not italic, Y-numbered yard tracks. Manual: layout_station_fixes.csv (which station),
+  layout_label_fixes.csv (misprinted end label, e.g. Gedebage Gdb -> KAC), layout_tracks.csv (unreadable tracks).
 - Cipeundeuy (CPD, user): every train stops at least 10 min for a brake check (summit 768 m between 25 permil
   grades). GAPEKA: all 30 trains stop, 10-23 min, median 10; the only such station in Java. rules/mandatory_stops.csv.
 - Station diagrams (user): A = Surabaya Kota, B = Benteng, C = Sidotopo on page 44 (manual/layout_station_fixes.csv);
   the 'Sb (Hilir)' label near Surabaya Kota belongs to another station. Italic names on the sheets are halts (no
   diagram). Track names Y1..Y3 (Surabaya Kota) are yard tracks.
+- Halts on the graph sheets (user): their row line is drawn DASHED / DOTTED (e.g. Pondok Rajeg, Gunung Putri p19),
+  and their names are often in italics; halts have no track diagram. Page 19: Cibinong = II-403 / I-454, Nambo =
+  I-553 ... 8-530 (user). Page 35: Karangtalun I-368 II-656 III-628 IV-630 + yard 5-425 / 6-375 (cement loading,
+  labels too small to read: manual/layout_tracks.csv); the diagram below it is Gumilir; Balapulang has none.
+  Batutulis: one through track, no siding (manual). Saradan's diagram (ends Crb / Bgr): Wilangan has none.
+  Remaining timetable stations without a diagram (29) all have none on the sheet (halts, Sukabumi-line stops, Soka,
+  Cisomang, Sadang, ...).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

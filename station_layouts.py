@@ -524,6 +524,31 @@ CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGE
 """
 
 
+def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
+    """tracks the reader cannot get (labels too small / no labels), user: page, station, track, length_m. Added to
+    the station's diagram on that page (or a new diagram when there is none); a track read from the sheet with the
+    same number is replaced"""
+    import csv
+    import os
+    if not os.path.exists(path):
+        return diagrams
+    for r in csv.DictReader(open(path)):
+        if not r.get("page"):
+            continue
+        pg, st = int(r["page"]), r["station"]
+        dg = next((d for d in diagrams if d.get("station") == st and d["page"] == pg), None)
+        if dg is None:
+            dg = dict(station=st, page=pg, y0=0.0, y1=0.0, how="manual (user)", tracks=[], left=[], right=[], own=[],
+                      inside=[], marks=[])
+            diagrams.append(dg)
+        elif not dg["how"].endswith("+ manual tracks"):
+            dg["how"] += " + manual tracks"
+        dg["tracks"] = [t for t in dg["tracks"] if t["no"] != r["track"]] + [
+            dict(no=r["track"], length=float(r["length_m"]) if r["length_m"] else None, arrows="", through=False,
+                 line_y=9e9)]
+    return diagrams
+
+
 def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
     track, 'yard' = Arabic-numbered stabling / yard track. arrows: normal running direction drawn at the track ends
@@ -538,6 +563,7 @@ def write(inf, diagrams, refs=()):
     for r in refs:
         inf.execute("INSERT INTO station_layout_refs VALUES(?,?,?,?,?,?)",
                     (r["station"], line_of.get(r["page"]), r["page"], round(r["y"], 1), r["line"] or None, r["note"]))
+    diagrams = manual_tracks(diagrams)
     # a 'periksa lintas' note instead of a diagram: the diagram on the other line is the same (user), copy it
     have = {(d["station"], line_of.get(d["page"])) for d in diagrams if d.get("station")}
     copies = []
@@ -559,7 +585,7 @@ def write(inf, diagrams, refs=()):
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
         inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                     (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
-                     len(tr) - len(rom), max((t["length"] for t in rom), default=None),
+                     len(tr) - len(rom), max((t["length"] for t in rom if t["length"] is not None), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
