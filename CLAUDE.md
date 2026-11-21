@@ -41,6 +41,17 @@ Read this first. It records decisions and findings from earlier sessions so they
   in tests/baseline/), `requirements.txt`, the old distance-fit halt step only runs with --no-model, the
   gapeka_missing_links.csv file is gone (infra.db's qa table lists uncovered pairs), research/README.md.
 
+## Next project: schedule simulator (planning stage, user)
+
+- Goal: a website where users modify / create trains and simulate them in a GAPEKA-style graph, timed with all
+  researched GAPEKA behaviour (running times, halts, waits, conflicts).
+- GAPEKA data is public (user): shipping the full data package to every browser is fine.
+- Direction agreed so far: the pipeline (this repo) builds one data package per edition offline; the simulation
+  engine runs in the user's browser (TypeScript / WASM in a Web Worker), checked against the Python engine with a
+  "replay the official GAPEKA" test; static hosting; a server only later for accounts / shared scenarios.
+- Open decisions: who uses it (TfB internal or public), starting scope (all of Java or one region), check-only
+  conflicts vs automatic re-planning first, station track counts (not in the GAPEKA margins).
+
 ## Domain rules from the user (do not re-guess these)
 
 - **hu / hi** = **hulu / hilir**, the two tracks of a double track. Not related to km direction. Hulu = trains
