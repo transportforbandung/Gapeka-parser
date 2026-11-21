@@ -63,6 +63,7 @@ times against KAI's published timetables: Bandung 79 %, Jabodetabek 90 %, Suraba
 | `halt_est` | The estimates: `manual` (KAI times from `rules/halt_offsets.csv`), `model-split…` (running-time model with the region's rule), `dinas-model` (KA Dinas passing times) |
 | `train_index` | The train-number index (Lampiran IV) as printed: number, regular / facultative, name, route, km, departure, arrival, class |
 | `roster_units`, `roster_duties` | Rolling-stock duties (O.18 diagrams): one locomotive, KRD set or KRL trainset per day and the trains it works in order, including KA Dinas moves; `connects` = the train starts where the previous one ended |
+| `consists` | Stamformasi: cars of one trainset and locomotive class per passenger train |
 | `notes`, `constraints` | Crossing and overtaking remarks (`x ka 391`) linked to the other train |
 | `stations`, `station_links` | Station codes and names; older station-to-station distances (a fallback behind `infra.db`) |
 | `graph_*` | Train lines read from the drawings on the graph sheets |
@@ -80,6 +81,8 @@ says where it came from (`source`: sheet / sheet (joined) / manual) and the PDF 
 | `sections` | Every pair of adjacent stations: length, km at both ends, *Umum*, ruling gradient, elevations, single / double track and why, variant (two tracks between the same stations, e.g. Kasugihan–Maos) |
 | `restrictions` | Local speed restrictions: km from–to, speed, track (hu / hi / both), the note printed in the cell |
 | `block_signals` | Block signals: position, track, number |
+| `station_layouts` | Station track diagrams (right of the graph sheets): one row per diagram with the number of Roman (main / siding) and Arabic (yard) tracks, longest Roman track, PPKA / PAP posts and how the station was identified (`evidence`) |
+| `station_tracks` | The tracks of each diagram top to bottom: number, `roman` / `yard`, effective length (m), drawn running direction (`arrows`, `towards` = neighbour station), `through` |
 | `double_track_header` | The "JALUR GANDA" lists from the sheet headers |
 | `qa` | Everything doubtful, for review (see "Reviewing the QA list") |
 | `meta` | PDF fingerprint, decree number, valid-from date, build time |

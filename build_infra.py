@@ -35,6 +35,8 @@ from collections import Counter, defaultdict, deque
 import numpy as np
 import pymupdf
 
+import station_layouts
+
 KM = re.compile(r"^\d{1,3}\.\d{3}$")
 TAG = re.compile(r"^(hu|hi|Hu|Hi|HU|HI)([-/ ]?(hu|hi|Hu|Hi))?$")
 INT = re.compile(r"^\d{1,4}$")
@@ -1016,6 +1018,18 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
 
+    # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
+    rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
+    diagrams = station_layouts.read_all(doc, out, rows_by_page, ocr)
+    station_layouts.write(out, diagrams)
+    for d in diagrams:
+        if not d.get("station"):
+            qa.append(("station diagram without a station", f"page {d['page']} y {d['y0']:.0f}",
+                       " ".join(t["no"] for t in d["tracks"])))
+        elif d["how"].startswith(("nearest row", "pointer")):
+            qa.append(("station diagram assigned by position only (check)", d["station"],
+                       f"page {d['page']} y {d['y0']:.0f}, {d['how']}, tracks " + " ".join(t["no"] for t in d["tracks"])))
+
     # ---- QA
     covered = {frozenset(k) for k in sections}
     tt_pairs = Counter()
@@ -1088,6 +1102,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     n_ch = sum(n for pr, n in tt_pairs.items() if pr in via_chain)
     print(f"  timetable legs covered: {n_cov / n_tt:.1%} by one section, {(n_cov + n_ch) / n_tt:.1%} incl. chains of sections; "
           f"{len(tt_pairs) - len([p for p in tt_pairs if p in covered or p in via_chain])} station pairs not covered")
+    nl, nt = out.execute("select count(*), sum(roman_tracks + yard_tracks) from station_layouts").fetchone()
+    print(f"  station diagrams: {nl} ({len({d['station'] for d in diagrams if d.get('station')})} stations), {nt} tracks")
     for k, v in Counter(q[0] for q in qa).most_common():
         print(f"  QA {k}: {v}")
     for k, v in tagged.items():

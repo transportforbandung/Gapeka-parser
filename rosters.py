@@ -116,6 +116,41 @@ def check(rows, db):
     return res
 
 
+
+def read_consists(doc, trains):
+    """Stamformasi tables (RANGKAIAN POKOK per depot, PDF ~1722-1730): per train number the cars of one trainset
+    (SF = cars of all sets / RANGK = number of sets) and the locomotive class. {train_no: dict}"""
+    out = {}
+    pages = [i for i in range(doc.page_count) if "RANGKAIAN" in (t := doc[i].get_text()) and "RANGK" in t]
+    for i in pages:
+        W = doc[i].get_text("words")
+        tables = []
+        for h in (w for w in W if w[4] == "RANGK"):
+            near = lambda txt: [w for w in W if w[4] == txt and abs(w[1] - h[1]) < 8]
+            sf, nama, no = near("SF"), near("NAMA"), near("NO")
+            if sf and nama and no:
+                tables.append(dict(y=h[1], rangk=(h[0] + h[2]) / 2, sf=(sf[0][0] + sf[0][2]) / 2,
+                                   no_x=min(no, key=lambda w: w[0])[2], nama_x=nama[0][0]))
+        tables.sort(key=lambda t: t["y"])
+        for k, tb in enumerate(tables):
+            y1 = tables[k + 1]["y"] if k + 1 < len(tables) else 1e9
+            rows = defaultdict(list)
+            for w in W:
+                if tb["y"] + 10 < w[1] < y1 - 2:
+                    rows[round((w[1] + w[3]) / 2)].append(w)
+            for ws in rows.values():
+                ws.sort(key=lambda w: w[0])
+                num = lambda x: next((w[4] for w in ws if abs((w[0] + w[2]) / 2 - x) < 6 and w[4].isdigit()), None)
+                noka = " ".join(w[4] for w in ws if tb["no_x"] + 6 < w[0] and w[2] < tb["nama_x"] - 6)
+                lok = " ".join(w[4] for w in ws if w[4] == "CC" or re.fullmatch(r"20\d", w[4]))
+                r, sf = num(tb["rangk"]), num(tb["sf"])
+                if r and sf and int(r) > 0:
+                    for n in re.findall(r"\d{1,4}F?", noka):
+                        if n in trains:
+                            out.setdefault(n, dict(cars=round(int(sf) / int(r)), sets=int(r), total_cars=int(sf),
+                                                   locomotive=lok or None, page=i + 1))
+    return out
+
 if __name__ == "__main__":
     d = pymupdf.open(sys.argv[1] if len(sys.argv) > 1 else "GAPEKA-JAWA-2026.pdf")
     db = sqlite3.connect(sys.argv[2] if len(sys.argv) > 2 else "gapeka.db")

@@ -1,0 +1,418 @@
+"""Station track diagrams on the right of the graph sheets -> tracks per station.
+
+Each diagram: horizontal track lines with a label "<number>-<effective length m>" (Roman = main / siding track,
+Arabic = stabling / yard only), chevrons at the line ends showing the normal running direction (Indonesia runs on
+the right track), neighbour station codes at the ends, a box with a dot and a line = PPKA post, a box with a dot
+only = PAP.  Speeds are not drawn.
+
+    python station_layouts.py GAPEKA-JAWA-2026.pdf infra.db        # prints a summary
+"""
+import re
+import sqlite3
+import sys
+from collections import defaultdict
+
+import pymupdf
+
+GROUP_FIRST_PAGES = [7, 13, 19, 25, 28, 29, 32, 35, 38, 41, 44, 47, 50]
+LABEL = re.compile(r"^([IVXL]+|\d{1,2})\s*-\s*(\d{2,4}(?:[,.]\d+)?)$")
+ROM = {"I": 1, "V": 5, "X": 10, "L": 50}
+
+
+def roman(s):
+    v = 0
+    for i, ch in enumerate(s):
+        x = ROM[ch]
+        v += -x if i + 1 < len(s) and ROM[s[i + 1]] > x else x
+    return v
+
+
+class UF:
+    def __init__(self, n):
+        self.p = list(range(n))
+
+    def find(self, a):
+        while self.p[a] != a:
+            self.p[a] = self.p[self.p[a]]
+            a = self.p[a]
+        return a
+
+    def union(self, a, b):
+        self.p[self.find(a)] = self.find(b)
+
+
+def page_items(page, x_min):
+    """segments (x0,y0,x1,y1) of drawn track lines, chevrons, small boxes, filled dots, right of x_min"""
+    segs, chev, boxes, dots, pointers = [], [], [], [], []
+    for dr in page.get_drawings():
+        r = dr["rect"]
+        if r.x1 < x_min:
+            continue
+        items = dr["items"]
+        w = dr.get("width") or 0
+        if dr.get("fill") and all(it[0] == "c" for it in items) and r.width < 3 and r.height < 3:
+            dots.append(((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))
+            continue
+        if len(items) == 1 and items[0][0] == "re" and 5 < r.width < 14 and 5 < r.height < 14:
+            boxes.append(r)
+            continue
+        if dr["type"] == "s" and len(items) == 2 and all(it[0] == "l" for it in items) and r.width < 3 and r.height < 4:
+            (_, a, b), (_, c, e) = items
+            if abs(b.x - c.x) < 0.2 and abs(b.y - c.y) < 0.2:          # a -> vertex -> e
+                chev.append((b.x, b.y, "L" if b.x < min(a.x, e.x) else "R"))
+                continue
+        if dr.get("fill") and dr["type"] == "f" and r.width < 20 and r.height > 14 and len(items) >= 5:
+            pointers.append(r)                       # arrow from a station name to its displaced diagram
+            continue
+        if dr.get("fill") and dr["type"] == "f" and all(it[0] == "l" for it in items) and r.width > 15 and r.height < 16:
+            # main track drawn as a filled outline with its arrowheads (some sheets): horizontal edges -> track line,
+            # arrow orientation from the outline's end vertices
+            pts = [(it[1].x, it[1].y) for it in items] + [(it[2].x, it[2].y) for it in items]
+            for it in items:
+                a, b = it[1], it[2]
+                if abs(a.y - b.y) < 0.4 and abs(a.x - b.x) > 4:
+                    segs.append((a.x, a.y, b.x, b.y))
+            hy = [it[1].y for it in items if abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 4]
+            if hy:
+                yc = sum(hy) / len(hy)
+                for end, xe in (("lo", r.x0), ("hi", r.x1)):
+                    ext = [p_ for p_ in pts if abs(p_[0] - xe) < 0.6]
+                    tip = any(abs(p_[1] - yc) < 1.2 for p_ in ext) and len({round(p_[1]) for p_ in ext}) <= 2
+                    if end == "lo":
+                        chev.append((xe, yc, "L" if tip else "R"))
+                    else:
+                        chev.append((xe, yc, "R" if tip else "L"))
+            continue
+        if dr["type"] not in ("s", "fs") or w < 0.15:
+            continue
+        for it in items:
+            if it[0] == "l":
+                segs.append((it[1].x, it[1].y, it[2].x, it[2].y))
+            elif it[0] == "c":
+                segs.append((it[1].x, it[1].y, it[4].x, it[4].y))
+    return segs, chev, boxes, dots, pointers
+
+
+def pt_seg(px, py, s):
+    x0, y0, x1, y1 = s
+    dx, dy = x1 - x0, y1 - y0
+    L = dx * dx + dy * dy
+    t = 0 if L == 0 else max(0, min(1, ((px - x0) * dx + (py - y0) * dy) / L))
+    return ((px - x0 - t * dx) ** 2 + (py - y0 - t * dy) ** 2) ** 0.5
+
+
+def components(segs, tol=2.2):
+    """connected groups of segments (an endpoint within tol of another segment)"""
+    uf = UF(len(segs))
+    cell = defaultdict(list)
+    for i, s in enumerate(segs):
+        for x in range(int(min(s[0], s[2]) // 20), int(max(s[0], s[2]) // 20) + 1):
+            for y in range(int(min(s[1], s[3]) // 20), int(max(s[1], s[3]) // 20) + 1):
+                cell[(x, y)].append(i)
+    for i, s in enumerate(segs):
+        for (px, py) in ((s[0], s[1]), (s[2], s[3])):
+            for j in cell[(int(px // 20), int(py // 20))]:
+                if j != i and pt_seg(px, py, segs[j]) < tol:
+                    uf.union(i, j)
+    return uf
+
+
+def read_page(page, codes, extra_words=()):
+    r = page.rect
+    words = page.get_text("words")
+    # the layout column: right of the graph's right-hand station-name axis
+    W = [w for w in words if w[0] > r.x1 - 430]
+    lines = defaultdict(list)
+    for w in W:
+        lines[(w[5], w[6])].append(w)
+    labels = []
+    for ws in lines.values():
+        ws.sort(key=lambda w: w[0])
+        # join "I - 401" pieces; a text line can hold one label
+        txt = " ".join(w[4] for w in ws)
+        m = LABEL.match(txt.strip())
+        if m:
+            labels.append(dict(x0=ws[0][0], x1=ws[-1][2], y=(ws[0][1] + ws[0][3]) / 2, no=m.group(1),
+                               length=float(m.group(2).replace(",", "."))))
+        else:
+            for w in ws:
+                m = LABEL.match(w[4])
+                if m:
+                    labels.append(dict(x0=w[0], x1=w[2], y=(w[1] + w[3]) / 2, no=m.group(1),
+                                       length=float(m.group(2).replace(",", "."))))
+    if not labels:
+        return []
+    x_min = min(l["x0"] for l in labels) - 120
+    W = W + [tuple(w[:5]) + (-1, -1) for w in extra_words]          # OCR'd names on outline pages
+    segs, chev, boxes, dots, pointers = page_items(page, x_min)
+    horiz = [i for i, s in enumerate(segs) if abs(s[1] - s[3]) < 0.4 and abs(s[0] - s[2]) > 4]
+    uf = components(segs)
+    tracks = []
+    for l in labels:
+        cx = (l["x0"] + l["x1"]) / 2
+        best = None
+        for i in horiz:
+            s = segs[i]
+            if min(s[0], s[2]) - 1 <= cx <= max(s[0], s[2]) + 1 and abs(s[1] - l["y"]) < 4:
+                if best is None or abs(s[1] - l["y"]) < abs(segs[best][1] - l["y"]):
+                    best = i
+        if best is None:            # label between two line pieces: take the nearest pieces left and right
+            cand = [i for i in horiz if abs(segs[i][1] - l["y"]) < 4 and
+                    (abs(max(segs[i][0], segs[i][2]) - l["x0"]) < 6 or abs(min(segs[i][0], segs[i][2]) - l["x1"]) < 6)]
+            if cand:
+                best = cand[0]
+        if best is None:
+            continue
+        y = segs[best][1]
+        # extent: all horizontal pieces on this y connected through the label gap
+        piece = [i for i in horiz if abs(segs[i][1] - y) < 0.5]
+        xs = sorted((min(segs[i][0], segs[i][2]), max(segs[i][0], segs[i][2])) for i in piece)
+        lo, hi = cx, cx
+        changed = True
+        while changed:
+            changed = False
+            for a, b in xs:
+                if a - 8 <= hi and b + 8 >= lo and (a < lo or b > hi):
+                    lo, hi = min(lo, a), max(hi, b)
+                    changed = True
+        ends = [c for c in chev if abs(c[1] - y) < 1.0 and (abs(c[0] - lo) < 4 or abs(c[0] - hi) < 4)]
+        tracks.append(dict(l, line_y=y, lo=lo, hi=hi, comp=uf.find(best), arrows="".join(sorted({c[2] for c in ends}))))
+    # diagrams = connected components (tracks that share switches); hairline-outline drawings break the
+    # connections, so components whose tracks lie within 14 pt (y) and overlap in x are merged
+    diag = defaultdict(list)
+    for t in tracks:
+        diag[t["comp"]].append(t)
+    keys = sorted(diag, key=lambda k: min(t["line_y"] for t in diag[k]))
+    merged = True
+    while merged:
+        merged = False
+        for a in keys:
+            for b in keys:
+                if a == b or a not in diag or b not in diag:
+                    continue
+                A, B = diag[a], diag[b]
+                gap = max(min(t["line_y"] for t in B) - max(t["line_y"] for t in A),
+                          min(t["line_y"] for t in A) - max(t["line_y"] for t in B))
+                ox = min(max(t["hi"] for t in A), max(t["hi"] for t in B)) - max(min(t["lo"] for t in A), min(t["lo"] for t in B))
+                if gap < 14 and ox > 10 and min(len(A), len(B)) == 1:
+                    diag[a] = A + B
+                    del diag[b]
+                    merged = True
+        keys = [k for k in keys if k in diag]
+    out = []
+    for comp, ts in diag.items():
+        y0, y1 = min(t["line_y"] for t in ts), max(t["line_y"] for t in ts)
+        x0, x1 = min(t["lo"] for t in ts), max(t["hi"] for t in ts)
+        ends = [w for w in W if w[4].strip(":,.").upper() in codes and y0 - 14 < (w[1] + w[3]) / 2 < y1 + 14
+                and x0 - 70 < w[0] and w[2] < x1 + 25]
+        yc = (y0 + y1) / 2
+        own = [w[4].strip(":,.").upper() for w in sorted(ends, key=lambda w: abs((w[1] + w[3]) / 2 - yc))
+               if w[2] < x0 - 2 and y0 - 6 < (w[1] + w[3]) / 2 < y1 + 6
+               and (w[3] - w[1] > 7 or w[5] < 0)]          # name beside the diagram (large print; OCR: any size)
+        left = [w[4].strip(":,.").upper() for w in ends if x0 - 2 <= w[2] and w[0] < x0 + 30]
+        right = [w[4].strip(":,.").upper() for w in ends if w[2] > x1 - 30 and w[0] >= x0 + 30]
+        inside = [w[4].strip(":,.").upper() for w in ends if w[0] >= x0 + 30 and w[2] <= x1 - 30]
+        marks = []
+        for b in boxes:
+            if x0 - 20 < b.x0 < x1 + 20 and y0 - 25 < b.y0 < y1 + 25:
+                dot = any(b.x0 < dx < b.x1 and b.y0 < dy < b.y1 for dx, dy in dots)
+                hl = any(abs(s[1] - s[3]) < 0.3 and b.x0 - 0.5 <= min(s[0], s[2]) and max(s[0], s[2]) <= b.x1 + 0.5
+                         and b.y0 < s[1] < b.y1 for s in segs)
+                if dot:
+                    marks.append(dict(kind="PPKA" if hl else "PAP", y=(b.y0 + b.y1) / 2))
+        ptr = [q for q in pointers if x0 - 40 < q.x1 < x0 + 8 and (y0 - 10 < q.y1 < y1 + 10 or y0 - 10 < q.y0 < y1 + 10)]
+        ptr_from = None
+        if ptr:
+            q = ptr[0]
+            ptr_from = q.y0 if y0 - 10 < q.y1 < y1 + 10 else q.y1          # the end away from the diagram
+        for t in ts:
+            t["through"] = t["lo"] - x0 < 6 and x1 - t["hi"] < 6        # runs over the whole diagram
+            near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
+            t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
+            t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
+        out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, left=left,
+                        right=right, inside=inside, marks=marks))
+    # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
+    out.sort(key=lambda d: d["y0"])
+    named = [d for d in out if d["own"] or d["left"] or d["right"] or d["inside"]]
+    for d in [d for d in out if d not in named]:
+        near = [n for n in named if min(abs(d["y0"] - n["y1"]), abs(n["y0"] - d["y1"])) < 16
+                and min(d["x1"], n["x1"]) - max(d["x0"], n["x0"]) > 10]
+        if near:
+            n = min(near, key=lambda n: min(abs(d["y0"] - n["y1"]), abs(n["y0"] - d["y1"])))
+            n["tracks"] = sorted(n["tracks"] + d["tracks"], key=lambda t: t["line_y"])
+            n["y0"], n["y1"] = min(n["y0"], d["y0"]), max(n["y1"], d["y1"])
+            n["marks"] += d["marks"]
+            out.remove(d)
+    return out
+
+
+def assign_station(diagram, nb, axis):
+    """the station of a diagram: the code whose neighbours (infra.db sections) are printed at the diagram's ends;
+    axis = station codes of the graph's own name column near the diagram (fallback)"""
+    cand = diagram["left"] + diagram["right"] + diagram["inside"] + axis
+    best, score = None, -1
+    for x in dict.fromkeys(cand):
+        sc = len(nb[x] & (set(cand) - {x})) * 2 + (x in axis) + (x in diagram["inside"])
+        if sc > score:
+            best, score = x, sc
+    return best, score
+
+
+
+def read_all(doc, inf, rows_by_page, ocr=None):
+    """inf: infra.db connection (stations, sections); rows_by_page: {page: [(code, y)]} station rows of the graph
+    sheet (build_infra.page_profile); ocr: build_infra.OCR for sheets that draw names as outlines"""
+    codes = {c for (c,) in inf.execute("select code from stations")}
+    adj = defaultdict(set)
+    for a, b in inf.execute("select a, b from sections"):
+        adj[a].add(b)
+        adj[b].add(a)
+    halts = {c for (c,) in inf.execute("select code from stations where kind = 'halt'")}
+    nb = defaultdict(set)              # neighbours as the diagrams name them: the next stations, stepping over halts
+    for x in list(adj):
+        seen, todo = {x}, [(y, 1) for y in adj[x]]
+        while todo:
+            y, k = todo.pop()
+            if y in seen or k > 8:
+                continue
+            seen.add(y)
+            nb[x].add(y)
+            if y in halts:
+                todo += [(z, k + 1) for z in adj[y]]
+    out = []
+    for pg in GROUP_FIRST_PAGES:
+        rows = rows_by_page.get(pg, [])
+        page = doc[pg - 1]
+        extra = []
+        if ocr is not None:
+            # names drawn as outlines (pages 19-24, 35-37): OCR the layout column when few names are text
+            r = page.rect
+            n_text = sum(1 for w in page.get_text("words") if w[0] > r.x1 - 430 and w[4].strip(":,.").upper() in codes)
+            if n_text < 40:
+                words, _ = ocr.read(page, pymupdf.Rect(r.x1 - 330, 0, r.x1 - 60, r.y1), tag="layouts")
+                extra = [w for w in words if w[4].strip(":,.").upper() in codes]
+        D = read_page(page, codes, extra)
+        # two stations drawn touching each other (Semarang Poncol / Tawang): through tracks whose own end labels
+        # point to different stations split the diagram; other tracks go with the nearest of those tracks
+        split = []
+        for dg in D:
+            anchors = []
+            for t in dg["tracks"]:
+                if t["end_l"] and t["end_r"]:
+                    c = [r[0] for r in rows if nb[r[0]] & set(t["end_l"]) and nb[r[0]] & set(t["end_r"])
+                         and r[0] not in t["end_l"] + t["end_r"]]
+                    if len(set(c)) == 1:
+                        anchors.append((t["line_y"], c[0]))
+            if len({a[1] for a in anchors}) < 2:
+                split.append(dg)
+                continue
+            parts = defaultdict(list)
+            for t in dg["tracks"]:
+                parts[min(anchors, key=lambda a: abs(a[0] - t["line_y"]))[1]].append(t)
+            for st, ts in parts.items():
+                part = dict(dg, tracks=ts, y0=min(t["line_y"] for t in ts), y1=max(t["line_y"] for t in ts),
+                            left=[x for t in ts for x in t["end_l"]], right=[x for t in ts for x in t["end_r"]],
+                            own=[x for x in dg["own"] if x == st], inside=[])
+                part["marks"] = [m for m in dg["marks"] if part["y0"] - 25 < m["y"] < part["y1"] + 25]
+                split.append(part)
+        D = split
+        used = set()
+        for dg in D:
+            ends = dg["left"] + dg["right"] + dg["inside"]
+            st, how = None, None
+            # 1. neighbours printed at both ends, 2. one end + own name / row, 3. own name, 4. pointer arrow
+            both = [r for r in rows if dg["left"] and dg["right"] and nb[r[0]] & set(dg["left"]) and nb[r[0]] & set(dg["right"])]
+            one = [r for r in rows if ends and r[0] not in ends and all(nb[r[0]] & {e} for e in set(ends) - set(dg["own"]))]
+            if both:
+                st, how = min(both, key=lambda r: abs(r[1] - (dg["y0"] + dg["y1"]) / 2))[0], "neighbours"
+            elif one:
+                pick = [r for r in one if r[0] in dg["own"]]
+                c = (dg["y0"] + dg["y1"]) / 2
+                st, how = min(pick or one, key=lambda r: abs(r[1] - c))[0], "one side + " + ("own name" if pick else "row")
+            elif dg["own"]:
+                st, how = dg["own"][0], "own name"
+            elif dg["ptr_from"] is not None and rows:
+                st, how = min(rows, key=lambda r: abs(r[1] - dg["ptr_from"]))[0], "pointer"
+            dg.update(page=pg, station=st, how=how)
+            if st:
+                used.add(st)
+        # 2. the rest: nearest unused row
+        for dg in D:
+            if dg["station"] is None and rows:
+                c = (dg["y0"] + dg["y1"]) / 2
+                free = [r for r in rows if r[0] not in used]
+                if free:
+                    r = min(free, key=lambda r: abs(r[1] - c))
+                    dg.update(station=r[0], how=f"nearest row ({abs(r[1] - c):.0f} pt)")
+                    used.add(r[0])
+        # the same diagram printed twice on a sheet (identical tracks): keep the better-founded station
+        RANK = ["neighbours", "one side + own name", "own name", "one side + row", "pointer", "nearest row"]
+        rank = lambda d: next((i for i, k in enumerate(RANK) if (d["how"] or "").startswith(k)), 9)
+        sig = lambda d: tuple(sorted((t["no"], t["length"]) for t in d["tracks"]))
+        bysig = defaultdict(list)
+        for dg in D:
+            if len(dg["tracks"]) >= 3:
+                bysig[sig(dg)].append(dg)
+        for group in bysig.values():
+            best = min(group, key=rank)
+            for dg in group:
+                dg["station"], dg["how"] = best["station"], best["how"]
+        # pieces of one station (some sheets draw the two halves of a double-track station unconnected) and
+        # repeated copies of a diagram on the same sheet
+        keep = []
+        for dg in sorted(D, key=lambda d: d["y0"]):
+            prev = next((k for k in keep if k["station"] == dg["station"] and dg["station"]), None)
+            if prev is not None:
+                sig = lambda d: sorted((t["no"], t["length"]) for t in d["tracks"])
+                if sig(prev) == sig(dg):
+                    continue                                            # a copy
+                if dg["y0"] - prev["y1"] < 40:
+                    prev["tracks"] += dg["tracks"]
+                    prev["y1"], prev["marks"] = max(prev["y1"], dg["y1"]), prev["marks"] + dg["marks"]
+                    prev["left"] += dg["left"]; prev["right"] += dg["right"]
+                    continue
+            keep.append(dg)
+        out += keep
+    return out
+
+
+SCHEMA = """
+CREATE TABLE station_layouts(station TEXT, page INTEGER, y REAL, evidence TEXT, left_ends TEXT, right_ends TEXT,
+                             roman_tracks INTEGER, yard_tracks INTEGER, longest_roman_m REAL, ppka INTEGER, pap INTEGER);
+CREATE TABLE station_tracks(station TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
+                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER);
+"""
+
+
+def write(inf, diagrams):
+    """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
+    track, 'yard' = Arabic-numbered stabling / yard track. arrows: normal running direction drawn at the track ends
+    (L / R on the sheet, LR = both, '' = none drawn); towards: the neighbour station(s) of that direction."""
+    inf.executescript(SCHEMA)
+    for d in diagrams:
+        if not d.get("station"):
+            continue
+        tr = d["tracks"]
+        rom = [t for t in tr if not t["no"].isdigit()]
+        left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
+        right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
+        inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (d["station"], d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
+                     len(tr) - len(rom), max((t["length"] for t in rom), default=None),
+                     int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
+        for k, t in enumerate(tr, 1):
+            tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (d["station"], d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
+                         "roman" if not t["no"].isdigit() else "yard", t["length"], t["arrows"], tw or None,
+                         int(t["through"])))
+
+
+if __name__ == "__main__":
+    import pickle
+    doc = pymupdf.open(sys.argv[1] if len(sys.argv) > 1 else "GAPEKA-JAWA-2026.pdf")
+    inf = sqlite3.connect(sys.argv[2] if len(sys.argv) > 2 else "infra.db")
+    rows = pickle.load(open(sys.argv[3], "rb")) if len(sys.argv) > 3 else {}
+    D = read_all(doc, inf, rows)
+    print(len(D), "diagrams,", sum(len(d["tracks"]) for d in D), "tracks")

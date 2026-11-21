@@ -17,7 +17,8 @@ Steps
   4  link crossing/overtake notes   -> constraints
   5  extract graph train lines      -> graph_pages, graph_trains, graph_crossings   (optional)
   6  train index (Lampiran IV)      -> train_index; trains.type / class / facultative; KA Dinas trips
-  6b rolling-stock duties (O.18)    -> roster_units, roster_duties (rosters.py: loco / KRD / KRL diagrams)
+  6b rolling-stock duties (O.18)    -> roster_units, roster_duties (rosters.py: loco / KRD / KRL diagrams),
+                                        consists (stamformasi: cars per trainset, locomotive class)
   7  infrastructure                 -> infra.db   (build_infra.py: graph-sheet margins, manual/*.csv)
   8  rules and fitted model         -> rules.db   (build_rules.py: rules/*.csv + running-time model fitted on the
                                                     timetable; halt rules checked against KAI, reference/)
@@ -1248,6 +1249,17 @@ def add_rosters(db, pdfs):
                 tot += 1
             db.execute("INSERT INTO roster_duties VALUES(?,?,?,?,?)", (uid, k, no, int(no in first), con))
             prev = no
+    # consists (stamformasi): cars of one trainset and locomotive class per passenger train
+    trains = {n for (n,) in db.execute("select no from trains")}
+    cons = {}
+    for path in pdfs:
+        for n, c in ro.read_consists(pymupdf.open(path), trains).items():
+            cons.setdefault(n, c)
+    db.executescript("""DROP TABLE IF EXISTS consists;
+    CREATE TABLE consists(train_no TEXT PRIMARY KEY, cars INTEGER, sets INTEGER, total_cars INTEGER, locomotive TEXT,
+                          page INTEGER);""")
+    db.executemany("INSERT INTO consists VALUES(?,?,?,?,?,?)",
+                   [(n, c["cars"], c["sets"], c["total_cars"], c["locomotive"], c["page"]) for n, c in cons.items()])
     return len(rows), ok, tot
 
 
@@ -1376,7 +1388,8 @@ def main(argv):
           f"entry {untyped}; in the index but not on the timetable pages: {missing}")
     n_units, ok, tot = add_rosters(db, pdfs)
     kinds = dict(db.execute("select kind, count(*) from roster_units group by 1"))
-    print(f"[6b] rolling-stock duties: {n_units} units {kinds}; consecutive trains connect {ok} of {tot}")
+    print(f"[6b] rolling-stock duties: {n_units} units {kinds}; consecutive trains connect {ok} of {tot}; "
+          f"consists for {db.execute('select count(*) from consists').fetchone()[0]} trains")
     if model and graph:
         model_stages(db, out, pdfs, dwell, os.path.dirname(os.path.abspath(__file__)))
     db.commit()
