@@ -97,7 +97,13 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   (92 with km, 320 without). Signals without km are automatic block signals (user): spaced evenly over the
   section per track (N signals -> N+1 equal blocks); median block 0.57 km (user: ABS blocks are a few hundred m).
   Where overtakes happen there is usually only 1 signal per section on the waiting train's track, so "k blocks
-  ahead" cannot be tested properly (research/waits10.py); keep "overtaker reaches next station" as the rule.
+  ahead" cannot be tested properly (research/waits10.py).
+- Overtaking rule to use (user): a waiting train may depart when the overtaker has passed the NEXT BLOCK POINT.
+  Double track (automatic block): first of next block signal on that track, next halt (halts act as block points
+  with passenger facilities), next station. Single track (semaphores): next real station (halts have no signals).
+  research/waits11.py: this is a lower bound that GAPEKA respects (only 4 % of double-track and 1 % of single-track
+  waiting departures are earlier); GAPEKA often leaves later (median +4 min double, +2 min single; 75th pct
+  17 / 11 min): planning slack. Use it as the earliest departure, not as the exact one.
   None found on Tegal-Semarang. With evenly spaced blocks the next station is still the best reference (40 %).
   Data: single track next station + 2 min fits (71-79 %). Double track: no block distance gives consistent
   departures; "overtaker reaches next station + ~0.5 min" fits best (40 %) where blocks are known; waiting trains
