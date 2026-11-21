@@ -1,4 +1,5 @@
 """KAI halt times with restriction fixes and points zones (learned) / siding (flat 300 m)."""
+import re
 import csv, pickle, sqlite3
 from collections import defaultdict
 import numpy as np
@@ -20,7 +21,7 @@ def subleg(chain, vm, z_start, z_end):
         nc = max(1, int(round(L * 1000 / pm.DX)))
         cap = np.full(nc, float(min(vm[a], umum or vm[a])))
         for o0, o1, rv, tags, down in rs:
-            t = tags.split()
+            t = [x for x in re.split(r"[\s\-/]+", tags) if x]
             if len(t) == 1 and not t[0].startswith("hu" if down else "hi"): continue
             i0 = int(o0 * 1000 / pm.DX); i1 = max(int(o1 * 1000 / pm.DX), i0 + 1)
             cap[i0:i1] = np.minimum(cap[i0:i1], rv)

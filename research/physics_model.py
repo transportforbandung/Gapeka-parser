@@ -5,6 +5,7 @@ Acceleration a(v) = min(a0, p / v) - g * gradient   (a0 starting acceleration, p
 Braking        b(v) = b + g * gradient
 Halt: v = 0, dwell d.   Running time = sim * (1 + m) + c
 """
+import re
 import json
 import pickle
 import sqlite3
@@ -71,7 +72,7 @@ def build(db, tag_rule):
                 nc = max(1, int(round(L * 1000 / DX)))
                 cap = np.full(nc, float(min(v, umum or v)))
                 for o0, o1, rv, tags, down in rs:
-                    t = tags.split()
+                    t = [x for x in re.split(r"[\s\-/]+", tags) if x]
                     applies = tag_rule != "none"
                     if tag_rule == "track" and len(t) == 1:          # only one track restricted
                         applies = t[0].startswith("hu" if down else "hi")

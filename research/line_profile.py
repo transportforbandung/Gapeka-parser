@@ -141,15 +141,15 @@ def page_profile(page, use_ocr=False):
     # anchor on each speed value: the restriction's start km is the nearest unused km printed above it,
     # the end km the nearest unused km printed below it (works for short and for long, e.g. 10 km, restrictions)
     for s2 in sorted(speeds, key=cy):
-        above = [w for w in tg if w not in used and cy(w) <= cy(s2) + 2]
-        below = [w for w in tg if w not in used and cy(w) >= cy(s2) - 2]
-        if not above or not below:
+        # candidate (start, end) = consecutive unused km tokens around the speed; the speed is printed midway
+        # between its own start and end, so take the pair whose midpoint is closest to it (Madiun: 166.100/165.900
+        # at 40 and 160.000/158.000 at 90 must not cross-pair)
+        free = sorted((w for w in tg if w not in used), key=cy)
+        cands = [(free[i], free[i + 1]) for i in range(len(free) - 1)
+                 if cy(free[i]) <= cy(s2) + 3 and cy(free[i + 1]) >= cy(s2) - 3]
+        if not cands:
             continue
-        a2 = max(above, key=cy)
-        below = [w for w in below if w is not a2]
-        if not below:
-            continue
-        b2 = min(below, key=cy)
+        a2, b2 = min(cands, key=lambda p: abs((cy(p[0]) + cy(p[1])) / 2 - cy(s2)) + 0.05 * (cy(p[1]) - cy(p[0])))
         if cy(b2) - cy(a2) > 600:
             continue
         tags = [t[4].lower() for t in left if TAG.match(t[4]) and abs(cy(t) - cy(a2)) < 1.6 and 0 <= t[0] - a2[2] < 12]
