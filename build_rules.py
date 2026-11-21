@@ -4,7 +4,8 @@
 
 Hand-made rules (CSV in git, edited by hand, every row has a source):
   station_zones, section_buffers, station_buffers, station_attributes, wait_gaps, halt_rules, priority (who yields
-  at crossings / overtakes in the simulator), halt_offsets (KAI times for the TfB halts)
+  at crossings / overtakes in the simulator, track fit), mandatory_stops (every train stops, e.g. Cipeundeuy brake
+  check), halt_offsets (KAI times for the TfB halts)
 Fitted (recomputed from every GAPEKA edition, never edited by hand):
   fitted_calibration   per train type: margin, constants, halts, terminus, crossings, steep-section allowance
   fitted_corrections   per directed section / station end / halt station and train type (seconds)
@@ -24,7 +25,7 @@ import numpy as np
 import gapeka_model as gm
 
 CSV_TABLES = ("station_zones", "section_buffers", "station_buffers", "station_attributes", "wait_gaps", "halt_rules",
-              "priority")
+              "priority", "mandatory_stops")
 
 
 def read_manual_halt_offsets(path):

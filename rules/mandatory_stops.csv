@@ -1,0 +1,2 @@
+station,applies_to,min_dwell_s,reason,source,note
+CPD,all trains,600,brake check,manual (user) + data,"Cipeundeuy (summit 768 m between 25 permil grades): GAPEKA 2026 all 30 trains (28 intercity, 2 freight, both directions) stop, dwell 10-23 min, median 10; no other station in Java has a stop for every train"

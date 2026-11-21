@@ -15,7 +15,8 @@ from collections import defaultdict
 import pymupdf
 
 GROUP_FIRST_PAGES = [7, 13, 19, 25, 28, 29, 32, 35, 38, 41, 44, 47, 50]
-LABEL = re.compile(r"^([IVXL]+|\d{1,2})\s*-\s*(\d{2,4}(?:[,.]\d+)?)$")
+LABEL = re.compile(r"^([IVXL]+|\d{1,2}|Y\d)\s*-\s*(\d{2,4}(?:[,.]\d+)?)$")
+is_roman = lambda no: bool(re.fullmatch(r"[IVXL]+", no))       # Arabic and Y-numbered tracks: yard / stabling
 ROM = {"I": 1, "V": 5, "X": 10, "L": 50}
 
 
@@ -64,13 +65,14 @@ def page_items(page, x_min):
         if dr.get("fill") and dr["type"] == "f" and r.width < 20 and r.height > 14 and len(items) >= 5:
             pointers.append(r)                       # arrow from a station name to its displaced diagram
             continue
-        if dr.get("fill") and dr["type"] == "f" and all(it[0] == "l" for it in items) and r.width > 15 and r.height < 60:
+        if dr.get("fill") and dr["type"] == "f" and all(it[0] in ("l", "c") for it in items) and r.width > 15 and r.height < 60:
+            items = [(it[0], it[1], it[-1]) for it in items]           # curves: their end points
             # main tracks drawn as one filled outline with their arrowheads (and crossovers): every pair of close
             # horizontal edges is one track; its arrow orientation comes from the outline's end vertices
             pts = [(it[1].x, it[1].y) for it in items] + [(it[2].x, it[2].y) for it in items]
             # long edges can be drawn as many short pieces: join collinear horizontal pieces into runs
             pieces = sorted(((min(it[1].x, it[2].x), max(it[1].x, it[2].x), (it[1].y + it[2].y) / 2) for it in items
-                             if abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 0.8), key=lambda q: (round(q[2], 1), q[0]))
+                             if it[0] == "l" and abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 0.8), key=lambda q: (round(q[2], 1), q[0]))
             runs = []
             for a, b, y in pieces:
                 if runs and abs(runs[-1][2] - y) < 0.2 and a <= runs[-1][1] + 1.0:
@@ -441,6 +443,8 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
                         t["end_l"] = [f["correct"] if x == f["printed"] else x for x in t.get("end_l", [])]
                         t["end_r"] = [f["correct"] if x == f["printed"] else x for x in t.get("end_r", [])]
                     dg["fix"] = f" (label fix: {f['printed']} -> {f['correct']})"
+        italic_codes = {c for _, c in italic if c in codes}
+        rows_all, rows = rows, [r for r in rows if r[0] not in italic_codes]     # halts in italics: no diagram
         used = {r[0] for r in taken if sum(1 for q in rows if q[0] == r[0]) == 1}
         for dg in D:
             ends = dg["left"] + dg["right"] + dg["inside"]
@@ -550,7 +554,7 @@ def write(inf, diagrams, refs=()):
     for d in [x for x in diagrams if x.get("station")] + copies:
         ln = d.get("copy_line") or line_of.get(d["page"])
         tr = d["tracks"]
-        rom = [t for t in tr if not t["no"].isdigit()]
+        rom = [t for t in tr if is_roman(t["no"])]
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
         right = list(dict.fromkeys(x for x in d["right"] if x != d["station"]))
         inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -560,8 +564,8 @@ def write(inf, diagrams, refs=()):
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
             inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                        (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if not t["no"].isdigit() else int(t["no"]),
-                         "roman" if not t["no"].isdigit() else "yard", t["length"], t["arrows"], tw or None,
+                        (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if is_roman(t["no"]) else int(re.sub(r"\D", "", t["no"])),
+                         "roman" if is_roman(t["no"]) else "yard", t["length"], t["arrows"], tw or None,
                          int(t["through"])))
 
 

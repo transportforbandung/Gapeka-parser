@@ -157,6 +157,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   (298 stations, 0 exceptions); waiting trains fit the longest Roman track in 99.2 % (cars x 21 m + 16 m; p5 margin
   32 m); every misfit (Rogojampi, Temuguruh, Singosari) follows the crossing rule above. 40 timetable stations still
   without a diagram (e.g. CNP, SB, RK, GDB, CBN, NMO, Surabaya-Sidoarjo halts-stations).
+- Cipeundeuy (CPD, user): every train stops at least 10 min for a brake check (summit 768 m between 25 permil
+  grades). GAPEKA: all 30 trains stop, 10-23 min, median 10; the only such station in Java. rules/mandatory_stops.csv.
+- Station diagrams (user): A = Surabaya Kota, B = Benteng, C = Sidotopo on page 44 (manual/layout_station_fixes.csv);
+  the 'Sb (Hilir)' label near Surabaya Kota belongs to another station. Italic names on the sheets are halts (no
+  diagram). Track names Y1..Y3 (Surabaya Kota) are yard tracks.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
