@@ -111,6 +111,13 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   departures; "overtaker reaches next station + ~0.5 min" fits best (40 %) where blocks are known; waiting trains
   (mostly freight) leave 5-8 min after the last train passed and ~20 min before the next one. Planners seem to work
   from the station lines of the graph even on double track.
+- Waiting-train departure rules (research/wait_fix*.py, passenger trains; gaps in research/rules/wait_gaps.csv):
+  crossing, other passes: other pass + 2 min (89 % exact). Crossing, both stop: if the other train dwells <= 2 min
+  the waiter leaves 2 min after the other DEPARTS (sequential departures), else 2 min after it ARRIVES (48 -> 80 %).
+  Overtake: overtaker at next block point + gap per line and track (default single 2, double 2.5; Cikampek-Bandung 0,
+  Cikampek-Tegal / Tegal-Semarang double 3). Waiting for several trains: the latest rule wins; at least arrival + 1.
+  All passenger waits 63/73 -> 75/84 % (exact / within 1 min). Double-track overtakes stay ~45 % exact (planning
+  slack, not missing trains: notes are complete, no un-noted same-direction trains during waits).
 - Coverage round: block-signal markers ("B.hu - B.hi") were being read as station names and broke pairs (Tangerang
   line, Bekasi line, Lentengagung); station names are now built from words (a text line can be "33.359 Tambun"),
   the km column tolerance is +-9 pt, OCR names are cleaned (stray marks from dashed CTC boxes, full-width letters).
