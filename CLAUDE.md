@@ -70,7 +70,8 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Stations with two or more km values are junctions or historical termini (user): both values are the same station
   on different lines; keep both (line_stations.km / km_alt; an extra km beside a known station joins that row, e.g.
   Krenceng). Angke-Kampungbandan is 4.102 km (user; KPB 1.364 is on the Jakarta Kota-Cikampek line, 0.363 another
-  chainage near Jakarta Gudang): manual/pair_overrides.csv.
+  chainage near Jakarta Gudang): manual/pair_overrides.csv. KPB km 0.363 is probably the other yard track of
+  Kampungbandan (user); the unnamed sheet row ?row491 (page 19) next to it has no effect on calculations.
 - Names drawn as outlines on text pages (Tanjung p29, Cilaku p28) and missed by OCR (Karangtengah: italic km;
   Ijo: spaced letters in a dashed box): build_infra OCRs single name / km cells where the Letak column has a km
   without a name or a name without a km; unreadable names are taken from the timetable (the one station all trains
