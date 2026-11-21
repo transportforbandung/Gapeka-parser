@@ -2,25 +2,34 @@
 
 Read this first. It records decisions and findings from earlier sessions so they are not re-derived.
 
-## Decided: split the data into two databases
+## Decided: three outputs, built in stages (user, this round)
 
-1. **Time database** (`gapeka.db`, as now): what the GAPEKA PDF says.
-   Trains, stops, timetable times, notes/constraints, graph lines, and the estimated halt times.
-2. **Rules database** (new, working name `infra.db`): infrastructure and local knowledge that helps the calculation.
-   Built partly from the GAPEKA graph-sheet margins, partly by hand. It holds:
-   - **station zones**: station-area speed zones per train type, e.g. Kiaracondong, side towards Gedebage,
-     1180 m at 30 km/h for intercity trains that stop there (crossover to crossover); commuters use the other
-     side of the station and are not affected
-   - **local restrictions**: from the sheet column "Antara KM / Dengan KM / Dibatasi Sampai" plus manual
-     additions/overrides, with track (hulu / hilir / both) and the train types they apply to
-   - **line profile**: per adjacent station pair, length (from "Letak Stasiun di KM") and general speed ("Umum")
-   - **halt offsets**: the KAI published halt rules, moved here from `halt_offsets.csv`
-   - (likely) train type per service and rolling-stock parameters (accel/brake per group)
-
-   Manual rows must carry a `source` (sheet / manual / KAI timetable) so extracted data can be rebuilt without
-   losing hand-entered rules.
-
-Not implemented yet. Next step is building `infra.db` and moving the research model (below) into the pipeline.
+1. **Infrastructure** `infra.db` (`build_infra.py`, DONE v1): from the graph sheets. Lines (one per sheet group),
+   stations (code, name, kind, CTC, sheet name), km + elevation per line, sections (sheet order a = upper row,
+   b = lower row; HULU = trains a -> b), Umum, ruling gradient, restrictions (offsets from a, km, tracks, cell note),
+   block signals, double track (header list "JALUR GANDA" OR hu/hi tags; header lists are not complete, e.g.
+   Jatinegara-Bekasi), raw header (dispatching stations "Ks X untuk lintas ..."), QA table. Manual infra fixes are
+   CSV in `manual/` (station_aliases, pair_overrides, restriction_overrides), stored with source 'manual: ...'.
+   OCR (rapidocr-onnxruntime) is required for outlined pages; results cached in .cache/ocr. Runs in ~25 s (cached).
+2. **Timetable** `gapeka.db` (`gapeka_pipeline.py`, to improve): trains, stops, vmax, notes. Add: train type
+   (krl / commuter / intercity / freight / dinas), facultative flag (F trains: run when KAI wants, still in all
+   calculations), KA Dinas (R... trainset, L... locomotive movements; only drawn on the graph sheets and listed in the
+   train-number / roster tables near the end of the PDF, e.g. "R49 L49-2" on the locomotive roster from page 1680,
+   "Dinas Rangkaian" on the KRL loop rosters from page 1796). Halt times from the physics model, rounded per KAI region.
+   Calculation in seconds; published columns HH:MM like KAI. Keep `stations`, `trains` and the `schedule` view
+   unchanged for the SVG / CSV exporters (do not change SVG generation).
+3. **Conditional rules** `rules.db`: hand rules as CSV in git (station zones, buffers, wait rules, KAI halt methods,
+   halt offsets), validated and compiled into rules.db together with FITTED values (values the pipeline computes by
+   comparing physics with GAPEKA: calibration, per-section corrections, terminus buffers, wait gaps, gradient
+   allowance). Fitted values are recomputed per GAPEKA edition and never edited by hand.
+- Every row carries source and PDF page (1-based); meta table holds the PDF hash, decree, valid-from date.
+- Pipeline stages: build_infra / timetable / rules + fit / estimate; `gapeka_pipeline.py` stays the one command.
+- infra.db findings: 13 sheet groups (pages 7-12, 13-18, 19-24, 25-27, 28, 29-31, 32-34, 35-37, 38-40, 41-43,
+  44-46, 47-49, 50-51). Each line on a sheet has its own margin table (left border rule = one segment); sections never
+  cross tables. Bandung row shares its line with a vertical label ("GELANG RAJA ..."): longest-matching word run.
+  Duplicate names (Karangsari KRR / KRAI, Larangan LR / LRA) are resolved by timetable neighbours. Bypass sections
+  from a row missed on one time page are dropped (only if no train runs them and other sections give the same km).
+  Coverage: 97.2 % of timetable legs by one section, 98.0 % with chains; 17 pairs uncovered (branches, OCR rows).
 
 ## Domain rules from the user (do not re-guess these)
 
@@ -54,7 +63,7 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Semarang Tawang east side, west of the crossover: 30 km/h at km 0.400-0.800 (Tawang-Alastua). The sheet tags it
   hulu only, but GAPEKA slows westbound through trains there too; applied to both tracks as a manual override
   (user agreed: "if that's what the data proves"). Intercity through from the east -83 s -> +21 s.
-- Manual overrides of sheet restrictions live in research/rules/restriction_overrides.csv (source = manual) and are
+- Manual overrides of sheet restrictions live in manual/restriction_overrides.csv (moved from research/rules) (source = manual) and are
   applied by physics_model.py on load, so re-extracting the sheets never loses them.
 - Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
   GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"

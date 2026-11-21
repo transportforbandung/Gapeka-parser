@@ -3,3 +3,4 @@ research/*.json
 research/*.pkl
 research/*.csv
 research/*.npy
+.cache/
