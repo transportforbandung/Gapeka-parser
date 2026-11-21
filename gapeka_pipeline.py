@@ -233,6 +233,79 @@ def build_tables(db, trains):
     return problems
 
 
+# ---------------------------------------------------------------- 1b. train index (Lampiran IV) and train types
+def train_type(klasifikasi, kelas):
+    """krl / commuter / intercity / freight / dinas from the index headings"""
+    k, c = (klasifikasi or "").upper(), (kelas or "").upper()
+    if "DINAS" in k:
+        return "dinas"                                     # KA Dinas: R... trainset moves, L... locomotive moves
+    if c.startswith("BARANG"):
+        return "freight"
+    if c.startswith(("COMMUTER LINE DAOP 1", "COMMUTER LINE BANDARA SOETTA", "COMMUTER LINE DAOP 6")):
+        return "krl"                                       # electric KRL (Jabodetabek, airport express, Yogyakarta)
+    if "PERKOTAAN" in k:
+        return "commuter"
+    return "intercity"
+
+
+def add_train_index(db, pdfs):
+    """train_index table from the Lampiran IV tables; train type, class and facultative flag on trains;
+    KA Dinas (only in the index and on the graph sheets) added as trains with their route stations"""
+    import train_index as ti
+    rows = []
+    for path in pdfs:
+        rows += ti.read_index(pymupdf.open(path))
+    db.executescript("""
+    DROP TABLE IF EXISTS train_index;
+    CREATE TABLE train_index(number TEXT, train_no TEXT, jenis TEXT, name TEXT, identity TEXT, route TEXT, operator TEXT,
+                             km REAL, dep TEXT, arr TEXT, duration TEXT, klasifikasi TEXT, kelas TEXT, page INTEGER);
+    """)
+    for col, typ in (("type", "TEXT"), ("klasifikasi", "TEXT"), ("kelas", "TEXT"), ("facultative", "INTEGER"),
+                     ("operator", "TEXT"), ("index_km", "REAL")):
+        db.execute(f"ALTER TABLE trains ADD COLUMN {col} {typ}")
+    known = {n for (n,) in db.execute("select no from trains")}
+    by_no, added = {}, 0
+    for r in rows:
+        for no in ti.numbers(r["number"]):
+            db.execute("INSERT INTO train_index VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       (r["number"], no, r["jenis"], r["name"], r["identity"], r["route"], r["operator"], r["km"],
+                        r["dep"], r["arr"], r["duration"], r["klasifikasi"], r["kelas"], r["page"]))
+            by_no.setdefault(no, r)
+    for no, r in by_no.items():
+        typ = train_type(r["klasifikasi"], r["kelas"])
+        fac = int(r["jenis"] == "FAKULTATIF" or no.endswith("F"))
+        vals = (typ, r["klasifikasi"], r["kelas"], fac, r["operator"], r["km"])
+        if no in known:
+            db.execute("UPDATE trains SET type=?, klasifikasi=?, kelas=?, facultative=?, operator=?, index_km=? WHERE no=?",
+                       vals + (no,))
+            continue
+        if typ != "dinas" and not no.startswith(("R", "L")):
+            continue                                       # a regular train the timetable pages miss: reported below
+        # KA Dinas: route stations; departure at the first, arrival at the last; times between come later
+        sts = r["route"].split("-")
+        if not r["dep"] or not r["arr"] or len(sts) < 2:
+            continue
+        hm = lambda t: int(t[:2]) * 3600 + int(t[3:5]) * 60
+        dep, arr = hm(r["dep"]), hm(r["arr"])
+        if arr < dep:
+            arr += 86400
+        for st in sts:
+            db.execute("INSERT OR IGNORE INTO stations VALUES(?,?)", (st, None))
+        for i, st in enumerate(sts, 1):
+            kind = "origin_or_end" if i in (1, len(sts)) else "via"
+            db.execute("INSERT INTO stops VALUES(?,?,?,?,?,?,?,?,?)",
+                       (no, i, st, None, kind, arr if i == len(sts) else None, dep if i == 1 else None,
+                        None, f"index:{r['page']}"))
+        db.execute("INSERT INTO trains(no, service, route, first_page, n_stops, type, klasifikasi, kelas, facultative,"
+                   " operator, index_km) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                   (no, r["name"], r["route"].replace("-", " - "), f"index:{r['page']}", len(sts)) + vals)
+        added += 1
+    missing = sorted(n for n, r in by_no.items() if n not in known and train_type(r["klasifikasi"], r["kelas"]) != "dinas"
+                     and not n.startswith(("R", "L")))
+    untyped = db.execute("select count(*) from trains where type is null").fetchone()[0]
+    return len(rows), added, missing, untyped
+
+
 # ---------------------------------------------------------------- 2. station distances
 def norm(s):
     return re.sub(r"[^a-z0-9]", "", s.lower())
@@ -975,12 +1048,19 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
                 db.execute("INSERT OR REPLACE INTO halt_est VALUES(?,?,?,?,?,?)", (no, m[0], m[1], round(t), round(t + dwell), method))
                 nh += 1
                 counts[method] += 1
-    db.executescript("""DROP VIEW IF EXISTS schedule;
+    db.executescript("""DROP VIEW IF EXISTS schedule; DROP VIEW IF EXISTS schedule_hhmm;
       CREATE VIEW schedule AS
       SELECT s.train_no, s.seq, s.station, s.vmax, s.kind,
              COALESCE(s.arr_s, h.arr_s) AS arr_s, COALESCE(s.dep_s, h.dep_s) AS dep_s,
              CASE WHEN h.train_no IS NOT NULL THEN 1 ELSE 0 END AS estimated, h.method, s.note
-      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;""")
+      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;
+      CREATE VIEW schedule_hhmm AS
+      SELECT sc.train_no, sc.seq, sc.station, sc.kind,
+             CASE WHEN sc.arr_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.arr_s + 30) / 3600) % 24, ((sc.arr_s + 30) / 60) % 60) END AS arr,
+             CASE WHEN sc.dep_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.dep_s + 30) / 3600) % 24, ((sc.dep_s + 30) / 60) % 60) END AS dep,
+             sc.estimated, sc.method, sc.vmax
+      FROM schedule sc;
+""")
     return dict(counts), len(clean)
 
 
@@ -1179,6 +1259,12 @@ def main(argv):
     if graph:
         n, ok, fail = n_graph
         print(f"[5] graph trains {n} from {ok} pages; no hour axis on {fail}")
+    # after the distance / halt / note steps, so KA Dinas trips (route stations only) do not change them
+    n_idx, n_dinas, missing, untyped = add_train_index(db, pdfs)
+    types = dict(db.execute("select type, count(*) from trains group by 1"))
+    print(f"[6] train index: {n_idx} entries; KA Dinas added {n_dinas}; types {types}; facultative "
+          f"{db.execute('select count(*) from trains where facultative=1').fetchone()[0]}; trains without an index "
+          f"entry {untyped}; in the index but not on the timetable pages: {missing}")
     db.commit()
     db.execute("VACUUM")
     print("wrote", out)

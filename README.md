@@ -117,6 +117,10 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 | File | Purpose |
 |---|---|
 | `gapeka_pipeline.py` | GAPEKA PDF → `gapeka.db` |
+| `train_index.py` | Reads the train-number index (Lampiran IV): class, regular / facultative, KA Dinas |
+| `build_infra.py` | GAPEKA graph sheets → `infra.db` (stations, km, sections, speed limits, gradient, double track) |
+| `manual/*.csv` | Hand corrections for `infra.db` (station aliases, section lengths / Umum, restrictions) |
+| `infra.db` | Infrastructure database |
 | `export_poster.py` | Timetable table SVG for the transit map and posts |
 | `export_headway.py` | Station time bar with headway colours (SVG) |
 | `export_trains.py` | Station × train matrix (CSV) |
@@ -129,9 +133,14 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 
 ### Main database tables
 
-- `trains`: train number, service, route
-- `stops`: every row of each train's timetable (`kind`: stop / halt / pass / origin_or_end)
+- `trains`: train number, service, route; `type` (krl / commuter / intercity / freight / dinas), `klasifikasi` and
+  `kelas` from the train index, `facultative` (1 = runs when KAI decides; still part of all calculations),
+  `operator`, `index_km`
+- `stops`: every row of each train's timetable (`kind`: stop / halt / pass / origin_or_end; `via` for the route
+  stations of KA Dinas trips, which have times only at the start and the end so far)
 - `schedule`: view of `stops` with the estimated halt times filled in. **Use this one for exports.**
+- `schedule_hhmm`: the same with times as HH:MM, as KAI publishes them (calculations keep seconds)
+- `train_index`: the train-number index as printed (number, regular / facultative, name, route, km, times, class)
 - `stations`, `station_links`: station codes, names and distances
 - `halt_est`, `halt_fit`: halt time estimates and the fitted running-time models
 - `constraints`: crossings and overtakes from the remarks
