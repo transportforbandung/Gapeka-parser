@@ -113,7 +113,7 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   from the station lines of the graph even on double track.
 - Coverage round: block-signal markers ("B.hu - B.hi") were being read as station names and broke pairs (Tangerang
   line, Bekasi line, Lentengagung); station names are now built from words (a text line can be "33.359 Tambun"),
-  the km column tolerance is +-9 pt, OCR names are cleaned (stray marks from halt boxes, full-width letters).
+  the km column tolerance is +-9 pt, OCR names are cleaned (stray marks from dashed CTC boxes, full-width letters).
   physics_model.profile() derives missing pairs: join through one sheet station (sheet wins over gapeka.db),
   split a sheet pair by gapeka.db distances or by shortest timetable running times, last resort gapeka.db
   distance; manual pairs in research/rules/pair_overrides.csv (Sruweng-Soka-Kebumen from signals at Soka).
@@ -139,6 +139,11 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   steep legs > 1 min 10 -> 8 %; full model unchanged (corrections already learned it). On by default (GRADE_ALLOW=1). User limits: Leces-Malasan 70, Malasan-Ranuyoso 100 with a 70 restriction,
   Lawang-Singosari 70 (all already extracted); Kotok "has complicated speed limits" (sheet shows only 90 general +
   70 at km 211.4-209.2 on Kalisat-Kotok).
+- Dashed station boxes on the graph sheets = centrally controlled stations (CTC) (user). The marks OCR adds
+  around names (":", "I", "F") come from these dashed boxes, not from halts. 26 CTC stations detected on the text
+  pages (Cikampek-Cirebon, Klaten-Solo-Sragen; OCR pages not yet), stored in research/rules/station_attributes.csv.
+  Overtakes on double track: CTC releases the waiting train a bit sooner and more consistently (median +3.0 vs
+  +4.0 min after the next block point; 28 % vs 6 % within 0.5 min; n = 50). No crossings at CTC stations found.
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA
