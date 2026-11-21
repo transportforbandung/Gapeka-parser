@@ -114,6 +114,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates
   station and train number: "Dp 1100 Boo 1145 Jakk"). 345 units (198 loco, 13 KRD, 134 KRL); 97 % of consecutive
   trains connect (2011 of 2077). Tables roster_units / roster_duties in gapeka.db.
+- Priority (user): a lower train number has priority at crossings and overtakes; the higher number is usually the
+  one that stops and waits. Data (research/priority_numbers.py, priority_rules.py, waiting train from the notes):
+  overtakes 98 % (564; 100 % between different train types, 89 % within a type); crossings where only one train
+  stops 74 % (82 % between types, 67 % within a type); both-stop crossings 66 % (weak test: there "waiting" means
+  arriving first). Ranking by type / class (Argo > Eksekutif > ...) / regular-before-facultative before the number
+  adds nothing. Crossing exceptions are real waits (median 6 min, not at the train's usual stops): on single track
+  the train that reaches the loop first has to stop, so timing decides where priority cannot. The timetable data
+  needs no change (the notes say who waits); the simulator uses this rule to decide who yields.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
