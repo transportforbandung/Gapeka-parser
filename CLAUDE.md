@@ -259,6 +259,21 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Errors below 0.5 min are acceptable (GAPEKA rounds to whole minutes). Goal: shrink the 0.5 to 1 min band
   and almost eliminate errors above 1 min.
 
+## Reference documents (user, Nov 2026): PM 110/2017, ITB "Perencanaan Operasi KA", PTDI "Pembuatan Gapeka"
+- PM 110/2017 Pasal 11(2): train numbers follow the train hierarchy -> confirms "lower number has priority".
+  Graph line styles: solid = passenger, dashed = freight, cross marks + "F" = facultative. Running time is set from
+  infrastructure / rolling-stock speed, train speed, distance and service type (Pasal 10).
+- Planning = minimum technical running time + time supplement (our calibration margin / buffers). Conflicts are
+  solved by geser (shift the departure at the origin), ulur (lengthen a stop) or batalkan (cancel); an extra train
+  (KLB) is held at a station so regular trains stay on time; conflicts propagate (simulator actions).
+- Single track: crossing / overtaking only at stations; one train per petak jalan; the longest petak sets capacity.
+  Teaching example: the follower leaves B only when the leader is at C + 4 min safety. Tested on GAPEKA 2026
+  (research/headway_single.py, consecutive same-direction trains between timed stations): single track never has two
+  trains in one section (0 of 908); gap >= 4 min in 97.5 %, the rest exactly 2-3 min (the 2 min dispatcher gap we
+  already use for waits); double track allows following inside the section (3 % gap < 0, block signals).
+- Double track: no crossings; overtakes only for speed differences or a late train. Turnaround trains wait for the
+  incoming trainset (rosters). Window time (track work) forces re-scheduling for that day only.
+
 ## Facts about the PDFs
 
 - Page numbers: use 1-based PDF page numbers when talking to the user. `gapeka.db` page labels ("0:34")
