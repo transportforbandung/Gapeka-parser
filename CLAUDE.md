@@ -118,7 +118,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   hulu only, but GAPEKA slows westbound through trains there too; applied to both tracks as a manual override
   (user agreed: "if that's what the data proves"). Intercity through from the east -83 s -> +21 s.
 - Manual overrides of sheet restrictions live in manual/restriction_overrides.csv (source = manual) and are
-  applied by physics_model.py on load, so re-extracting the sheets never loses them.
+  applied by build_infra.py when infra.db is built, so re-extracting the sheets never loses them.
 - Cibinong / Nambo branch: two tracks at Cibinong, KRL use one through track; no further speed limit (user).
   GAPEKA adds about 2 min per KRL leg on Citayam-Cibinong-Nambo (likely buffer time): rule type "buffer"
   (+120 s per leg, rules/section_buffers.csv) takes the branch from 98 % to 2 % legs > 1 min.
