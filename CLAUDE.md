@@ -186,7 +186,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA
   slower (buffers, waits). Rounded to whole minutes: 77 % exact, 11 % 1 min early, 8 % 1 min late.
-- GitHub: ignore pushing for now (no access yet); commit locally.
+- GitHub: access granted to transportforbandung/Gapeka-parser; push to branch claude/timetable-halt-time-patterns-cdve9b.
 - Errors below 0.5 min are acceptable (GAPEKA rounds to whole minutes). Goal: shrink the 0.5 to 1 min band
   and almost eliminate errors above 1 min.
 
