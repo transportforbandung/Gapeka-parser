@@ -126,7 +126,10 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Gambir / Pasarsenen (intercity) and Surabaya Kota / Gubeng (commuters) carry extra terminus time beyond the
   general allowance (user: trains are held at busy termini's home signals while the dispatcher clears traffic).
 - East Java single track: errors are mostly GAPEKA's own spread (0.3-1 min for the same leg); legs with a
-  consistent bias worth checking for limits: Leces-Malasan, Lawang-Singosari, Klakah-Kotok, Arjasa-Kotok.
+  consistent bias worth checking for limits: Leces-Malasan, Lawang-Singosari, Kalisat-Kotok, Arjasa-Kotok,
+  Malasan-Ranuyoso. (KLT is Kalisat, not Klakah: look station names up, never guess them from codes.)
+- Renamed stations: Klakah (KK in the timetable) is called Lumajang on the graph sheet (user). Aliases live in
+  research/rules/station_aliases.csv (copy next to line_profile.py when running it); RDA-KK 11.506 km, KK-RN 4.903 km.
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA

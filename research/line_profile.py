@@ -23,6 +23,13 @@ db = sqlite3.connect("/home/user/Gapeka-parser/gapeka.db")
 NAMES = {}
 for code, name in db.execute("select code,name from stations"):
     NAMES.setdefault(re.sub(r"[^a-z]", "", (name or "").lower()), code)
+# renamed stations (sheet name differs from the timetable name), rules table station_aliases.csv
+import csv as _csv
+import os as _os
+_ALIAS = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "station_aliases.csv")
+if _os.path.exists(_ALIAS):
+    for _r in _csv.DictReader(open(_ALIAS)):
+        NAMES[re.sub(r"[^a-z]", "", _r["sheet_name"].lower())] = _r["code"]
 
 
 def cy(w):
