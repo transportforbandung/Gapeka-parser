@@ -90,7 +90,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   on Gandrungmangu-Jeruklegi are not double track): manual double_track 0. Kutoarjo-Purworejo has no speed data.
   Kadipiro-Solo Balapan Umum 120 (cell empty); its restrictions are directional: 40 at km 104.800-107.200 "Dari KDO
   ke SLO", 30 at km 107.315-107.799 "arah SK" (stored with the note, applied to both directions for now).
-  Kadipiro-Purwosari is a false pair (not adjacent; Purwosari is after Solo Balapan): manual delete.
+  Kadipiro-Purwosari is a false pair (not adjacent; Purwosari is after Solo Balapan; page 38: the Adi Soemarmo -
+  Kadipiro table ends with an up triangle, the Purwosari - Solo Kota table starts with a down triangle). build_infra
+  never pairs an up-triangle row with the following down-triangle row (manual delete kept as a backup).
+  OCR names clipped at both ends match a station containing them ("rencen" = Krenceng); spaced letters on text
+  pages are joined ("S r o y o" = Sroyo). The unnamed Kampungbandan yard-track row keeps its empty name (user).
 - Halts between Wonokromo and Sidoarjo are inactive but still in GAPEKA (user): keep them.
 - KA Dinas passing times (model, scaled to the index times) are OK for now (user will check the graph later); pass
   rows without a printed time stay empty (user).

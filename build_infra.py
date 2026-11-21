@@ -98,7 +98,11 @@ class Names:
         if k in self.by_key:
             return self.by_key[k]
         m = difflib.get_close_matches(k, list(self.by_key), n=1, cutoff=0.86)
-        return self.by_key[m[0]] if m else "?" + k
+        if m:
+            return self.by_key[m[0]]
+        # OCR of a single name cell can clip letters at both ends ("rencen" for Krenceng): a name containing it
+        sub = {c for kk, c in self.by_key.items() if len(k) >= 5 and k in kk}
+        return sub.pop() if len(sub) == 1 else "?" + k
 
 
 # ------------------------------------------------------------------------------------------------ OCR (cached)
@@ -220,6 +224,8 @@ def page_profile(page, names, ocr=None, filler=None, km_filler=None):
         for k in sorted(rowsw):
             wsr = sorted(rowsw[k], key=lambda w: w[0])
             t = " ".join(w[4] for w in wsr).replace("*", "").strip()
+            if re.fullmatch(r"([A-Za-z]\s+){2,}[A-Za-z]", t):
+                t = t.replace(" ", "")                   # letters printed with wide spacing ("S r o y o")
             kk = key_of(t)
             if len(kk) >= 3 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and "berlaku" not in kk and not SIGNAL.match(t):
                 code, x0 = names.exact(t), wsr[0][0]
@@ -467,6 +473,19 @@ def page_profile(page, names, ocr=None, filler=None, km_filler=None):
             if y0 - 10 <= y <= y1 + 10:
                 return n
         return None
+    # ---- the first row of each line's table has a filled triangle pointing down beside its km, the last row one
+    #      pointing up (junctions mid-table can carry triangles too, so only the pair "up, then down" is used)
+    for d in page.get_drawings():
+        rr = d["rect"]
+        pts = [it[1] for it in d["items"] if it[0] == "l"]
+        if d.get("fill") is None or len(pts) != 3 or not (240 < rr.x0 < 300 and 4 < rr.width < 14 and 4 < rr.height < 14):
+            continue
+        ys = sorted(pt.y for pt in pts)
+        down = ys[2] - ys[1] > ys[1] - ys[0]
+        yc = (rr.y0 + rr.y1) / 2
+        near = [r for r in rows if abs(r["y"] - yc) < 12]
+        if near:
+            min(near, key=lambda r: abs(r["y"] - yc))["start" if down else "end"] = True
     # ---- adjacent pairs
     pairs = []
     for A, B in zip(rows, rows[1:]):
@@ -474,6 +493,8 @@ def page_profile(page, names, ocr=None, filler=None, km_filler=None):
             continue
         if segs and table_of(A["y"]) != table_of(B["y"]):
             continue
+        if A.get("end") and B.get("start"):
+            continue                                     # last row of one table, first row of the next
         # km candidates whose difference matches a distance-column value; the distance column skips halts, so it
         # only decides between two km values at a chainage change
         dd = [float(w[4]) for w in dist_col if A["y"] - 2 < cy(w) < B["y"] + 2]
