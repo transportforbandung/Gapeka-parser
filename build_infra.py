@@ -151,6 +151,34 @@ class OCR:
         return words, lines
 
 
+def make_filler(ocr):
+    def fill(page, y, name_x):
+        words, lines = ocr.read(page, pymupdf.Rect(name_x - 25, y - 10, name_x + 130, y + 8), tile=40, z=6,
+                                tag=f"row{int(y)}")
+        t = " ".join(l[4] for l in sorted(lines, key=lambda l: l[0]) if l[4].strip())
+        t = re.sub(r"B\s*[.\-]?\s*h[ui]\b", " ", t)        # automatic block-signal markers in the row
+        if re.search(r"\bkm\b", t, re.I):
+            return None                                       # a block signal with km ("B-2210 km 446.352"): no name
+        return t.strip() or None
+    return fill
+
+
+def make_km_filler(ocr):
+    """km value of a station row that has a name but no km token (italic km of halts, OCR pages: Karangtengah)"""
+    def fill(page, y, letak_x, taken=()):
+        words, lines = ocr.read(page, pymupdf.Rect(letak_x - 6, y - 15, letak_x + 40, y + 15), tile=60, z=6,
+                                tag=f"kmcol{int(y)}")
+        found = []
+        for l in lines:
+            m = re.search(r"\d{1,3}[.,]\d{3}", l[4])
+            if m:
+                v = float(m.group(0).replace(",", "."))
+                if all(abs(v - t) > 0.0005 for t in taken):     # not the km of a neighbouring row
+                    found.append((abs((l[1] + l[3]) / 2 - y), v))
+        return min(found)[1] if found else None
+    return fill
+
+
 def clean_ocr_name(t):
     """OCR adds marks from the dashed CTC boxes ("I Sumpiuh !", ": Karanganyar :") and full-width letters"""
     import unicodedata
@@ -158,6 +186,8 @@ def clean_ocr_name(t):
     if SIGNAL.match(t):
         return t.strip()
     t = re.sub(r"[^A-Za-z .()-]", " ", t)
+    if re.fullmatch(r"\s*([A-Za-z]\s+){2,}[A-Za-z]\s*", t):
+        t = t.replace(" ", "")                   # letters printed with wide spacing ("I j o")
     toks = t.split()
     while toks and len(toks[0]) <= 2 and len(toks) > 1:
         toks.pop(0)
@@ -167,7 +197,7 @@ def clean_ocr_name(t):
 
 
 # ------------------------------------------------------------------------------------------------ one graph page
-def page_profile(page, names, ocr=None):
+def page_profile(page, names, ocr=None, filler=None, km_filler=None):
     """Read the left margin of one graph page. Returns dict(rows=[station rows], pairs=[adjacent pairs]) or None."""
     ws = page.get_text("words")
     left = [w for w in ws if w[0] < 420]
@@ -231,13 +261,44 @@ def page_profile(page, names, ocr=None):
     letak = [w for w in kms if abs(w[0] - letak_x) < 9]
     dist_col = [w for w in kms if 10 < letak_x - w[0] < 40]
     dx = statistics.median(w[0] for w in dist_col) if dist_col else letak_x - 22
-    rows = []
+    rows, kmless = [], []                 # kmless: station names without a km value beside them (Soka, page 36)
     for code, y, x, t in lines:
         if abs(x - name_x) > 15:
             continue
         c = [float(w[4]) for w in letak if -7 < cy(w) - y < 11]
+        if not c and km_filler is not None and not code.startswith("?"):
+            k = km_filler(page, y, letak_x, [float(w[4]) for w in letak])
+            c = [k] if k is not None else []
         if c:
             rows.append(dict(code=code, sheet_name=t, y=y, km=c))
+        elif not code.startswith("?"):
+            kmless.append((y, code, t))
+    # a km value in the Letak column without a station name beside it: the name is drawn as outlines (Tanjung on
+    # page 29, Cilaku on page 28) or OCR missed it (Karangtengah, Ijo): OCR that name cell alone, at high zoom
+    if filler is not None:
+        for w in sorted(letak, key=cy):
+            y = cy(w)
+            if any(-11 < y - r["y"] < 7 for r in rows):
+                continue
+            row_kms = [float(v[4]) for v in letak if abs(cy(v) - y) < 3]
+            txt = filler(page, y, name_x)
+            t2 = clean_ocr_name(txt) if txt else ""
+            ok = len(t2) >= 3 and not SIGNAL.match(t2) and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t2)
+            code = names.fuzzy(t2) if ok else "?unnamed"
+            if not ok:
+                # a station name without km just above this km value (Soka: name, then its signals, then the km)
+                above = [k for k in kmless if 0 < y - k[0] < 32 and not any(r["code"] == k[1] for r in rows)]
+                if above:
+                    _, code, t2 = max(above)
+                    ok = True
+            near = [r for r in rows if r["code"] == code and abs(r["y"] - y) < 30]
+            if near and ok:
+                near[0]["km"] = sorted(set(near[0]["km"] + row_kms))     # second km of a junction (Krenceng): same station
+                continue
+            if ok and code.startswith("?") and not names.exact(t2):
+                code = f"?unnamed@{int(y)}"                           # unreadable: resolved from the timetable
+            rows.append(dict(code=code if ok else f"?unnamed@{int(y)}", sheet_name=t2 or "", y=y, km=row_kms, ocr_row=True))
+        rows.sort(key=lambda r: r["y"])
     rows.sort(key=lambda r: r["y"])
     # a sheet-only row at the same km as the row above is a second name of the same place ("Ssp. Pusri" /
     # "Kaligunting" at km 145.600): keep one row
@@ -573,10 +634,11 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     per_page, headers, ctc = {}, {}, {}
     for i in graph_pages:
         page = doc[i]
-        prof = page_profile(page, names)
+        filler, km_filler = make_filler(ocr), make_km_filler(ocr)
+        prof = page_profile(page, names, filler=filler, km_filler=km_filler)
         used_ocr = False
         if prof is None or len(prof["pairs"]) < 5:
-            prof = page_profile(page, names, ocr=ocr)
+            prof = page_profile(page, names, ocr=ocr, filler=filler, km_filler=km_filler)
             used_ocr = True
         prof = prof or dict(rows=[], pairs=[])
         prof["ocr"] = used_ocr
@@ -587,6 +649,32 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                 ctc.setdefault(c, pg)
         print(f"  page {i + 1:3d}: {len(prof['rows']):3d} station rows, {len(prof['pairs']):3d} pairs, "
               f"{sum(len(p['restr']) for p in prof['pairs']):3d} restrictions{'  (OCR)' if used_ocr else ''}")
+
+    # ---- rows whose name cannot be read (Ijo: spaced letters in a dashed box): the station the timetable has
+    #      between the neighbouring rows, if there is exactly one
+    tt_adj = defaultdict(set)
+    for (no,) in ttdb.execute("select no from trains"):
+        sts = [r[0] for r in ttdb.execute("select station from stops where train_no=? order by seq", (no,))]
+        for x, y in zip(sts, sts[1:]):
+            tt_adj[x].add(y)
+            tt_adj[y].add(x)
+    for pg, prof in per_page.items():
+        rows = prof["rows"]
+        for i, r in enumerate(rows):
+            if not r["code"].startswith("?unnamed"):
+                continue
+            a = rows[i - 1]["code"] if i > 0 else None
+            b = rows[i + 1]["code"] if i + 1 < len(rows) else None
+            cand = (tt_adj.get(a, set()) & tt_adj.get(b, set())) - {a, b}
+            new = next(iter(cand)) if len(cand) == 1 else "?" + (key_of(r["sheet_name"]) or f"row{int(r['y'])}")
+            if len(cand) == 1:
+                qa.append(("station name from timetable neighbours", new, f"page {pg}, between {a} and {b}, OCR '{r['sheet_name']}'"))
+            for p in prof["pairs"]:
+                if p["a"] == r["code"]:
+                    p["a"] = new
+                if p["b"] == r["code"]:
+                    p["b"] = new
+            r["code"], r["sheet_name"] = new, (names.names.get(new) or r["sheet_name"])
 
     # ---- names shared by several stations: take the code the timetable runs next to the neighbouring rows
     adjacent = defaultdict(set)

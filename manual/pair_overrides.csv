@@ -1,3 +1,2 @@
 from,to,km,source,note
-SRW,SOA,3.396,manual (sheet signals),"Soka halt not read by OCR; position from block signals in its row (km 446.197 / 446.352), Sruweng km 442.875"
-SOA,KM,1.645,manual (sheet signals),"Soka halt position km 446.27, Kebumen km 447.916"
+AK,KPB,4.102,manual (user),"Angke-Kampungbandan 4.102 km; Kampungbandan km 1.364 is on the Jakarta Kota-Cikampek line, 0.363 another chainage (junction near Jakarta Gudang)"
