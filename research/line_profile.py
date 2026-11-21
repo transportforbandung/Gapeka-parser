@@ -159,7 +159,12 @@ def page_profile(page, use_ocr=False):
             mid = (cy(a2) + cy(b2)) / 2
             if not tags or sorted(tags) != sorted(tags_b) or abs(cy(s2) - mid) > 0.2 * (cy(b2) - cy(a2)):
                 continue
-        restr.append(dict(y=(cy(a2) + cy(b2)) / 2, y0=cy(a2), y1=cy(b2), km0=float(a2[4]), km1=float(b2[4]), v=int(s2[4]), tags=" ".join(tags)))
+        # small printed note inside the restriction cell, e.g. "Jalur IV, 5, 6 Empl. MLK" (station tracks only) or "Empl. Bd"
+        note = " ".join(t[4] for t in sorted(left, key=lambda t: (round(cy(t)), t[0]))
+                        if cy(a2) - 6 <= cy(t) <= cy(b2) + 6 and a2[0] - 4 <= t[0] <= s2[2] + 4
+                        and re.search(r"[A-Za-z]", t[4]) and not TAG.match(t[4]))
+        restr.append(dict(y=(cy(a2) + cy(b2)) / 2, y0=cy(a2), y1=cy(b2), km0=float(a2[4]), km1=float(b2[4]), v=int(s2[4]),
+                          tags=" ".join(tags), note=note))
         used.add(a2)
         used.add(b2)
     hl = []
@@ -223,7 +228,7 @@ def page_profile(page, use_ocr=False):
                 o0, o1 = max(o0, 0.0), min(o1, L)
                 if o1 - o0 < 0.02 or o1 - o0 > 60:
                     continue
-                rs.append(dict(o0=round(o0, 3), o1=round(o1, 3), v=r["v"], tags=r["tags"], up=sg > 0))
+                rs.append(dict(o0=round(o0, 3), o1=round(o1, 3), v=r["v"], tags=r["tags"], up=sg > 0, note=r.get("note", "")))
         u = umum_at((A["y"] + B["y"]) / 2)
         out.append(dict(a=A["code"], b=B["code"], up=kb > ka, km=round(abs(kb - ka), 3), umum=u, restr=rs,
                         h_a=elev_at(A["y"]), h_b=elev_at(B["y"])))

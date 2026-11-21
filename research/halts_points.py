@@ -20,7 +20,7 @@ def subleg(chain, vm, z_start, z_end):
         L, umum, rs, _ = pr
         nc = max(1, int(round(L * 1000 / pm.DX)))
         cap = np.full(nc, float(min(vm[a], umum or vm[a])))
-        for o0, o1, rv, tags, down in rs:
+        for o0, o1, rv, tags, down in rs:   # (profile() already drops 'Jalur ...' siding-only restrictions)
             t = [x for x in re.split(r"[\s\-/]+", tags) if x]
             if len(t) == 1 and not t[0].startswith("hu" if down else "hi"): continue
             i0 = int(o0 * 1000 / pm.DX); i1 = max(int(o1 * 1000 / pm.DX), i0 + 1)

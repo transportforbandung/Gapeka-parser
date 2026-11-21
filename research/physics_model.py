@@ -25,7 +25,17 @@ G = 9.81
 PROF = json.load(open("line_profile.json"))
 
 
-def profile(a, b):
+def track_kind(note):
+    """classify the small note in a restriction cell"""
+    n = note or ""
+    if re.search(r"\b(dari|ke)\b[ /a-z]*jalur", n, re.I):
+        return "platform-track"
+    if re.search(r"jalur", n, re.I) or re.search(r"(^|\s)[IVX]{1,4},", n):
+        return "siding"
+    return "line"
+
+
+def profile(a, b, cls=None):
     """profile of the section a->b in travel direction: (km, umum, [(o0,o1,v,tags,train_goes_up_chainage)], grade)"""
     p, rev = PROF.get(f"{a}-{b}"), False
     if p is None:
@@ -36,6 +46,11 @@ def profile(a, b):
     down = not rev                    # pairs are stored in sheet order (top -> bottom): moving down the sheet = hulu track
     rs = []
     for r in p["restr"]:
+        kind = track_kind(r.get("note", ""))
+        if kind == "siding":
+            continue                  # restriction on named station tracks (loops/sidings) only, not the main line
+        if kind == "platform-track" and cls == "emu":
+            continue                  # "Dari/Ke Jalur X..": trains using those platform tracks (hypothesis: not EMUs)
         o0, o1 = (L - r["o1"], L - r["o0"]) if rev else (r["o0"], r["o1"])
         rs.append((o0, o1, r["v"], r["tags"], down))
     grade = None
@@ -63,7 +78,7 @@ def build(db, tag_rule):
             T = (t1 - t0) % 86400
             cells_cap, cells_grade, halts, ok, x = [], [], [], True, 0.0
             for i in range(p, n):
-                pr = profile(rows[i][1], rows[i + 1][1])
+                pr = profile(rows[i][1], rows[i + 1][1], train_class(service))
                 v = rows[i][5]
                 if pr is None or not v:
                     ok = False
