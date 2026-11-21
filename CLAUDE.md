@@ -130,6 +130,13 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   Malasan-Ranuyoso. (KLT is Kalisat, not Klakah: look station names up, never guess them from codes.)
 - Renamed stations: Klakah (KK in the timetable) is called Lumajang on the graph sheet (user). Aliases live in
   research/rules/station_aliases.csv (copy next to line_profile.py when running it); RDA-KK 11.506 km, KK-RN 4.903 km.
+- Gradient check (research/grade_check.py, single-section pass->pass legs): the timetable does NOT lower the speed
+  limit on steep sections (vmax < Umum only 3-14 % there vs 78 % on flat); instead GAPEKA adds time symmetrically
+  uphill and downhill: time / time-at-limit 1.13 on flat (4.6 s/km), 1.22-1.29 at |grade| >= 5 permil (10-13 s/km).
+  A planning allowance on steep sections, not a traction effect. Proposed: allowance by |ruling gradient| per type
+  (awaiting the user's go-ahead). User limits: Leces-Malasan 70, Malasan-Ranuyoso 100 with a 70 restriction,
+  Lawang-Singosari 70 (all already extracted); Kotok "has complicated speed limits" (sheet shows only 90 general +
+  70 at km 211.4-209.2 on Kalisat-Kotok).
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA
