@@ -41,8 +41,8 @@ GAPEKA-JAWA-2026.pdf
 ## Requirements
 
 - Python 3.9 or newer
-- `pip install pymupdf numpy scipy rapidocr-onnxruntime`. Only the pipeline needs these; the export scripts use the
-  standard library only. OCR (rapidocr) is needed for graph pages whose text is drawn as outlines.
+- `pip install -r requirements.txt` (pymupdf, numpy, scipy, rapidocr-onnxruntime). Only the pipeline needs these; the
+  export scripts use the standard library only. OCR (rapidocr) is needed for graph pages whose text is drawn as outlines.
 
 ## Usage
 
@@ -64,7 +64,19 @@ the KAI times in `rules/halt_offsets.csv` override them. The run prints how well
 KAI's published halt times. You can give several PDFs or a folder. `--dwell 30` sets the dwell time for the manual
 halt times, `--no-graph` skips the graph sheets (faster, but no distances), `--no-model` skips steps 7–9.
 
-Needs `pip install pymupdf numpy scipy rapidocr-onnxruntime`.
+Needs `pip install -r requirements.txt`.
+
+### Checking a run
+
+```
+python check.py            # checks the databases in this folder
+python check.py --run      # rebuilds everything into a temporary folder first, then checks
+```
+
+It checks that printed GAPEKA times are never replaced, every halt and KA Dinas stop has a time, every timetable
+station pair has infrastructure data, the running-time model and the halt times stay as accurate as now against
+GAPEKA and KAI, and that the TfB exports are identical to `tests/baseline/`. After a change you want in the exports,
+accept it with `python check.py --update-baseline`.
 
 The run prints a report. Check the `halt_offsets.csv` section: it shows how far the model is
 from the KAI times, and warns about rules that were skipped or never used.
@@ -141,9 +153,12 @@ KAI ticket shows them. In the CSV they are marked with `*`.
 | `export_poster.py` | Timetable table SVG for the transit map and posts |
 | `export_headway.py` | Station time bar with headway colours (SVG) |
 | `export_trains.py` | Station × train matrix (CSV) |
+| `check.py` | Regression checks of a pipeline run (see "Checking a run") |
+| `requirements.txt` | Python packages for the pipeline |
+| `tests/baseline/` | TfB exports that `check.py` compares against |
+| `research/` | The experiments behind the model (see `research/README.md`) |
 | `sanity_check.py` | Flags times going backwards, odd running times, long dwells → `sanity_flags.csv` |
 | `manual_links.csv` | *(optional)* station distances to add or override, `code,code,km` |
-| `gapeka_missing_links.csv` | Station pairs still without a distance (written by the pipeline) |
 | `gapeka.db` | The parsed database |
 | `*.svg` | Latest exported timetable graphics |
 
@@ -161,7 +176,8 @@ KAI ticket shows them. In the CSV they are marked with `*`.
   trainset per day and the trains it works in order, including KA Dinas moves; `connects` = the train starts where
   the previous one ended)
 - `stations`, `station_links`: station codes, names and distances
-- `halt_est`, `halt_fit`: halt time estimates and the fitted running-time models
+- `halt_est`: halt time estimates (method: model rule per KAI region, `manual` from `rules/halt_offsets.csv`,
+  `dinas-model` for KA Dinas passing points)
 - `constraints`: crossings and overtakes from the remarks
 
 ## Notes

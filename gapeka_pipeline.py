@@ -12,7 +12,8 @@ Give files in page order; a train that continues on the next file is re-joined b
 Steps
   1  parse timetable pages          -> stations, trains, stops, notes
   2  read station distances         -> station_links   (graph profile column "jarak antar stasiun")
-  3  first halt estimate            -> halt_fit, halt_est, view schedule  (distance fit; replaced in step 9)
+  3  halt tables                    -> halt_est, views schedule / schedule_hhmm (filled in step 9; with
+                                       --no-model the older distance fit estimates the halts here)
   4  link crossing/overtake notes   -> constraints
   5  extract graph train lines      -> graph_pages, graph_trains, graph_crossings   (optional)
   6  train index (Lampiran IV)      -> train_index; trains.type / class / facultative; KA Dinas trips
@@ -721,6 +722,8 @@ def write_missing_links(db, path):
         for a, b in zip(lst, lst[1:]):
             if a != b and (a not in linked or b not in linked):
                 cnt[tuple(sorted((a, b)))] += 1
+    if path is None:
+        return len(cnt)
     with open(path, "w", encoding="utf-8") as f:
         f.write("# a,b,km,(names, trains using this pair) - fill in km and move the line to manual_links.csv\n")
         for (a, b), n in sorted(cnt.items(), key=lambda x: -x[1]):
@@ -900,6 +903,29 @@ def apply_halt_offsets(db, path, dwell):
     return n
 
 
+SCHEDULE_VIEWS = """DROP VIEW IF EXISTS schedule; DROP VIEW IF EXISTS schedule_hhmm;
+      CREATE VIEW schedule AS
+      SELECT s.train_no, s.seq, s.station, s.vmax, s.kind,
+             COALESCE(s.arr_s, h.arr_s) AS arr_s, COALESCE(s.dep_s, h.dep_s) AS dep_s,
+             CASE WHEN h.train_no IS NOT NULL THEN 1 ELSE 0 END AS estimated, h.method, s.note
+      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;
+      CREATE VIEW schedule_hhmm AS
+      SELECT sc.train_no, sc.seq, sc.station, sc.kind,
+             CASE WHEN sc.arr_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.arr_s + 30) / 3600) % 24, ((sc.arr_s + 30) / 60) % 60) END AS arr,
+             CASE WHEN sc.dep_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.dep_s + 30) / 3600) % 24, ((sc.dep_s + 30) / 60) % 60) END AS dep,
+             sc.estimated, sc.method, sc.vmax
+      FROM schedule sc;
+"""
+
+
+def init_halt_tables(db):
+    """empty halt_est + schedule views (step 9 fills halt_est from the running-time model)"""
+    db.executescript("""DROP TABLE IF EXISTS halt_fit; DROP TABLE IF EXISTS halt_est;
+      CREATE TABLE halt_est(train_no TEXT, seq INTEGER, station TEXT, arr_s INTEGER, dep_s INTEGER, method TEXT,
+                            PRIMARY KEY(train_no, seq));""")
+    db.executescript(SCHEDULE_VIEWS)
+
+
 def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
     """Estimate Berh/Sb times. Weight of each sub-leg, best source first:
       observed : median run time of that same station pair, taken from trains that time both stations
@@ -1060,19 +1086,7 @@ def estimate_halts(db, dist, dwell, min_clean=20, min_distinct=6):
                 db.execute("INSERT OR REPLACE INTO halt_est VALUES(?,?,?,?,?,?)", (no, m[0], m[1], round(t), round(t + dwell), method))
                 nh += 1
                 counts[method] += 1
-    db.executescript("""DROP VIEW IF EXISTS schedule; DROP VIEW IF EXISTS schedule_hhmm;
-      CREATE VIEW schedule AS
-      SELECT s.train_no, s.seq, s.station, s.vmax, s.kind,
-             COALESCE(s.arr_s, h.arr_s) AS arr_s, COALESCE(s.dep_s, h.dep_s) AS dep_s,
-             CASE WHEN h.train_no IS NOT NULL THEN 1 ELSE 0 END AS estimated, h.method, s.note
-      FROM stops s LEFT JOIN halt_est h ON h.train_no=s.train_no AND h.seq=s.seq;
-      CREATE VIEW schedule_hhmm AS
-      SELECT sc.train_no, sc.seq, sc.station, sc.kind,
-             CASE WHEN sc.arr_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.arr_s + 30) / 3600) % 24, ((sc.arr_s + 30) / 60) % 60) END AS arr,
-             CASE WHEN sc.dep_s IS NULL THEN NULL ELSE printf('%02d:%02d', ((sc.dep_s + 30) / 3600) % 24, ((sc.dep_s + 30) / 60) % 60) END AS dep,
-             sc.estimated, sc.method, sc.vmax
-      FROM schedule sc;
-""")
+    db.executescript(SCHEDULE_VIEWS)
     return dict(counts), len(clean)
 
 
@@ -1333,27 +1347,23 @@ def main(argv):
     n3 = read_km_columns(db, pages) if graph else 0
     n_bad = drop_implausible_links(db)
     n_man = load_manual_links(db, manual)
-    n_pairs = write_missing_links(db, os.path.splitext(out)[0] + "_missing_links.csv")
+    n_pairs = write_missing_links(db, None)   # count only: infra.db's QA table lists uncovered pairs now
     n_un = db.execute("select count(*) from km_unmatched").fetchone()[0]
-    print(f"[2] station links {n} from names + {n2} from matching drawn train lines to the timetable + {n3} from cumulative-km columns; {n_bad} dropped as implausible; {n_man} from manual_links.csv; {n_un} km columns left unmatched (table km_unmatched); {n_pairs} neighbour pairs still need a distance, listed in {os.path.splitext(os.path.basename(out))[0]}_missing_links.csv")
+    print(f"[2] station links {n} from names + {n2} from matching drawn train lines to the timetable + {n3} from cumulative-km columns; {n_bad} dropped as implausible; {n_man} from manual_links.csv; {n_un} km columns left unmatched (table km_unmatched); {n_pairs} neighbour pairs without a gapeka.db distance (infra.db covers them; see its qa table)")
     linked = {x for r in db.execute("select a,b from station_links") for x in r}
     miss = [(c, nm, k) for c, nm, k in db.execute(
         "select s.station, st.name, count(*) from stops s join stations st on st.code=s.station group by s.station order by 3 desc")
         if c not in linked]
     print(f"    stations with no distance on any graph page: {len(miss)} of "
           f"{db.execute('select count(*) from stations').fetchone()[0]}; most used: {[(c, nm) for c, nm, k in miss[:12]]}")
-    counts, nclean = estimate_halts(db, make_distance(db), dwell)
-    apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "rules", "halt_offsets.csv"), dwell)
-    counts = dict(db.execute("select method,count(*) from halt_est group by 1"))
-    print(f"[3] halts estimated {counts} (clean fit legs: {nclean}, dwell {dwell:.0f}s)")
-    left = db.execute(f"""select h.station, st.name, count(*) from halt_est h join trains t on t.no=h.train_no
-                          join stations st on st.code=h.station
-                          where h.method!='manual' and t.service in ({','.join('?' * len(TFB_SERVICES))})
-                          group by 1 order by 3 desc""", TFB_SERVICES).fetchall()
-    if left:
-        print(f"    TfB halts still estimated by the model (add a rule to halt_offsets.csv): {left}")
-    for r in db.execute("select grp,round(s_per_km,1),round(base_s),n_clean,round(rmse_s) from halt_fit"):
-        print("     fit", r)
+    if model and graph:
+        init_halt_tables(db)                 # halt times come from the running-time model in step 9
+        print("[3] halt times: from the running-time model (step 9)")
+    else:                                    # without the model: distance fit (the older method)
+        counts, nclean = estimate_halts(db, make_distance(db), dwell)
+        apply_halt_offsets(db, os.path.join(os.path.dirname(os.path.abspath(__file__)), "rules", "halt_offsets.csv"), dwell)
+        counts = dict(db.execute("select method,count(*) from halt_est group by 1"))
+        print(f"[3] halts estimated by the distance fit {counts} (clean fit legs: {nclean}, dwell {dwell:.0f}s)")
     print("[4] constraints", link_notes(db))
     if graph:
         n, ok, fail = n_graph

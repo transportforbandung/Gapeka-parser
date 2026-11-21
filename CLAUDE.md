@@ -37,6 +37,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   from a row missed on one time page are dropped (only if no train runs them and other sections give the same km).
   Coverage: 97.2 % of timetable legs by one section, 98.0 % with chains; 17 pairs uncovered (branches, OCR rows).
 
+- Housekeeping (done): `check.py` (regression checks; `--run` rebuilds; `--update-baseline` accepts new TfB exports
+  in tests/baseline/), `requirements.txt`, the old distance-fit halt step only runs with --no-model, the
+  gapeka_missing_links.csv file is gone (infra.db's qa table lists uncovered pairs), research/README.md.
+
 ## Domain rules from the user (do not re-guess these)
 
 - **hu / hi** = **hulu / hilir**, the two tracks of a double track. Not related to km direction. Hulu = trains

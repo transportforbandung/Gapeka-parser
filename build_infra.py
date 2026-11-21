@@ -1006,7 +1006,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     for (a, b), p in sections.items():
         g[a][b] = g[b][a] = p["km"]
 
-    def chain(x, y, max_hops=10):
+    def chain(x, y, max_hops=25):
         """shortest chain of sheet sections x..y with at most max_hops sections (stations the train does not
         list in between, e.g. Cakung-Rawabebek-Kranji); returns (hops, km) or None"""
         best, frontier = {x: 0.0}, [(x, 0.0)]
