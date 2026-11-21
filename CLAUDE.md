@@ -45,6 +45,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   access, and at double/single track transitions.
 - Kiaracondong: 1180 m crossover to crossover; affects intercity trains stopping there (towards/from Gedebage);
   commuters use the other side and are mostly unaffected.
+- Bandung / Ciroyom / Andir (user): two lines. Main line Andir-Bandung direct (2.729 km); branch Andir-Ciroyom-Bandung.
+  Ciroyom-Bandung is 30 km/h (Umum); a 90 read on the branch table is wrong (manual delete override).
+- Kasugihan (KH, not Kalibagor) (user): the main line uses the junction north-east of the station's km mark
+  (Lebeng-Kasugihan-Maos, KH-MA 1.723 km); the Cilacap branch uses the km of the station itself (KH-MA 1.966 km).
+  infra.db keeps both as section variants (variant + context = stations of the sheet table); pick the variant whose
+  context holds the train's previous / next station.
+- Umum (user): Kebasen-Notog 80; Kemranjen-Sumpiuh 120 (Umum cell Kebasen-Kutoarjo). In manual/section_overrides.csv.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

@@ -50,10 +50,11 @@ CREATE TABLE line_stations(line_id TEXT, seq INTEGER, code TEXT, km REAL, km_alt
 CREATE TABLE sections(a TEXT, b TEXT, line_id TEXT, km REAL, km_a REAL, km_b REAL, km_increasing INTEGER,
                       umum_kmh INTEGER, ruling_gradient_permil REAL, elevation_a_m REAL, elevation_b_m REAL,
                       double_track INTEGER, double_track_source TEXT, via TEXT, source TEXT, page INTEGER,
-                      PRIMARY KEY(a, b));
+                      variant TEXT DEFAULT '', context TEXT, PRIMARY KEY(a, b, variant));
 CREATE TABLE restrictions(a TEXT, b TEXT, offset_from_km REAL, offset_to_km REAL, km_from REAL, km_to REAL,
-                          speed_kmh INTEGER, tracks TEXT, note TEXT, source TEXT, page INTEGER);
-CREATE TABLE block_signals(a TEXT, b TEXT, offset_km REAL, track TEXT, signal_no TEXT, km REAL, kind TEXT, page INTEGER);
+                          speed_kmh INTEGER, tracks TEXT, note TEXT, source TEXT, page INTEGER, variant TEXT DEFAULT '');
+CREATE TABLE block_signals(a TEXT, b TEXT, offset_km REAL, track TEXT, signal_no TEXT, km REAL, kind TEXT, page INTEGER,
+                           variant TEXT DEFAULT '');
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -434,7 +435,9 @@ def page_profile(page, names, ocr=None):
         A.setdefault("km_out", ka)
         B.setdefault("km_in", kb)
         A["elev"], B["elev"] = elev_at(A["y"]), elev_at(B["y"])
-        pairs.append(dict(a=A["code"], b=B["code"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
+        tno = table_of(A["y"]) if segs else None
+        ctx = " ".join(r["code"] for r in rows if (table_of(r["y"]) if segs else None) == tno)
+        pairs.append(dict(table=tno, context=ctx, a=A["code"], b=B["code"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
                           restr=rs, h_a=A["elev"], h_b=B["elev"], blocks=bl, ruling=grad_at(A["y"], B["y"])))
     return dict(rows=rows, pairs=pairs)
 
@@ -598,13 +601,22 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                       f"{names.names.get(rows[-1]['code'], rows[-1]['sheet_name']) if rows else '?'}"
 
     # ---- sections: first page of a line that has the pair wins; others on later pages are consistency checks
-    sections, page_of = {}, {}
+    #      A pair drawn in two tables of the same sheet with different lengths is two different tracks (Kasugihan:
+    #      main line via the junction north-east of the station, km 388.355-390.078 = 1.723 km; Cilacap branch from
+    #      the station itself, 1.966 km): kept as a variant with the stations of its table as context.
+    sections, variants = {}, {}
     for ln in lines:
         for pg in sorted(ln["pages"], key=lambda p: (p != ln["best"], p)):
             for p in per_page[pg]["pairs"]:
                 k = (p["a"], p["b"])
                 if k in sections or (p["b"], p["a"]) in sections:
                     old = sections.get(k) or sections.get((p["b"], p["a"]))
+                    if old["page"] == pg and old.get("table") != p.get("table") and abs(old["km"] - p["km"]) > 0.05:
+                        vk = (p["a"], p["b"], f"table {p['table']}")
+                        variants.setdefault(vk, dict(p, line=ln["id"], page=pg, source="sheet (second table)", via=None))
+                        continue
+                    if any(v["a"] in k and v["b"] in k and abs(v["km"] - p["km"]) <= 0.05 for v in variants.values()):
+                        continue
                     if abs(old["km"] - p["km"]) > 0.05:
                         qa.append(("length differs between pages", f"{p['a']}-{p['b']}",
                                    f"{old['km']} (page {old['page']}) vs {p['km']} (page {pg})"))
@@ -700,11 +712,29 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             if flip:                                    # offsets in the CSV are measured from 'from'
                 o0, o1 = p["km"] - o1, p["km"] - o0
             hit = [x for x in p["restr"] if abs(x["o0"] - o0) < 0.05 and abs(x["o1"] - o1) < 0.05]
+            if (r.get("action") or "set") == "delete":
+                p["restr"] = [x for x in p["restr"] if x not in hit or (r.get("speed_kmh") and x["v"] != int(r["speed_kmh"]))]
+                if not hit:
+                    qa.append(("restriction delete override matched nothing", f"{a}-{b}", r["note"]))
+                continue
             for x in hit:
                 x["tags"], x["v"], x["source"] = r["set_tags"], int(r["speed_kmh"]), f"manual: {r['source']}"
             if not hit:
                 p["restr"].append(dict(o0=o0, o1=o1, v=int(r["speed_kmh"]), tags=r["set_tags"], note=r["note"],
                                        source=f"manual: {r['source']}"))
+
+    pth = os.path.join(manual_dir, "section_overrides.csv")
+    if os.path.exists(pth):
+        conv = dict(umum_kmh=("umum", int), ruling_gradient_permil=("ruling", float), km=("km", float))
+        for r in csv.DictReader(open(pth)):
+            a, b = r["from"], r["to"]
+            p = sections.get((a, b)) or sections.get((b, a))
+            if p is None or r["field"] not in conv:
+                qa.append(("section override not applied", f"{a}-{b}", f"{r['field']}={r['value']}"))
+                continue
+            f, cv = conv[r["field"]]
+            p[f] = cv(r["value"])
+            p["source"] += f"; {r['field']} manual: {r['source']}"
 
     # ---- double track: header lists ("JALUR GANDA"), followed along the station rows of the same sheet;
     #      sections of pages without such a list are inferred from hu/hi tags
@@ -796,7 +826,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     [(ln["id"], ln["title"], " ".join(map(str, ln["pages"])), headers[ln["best"]][0]) for ln in lines])
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
-    for (a, b), p in sections.items():
+    allsec = [((a, b), p, "") for (a, b), p in sections.items()] + [((a, b), p, v) for (a, b, v), p in variants.items()]
+    for (a, b), p, var in allsec:
         key = frozenset((a, b))
         tags = [x["tag"] for x in p["blocks"]] + [t for r in p["restr"] for t in r["tags"].split()]
         has_tags = any(t.startswith(("hu", "hi")) for t in tags)
@@ -809,9 +840,9 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         else:
             d, src = 0, "header list (not listed)" if p.get("page") in header_pages else "no header list, no hu/hi tags"
         up = None if p.get("km_a") is None else int(p["km_b"] > p["km_a"])
-        out.execute("insert into sections values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        out.execute("insert into sections values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (a, b, p.get("line"), p["km"], p.get("km_a"), p.get("km_b"), up, p.get("umum"), p.get("ruling"),
-                     p.get("h_a"), p.get("h_b"), d, src, p.get("via"), p["source"], p.get("page")))
+                     p.get("h_a"), p.get("h_b"), d, src, p.get("via"), p["source"], p.get("page"), var, p.get("context")))
         for r in p["restr"]:
             tracks = " ".join(sorted({"hu" if "hu" in t else "hi" for t in re.split(r"[-/ ]", r["tags"]) if t})) or "both"
             if tracks == "hi hu":
@@ -820,12 +851,12 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             if p.get("km_a") is not None:
                 sg = 1 if p["km_b"] > p["km_a"] else -1
                 kf, kt = round(p["km_a"] + sg * r["o0"], 3), round(p["km_a"] + sg * r["o1"], 3)
-            out.execute("insert into restrictions values(?,?,?,?,?,?,?,?,?,?,?)",
+            out.execute("insert into restrictions values(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (a, b, r["o0"], r["o1"], kf, kt, r["v"], tracks, r.get("note") or None,
-                         r.get("source", p["source"]), p.get("page")))
+                         r.get("source", p["source"]), p.get("page"), var))
         for b_ in p["blocks"]:
-            out.execute("insert into block_signals values(?,?,?,?,?,?,?,?)",
-                        (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page")))
+            out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
+                        (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
 
     # ---- QA
