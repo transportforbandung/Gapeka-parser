@@ -174,6 +174,12 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   leg on other trains of the same service) with physics as fallback brings > 1 min to about 1%.
 - KAI halts (`research/halts_points.py`, `halts_final.py`): physics with restrictions and fixed group params,
   splitting the shortest leg time: Bandung 80% exact (100% within 1 min), Surabaya 61% exact.
+- KAI halts re-tested with the latest model (`research/halts_latest.py`): the two regions publish differently.
+  Bandung (Wilayah 2): split the shortest leg time by calibrated sub-leg times -> 80 % exact, 100 % within 1 min.
+  Surabaya (Wilayah 8): previous departure + calibrated running time to the halt -> 86 % exact, 100 % within 1 min
+  (was 61 %); Boharan / Kedinding now within 1 min. Combined rules (earlier of the two, average) are worse:
+  store the method per KAI region in the rules database. Remaining Bandung miss: Cikudapateuh after Bandung
+  (model 5.8, KAI 5).
 - Learned per-station "points zones" overfit; use the manual station zones instead (rules database).
 - The per-section correction must not be shared between commuter and intercity trains in the same group.
 - Outputs of the research scripts go to the working directory; they expect the repo at /home/user/Gapeka-parser.
