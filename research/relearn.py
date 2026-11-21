@@ -36,7 +36,12 @@ def ttype(g):
     return "intercity"
 
 
-def phys_group(t):
+EMU_LIKE = set(filter(None, os.environ.get("EMU_LIKE", "Ka Feeder").split(",")))   # non-KRL services with EMU performance
+
+
+def phys_group(t, service=""):
+    if service in EMU_LIKE:
+        return "krl"
     return "krl" if t == "krl" else ("freight" if t == "freight" else "loco/krd")
 
 
@@ -92,7 +97,7 @@ print(f"legs with profile: {len(legs)} of {total}")
 sim = np.zeros(len(legs))
 by = defaultdict(list)
 for i, g in enumerate(legs):
-    by[phys_group(g["type"])].append(i)
+    by[phys_group(g["type"], g["service"])].append(i)
 for gr, idx in by.items():
     sub = [legs[i] for i in idx]
     sim[idx] = pm.simulate(pm.prepare(sub), len(sub), *PHYS[gr])
@@ -302,3 +307,12 @@ ii = [i for i, g in enumerate(legs) if g["type"] == "krl" and not g["noted"] and
 if ii:
     e = (base[ii] - y[ii]) / 60
     print(f"  n={len(ii)}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nCOMMUTER SERVICES, physics only, no note: mean error (s), > 1 min")
+from collections import defaultdict as _dd
+_s = _dd(list)
+for i, g in enumerate(legs):
+    if g["type"] == "commuter" and not g["noted"]: _s[g["service"]].append(i)
+for sv, ii in sorted(_s.items(), key=lambda kv: -len(kv[1])):
+    e = (base[ii] - y[ii])
+    print(f"  {sv:30s} n={len(ii):4d}  mean {np.mean(e):+5.0f}  >1 min {np.mean(np.abs(e) > 60):4.0%}   stop->stop share {np.mean([legs[i]['start_rest'] and legs[i]['end_rest'] for i in ii]):.0%}")

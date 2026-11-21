@@ -111,6 +111,22 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   departures; "overtaker reaches next station + ~0.5 min" fits best (40 %) where blocks are known; waiting trains
   (mostly freight) leave 5-8 min after the last train passed and ~20 min before the next one. Planners seem to work
   from the station lines of the graph even on double track.
+- Coverage round: block-signal markers ("B.hu - B.hi") were being read as station names and broke pairs (Tangerang
+  line, Bekasi line, Lentengagung); station names are now built from words (a text line can be "33.359 Tambun"),
+  the km column tolerance is +-9 pt, OCR names are cleaned (stray marks from halt boxes, full-width letters).
+  physics_model.profile() derives missing pairs: join through one sheet station (sheet wins over gapeka.db),
+  split a sheet pair by gapeka.db distances or by shortest timetable running times, last resort gapeka.db
+  distance; manual pairs in research/rules/pair_overrides.csv (Sruweng-Soka-Kebumen from signals at Soka).
+  Legs with sheet data 85 % -> 99 % (missing only airport/JIS/YIA/Larangan-Songgom/Cibadak/Indro branches).
+  Held-out, no notes: 81 / 15 / 4 % on 6001 legs.
+- Ka Feeder runs like an EMU (KRL accel/brake): physics bias +64 s -> +21 s, > 1 min 75 -> 25 % (EMU_LIKE in relearn).
+  Walahar / Jatiluhur do not fit KRL performance; kept in the loco/KRD group.
+- Prupuk-Purwokerto (Bumiayu climb, 36 -> 329 m, 14-16 permil): sheet limits are extracted correctly, GAPEKA still
+  plans 50-80 s slower per section in both directions (like the Sukabumi line): left to learned corrections.
+- Gambir / Pasarsenen (intercity) and Surabaya Kota / Gubeng (commuters) carry extra terminus time beyond the
+  general allowance (user: trains are held at busy termini's home signals while the dispatcher clears traffic).
+- East Java single track: errors are mostly GAPEKA's own spread (0.3-1 min for the same leg); legs with a
+  consistent bias worth checking for limits: Leces-Malasan, Lawang-Singosari, Klakah-Kotok, Arjasa-Kotok.
 - Freight accel/brake: a grid over a0 0.05-0.35, power 0.6-3, brake 0.05-0.45 changes freight error by < 1 s; 73 %
   of freight legs pass at both ends. Freight error is pathing (fitting into gaps), not acceleration.
 - Errors < 0.5 min: model slower than GAPEKA 55 %, faster 45 %, most within 6 s; larger errors are mostly GAPEKA

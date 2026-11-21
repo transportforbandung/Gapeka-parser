@@ -17,6 +17,7 @@ import pymupdf
 KM = re.compile(r"^\d{1,3}\.\d{3}$")
 TAG = re.compile(r"^(hu|hi|Hu|Hi|HU|HI)([-/ ]?(hu|hi|Hu|Hi))?$")
 INT = re.compile(r"^\d{1,4}$")
+SIGNAL = re.compile(r"^\s*B\s*[.\-]?\s*(hu|hi|\d)", re.I)   # block-signal markers in the name column ("B.hu - B.hi", "B-0715 ...")
 
 db = sqlite3.connect("/home/user/Gapeka-parser/gapeka.db")
 NAMES = {}
@@ -29,6 +30,19 @@ def cy(w):
 
 
 _OCR = None
+
+
+def clean_ocr_name(t):
+    """OCR of halt boxes adds stray marks ("I Sumpiuh !", ": Karanganyar :"); full-width letters ("Sｏｋa")"""
+    import unicodedata
+    t = unicodedata.normalize("NFKC", t).replace("*", " ")
+    if re.match(r"^\s*B\s*[.\-]?\s*(hu|hi|\d)", t, re.I):
+        return t.strip()                                  # block signal markers stay as they are (filtered later)
+    t = re.sub(r"[^A-Za-z .()-]", " ", t)
+    toks = t.split()
+    while toks and len(toks[0]) <= 2 and len(toks) > 1: toks.pop(0)
+    while toks and len(toks[-1]) <= 1 and len(toks) > 1: toks.pop()
+    return " ".join(toks)
 
 
 def match_name(t):
@@ -81,17 +95,24 @@ def page_profile(page, use_ocr=False):
         left = ow
         ws = [w for w in ws if w[0] >= 420] + ow
         for x0, y0, x1, y1, t in ol:
-            t = t.replace("*", "").strip()
-            if 260 < x0 < 380 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and len(t) >= 3 and "berlaku" not in t.lower():
+            t = clean_ocr_name(t)
+            if 260 < x0 < 380 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and len(t) >= 3 and "berlaku" not in t.lower() \
+                    and not SIGNAL.match(t):
                 lines.append((match_name(t), (y0 + y1) / 2, x0))
     else:
-        for b in page.get_text("dict")["blocks"]:
-            for l in b.get("lines", []):
-                t = "".join(s["text"] for s in l["spans"]).replace("*", "").strip()
-                k = re.sub(r"[^a-z]", "", t.lower())
-                x0 = l["bbox"][0]
-                if 260 < x0 < 380 and len(k) >= 3 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and "berlaku" not in k:
-                    lines.append((NAMES.get(k, "?" + k), (l["bbox"][1] + l["bbox"][3]) / 2, x0))
+        # station names from the words in the name column (a PDF text line can also hold the km value, e.g.
+        # "33.359 Tambun", so whole lines are not reliable); words on the same row are joined
+        rowsw = {}
+        for w in ws:
+            if 260 < w[0] < 380 and w[4] != "*":
+                rowsw.setdefault(round(cy(w) / 2.5), []).append(w)
+        for key in sorted(rowsw):
+            wsr = sorted(rowsw[key], key=lambda w: w[0])
+            t = " ".join(w[4] for w in wsr).replace("*", "").strip()
+            k = re.sub(r"[^a-z]", "", t.lower())
+            x0 = wsr[0][0]
+            if len(k) >= 3 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and "berlaku" not in k and not SIGNAL.match(t):
+                lines.append((NAMES.get(k, "?" + k), cy(wsr[0]), x0))
     known = [x for c, _, x in lines if not c.startswith("?")]
     if len(known) < 2:
         return None
@@ -105,7 +126,7 @@ def page_profile(page, use_ocr=False):
     if not cols:
         return None
     letak_x = statistics.median(w[0] for w in kms if round(w[0] / 4) == cols[-1])
-    letak = [w for w in kms if abs(w[0] - letak_x) < 6]
+    letak = [w for w in kms if abs(w[0] - letak_x) < 9]
     dist_col = [w for w in kms if 10 < letak_x - w[0] < 40]
     dx = statistics.median(w[0] for w in dist_col) if dist_col else letak_x - 22
     # station rows with their km candidates

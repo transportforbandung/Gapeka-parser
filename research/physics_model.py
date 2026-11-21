@@ -52,6 +52,26 @@ def apply_overrides(prof, path="restriction_overrides.csv"):
 N_OVERRIDES = apply_overrides(PROF)
 
 
+def apply_pair_overrides(prof, path="pair_overrides.csv"):
+    """manual station pairs missing on the sheet; split the enclosing sheet pair's restrictions where possible"""
+    import csv
+    if not _os.path.exists(path):
+        return 0
+    n = 0
+    for o in csv.DictReader(open(path)):
+        k = f"{o['from']}-{o['to']}"
+        if k in prof or f"{o['to']}-{o['from']}" in prof:
+            continue
+        umum = next((p["umum"] for kk, p in prof.items() if o["from"] in kk.split("-") or o["to"] in kk.split("-")), None)
+        prof[k] = dict(a=o["from"], b=o["to"], up=True, km=float(o["km"]), umum=umum, restr=[], h_a=None, h_b=None,
+                       blocks=[], source=o["source"], note=o["note"])
+        n += 1
+    return n
+
+
+N_PAIR_OVERRIDES = apply_pair_overrides(PROF)
+
+
 def track_kind(note):
     """classify the small note in a restriction cell"""
     n = note or ""
@@ -62,13 +82,144 @@ def track_kind(note):
     return "line"
 
 
+_DBKM = None
+
+
+def _dbkm(a, b):
+    global _DBKM
+    if _DBKM is None:
+        import sqlite3
+        _DBKM = {}
+        for x, y, km, pg in sqlite3.connect("/home/user/Gapeka-parser/gapeka.db").execute("select a,b,km,page from station_links"):
+            _DBKM.setdefault(frozenset((x, y)), km)
+    return _DBKM.get(frozenset((a, b)))
+
+
+def _oriented(a, b):
+    """sheet pair a->b as (dict in travel direction, reversed?)"""
+    p = PROF.get(f"{a}-{b}")
+    if p is not None:
+        return p, False
+    p = PROF.get(f"{b}-{a}")
+    return (p, True) if p is not None else (None, None)
+
+
+def _flip(p):
+    L = p["km"]
+    q = dict(p, a=p["b"], b=p["a"], h_a=p["h_b"], h_b=p["h_a"], up=not p["up"], _flipped=not p.get("_flipped", False))
+    q["restr"] = [dict(r, o0=round(L - r["o1"], 3), o1=round(L - r["o0"], 3)) for r in p["restr"]]
+    q["blocks"] = [dict(x, o=round(L - x["o"], 3)) for x in p.get("blocks", [])]
+    return q
+
+
+def _directed(a, b):
+    p, rev = _oriented(a, b)
+    if p is None:
+        return None
+    return _flip(p) if rev else p
+
+
+def _join(p1, p2):
+    L1 = p1["km"]
+    u = max(x for x in (p1["umum"], p2["umum"]) if x) if (p1["umum"] or p2["umum"]) else None
+    rs = list(p1["restr"]) + [dict(r, o0=round(r["o0"] + L1, 3), o1=round(r["o1"] + L1, 3)) for r in p2["restr"]]
+    if p1["umum"] and u and p1["umum"] < u: rs.append(dict(o0=0.0, o1=L1, v=p1["umum"], tags="", note=""))
+    if p2["umum"] and u and p2["umum"] < u: rs.append(dict(o0=L1, o1=L1 + p2["km"], v=p2["umum"], tags="", note=""))
+    return dict(a=p1["a"], b=p2["b"], km=round(L1 + p2["km"], 3), umum=u, restr=rs, h_a=p1["h_a"], h_b=p2["h_b"],
+                up=p1["up"], _flipped=p1.get("_flipped", False), blocks=[], derived="joined")
+
+
+def _derive(a, b):
+    """pair missing on the sheet: join through one sheet station, or split a sheet pair at a station the sheet
+    does not show (proportions from gapeka.db distances, only if they add up to the sheet length)"""
+    nbrs = {k.split("-")[1] for k in PROF if k.startswith(a + "-")} | {k.split("-")[0] for k in PROF if k.endswith("-" + a)}
+    for x in nbrs:                                               # a - x - b on the sheet
+        p1, p2 = _directed(a, x), _directed(x, b)
+        if p1 is not None and p2 is not None and p1["_flipped"] if "_flipped" in p1 else False:
+            pass
+        if p1 is not None and p2 is not None:
+            return _join(p1, p2)                              # sheet wins over gapeka.db (e.g. Cakung-Rawabebek-Kranji)
+    for x in nbrs:                                               # sheet pair a - x with b in between
+        pax = _directed(a, x)
+        dab, dbx = _dbkm(a, b), _dbkm(b, x)
+        if pax is None or not dab or not dbx:
+            continue
+        if abs(dab + dbx - pax["km"]) / pax["km"] < 0.15:
+            f = dab / (dab + dbx)
+            L = pax["km"] * f
+            rs = [dict(r, o1=round(min(r["o1"], L), 3)) for r in pax["restr"] if r["o0"] < L]
+            return dict(pax, b=b, km=round(L, 3), restr=rs, blocks=[x_ for x_ in pax.get("blocks", []) if x_["o"] < L], derived="split")
+    nbrs_b = {k.split("-")[1] for k in PROF if k.startswith(b + "-")} | {k.split("-")[0] for k in PROF if k.endswith("-" + b)}
+    for x in nbrs_b:                                             # sheet pair x - b with a in between
+        pxb = _directed(x, b)
+        dxa, dab = _dbkm(x, a), _dbkm(a, b)
+        if pxb is None or not dxa or not dab:
+            continue
+        if abs(dxa + dab - pxb["km"]) / pxb["km"] < 0.15:
+            f = dxa / (dxa + dab)
+            L0 = pxb["km"] * f
+            rs = [dict(r, o0=round(max(r["o0"] - L0, 0), 3), o1=round(r["o1"] - L0, 3)) for r in pxb["restr"] if r["o1"] > L0]
+            return dict(pxb, a=a, km=round(pxb["km"] - L0, 3), restr=rs,
+                        blocks=[dict(x_, o=round(x_["o"] - L0, 3)) for x_ in pxb.get("blocks", []) if x_["o"] > L0], derived="split")
+    # split by the ratio of the shortest timetable running times when gapeka.db has no distances (Tambak-Ijo-Gombong)
+    for x in nbrs:
+        pax = _directed(a, x)
+        if pax is None: continue
+        t1, t2 = _tt(a, b), _tt(b, x)
+        if t1 and t2:
+            L = pax["km"] * t1 / (t1 + t2)
+            rs = [dict(r, o1=round(min(r["o1"], L), 3)) for r in pax["restr"] if r["o0"] < L]
+            return dict(pax, b=b, km=round(L, 3), restr=rs, blocks=[x_ for x_ in pax.get("blocks", []) if x_["o"] < L], derived="split by running time")
+    for x in nbrs_b:
+        pxb = _directed(x, b)
+        if pxb is None: continue
+        t1, t2 = _tt(x, a), _tt(a, b)
+        if t1 and t2:
+            L0 = pxb["km"] * t1 / (t1 + t2)
+            rs = [dict(r, o0=round(max(r["o0"] - L0, 0), 3), o1=round(r["o1"] - L0, 3)) for r in pxb["restr"] if r["o1"] > L0]
+            return dict(pxb, a=a, km=round(pxb["km"] - L0, 3), restr=rs,
+                        blocks=[dict(x_, o=round(x_["o"] - L0, 3)) for x_ in pxb.get("blocks", []) if x_["o"] > L0], derived="split by running time")
+    d = _dbkm(a, b)                                              # last resort: gapeka.db distance, no sheet details
+    if d and 0.3 < d < 40:
+        return dict(a=a, b=b, km=d, umum=None, restr=[], h_a=None, h_b=None, up=True, blocks=[], derived="gapeka.db distance")
+    return None
+
+
+_TT = None
+
+
+def _tt(a, b):
+    """shortest running time between adjacent timed rows a and b (either direction), seconds"""
+    global _TT
+    if _TT is None:
+        import sqlite3
+        _TT = {}
+        db = sqlite3.connect("/home/user/Gapeka-parser/gapeka.db")
+        prev = {}
+        for no, st, kind, ar, dp in db.execute("select train_no,station,kind,arr_s,dep_s from stops order by train_no,seq"):
+            t_here = ar if ar is not None else dp
+            p = prev.get(no)
+            if p is not None and p[1] is not None and t_here is not None:
+                T = (t_here - p[1]) % 86400
+                if 0 < T < 3600:
+                    k = frozenset((p[0], st))
+                    _TT[k] = min(_TT.get(k, 1e9), T)
+            prev[no] = (st, dp if dp is not None else ar) if (dp is not None or ar is not None) else (st, None)
+    return _TT.get(frozenset((a, b)))
+
+
 def profile(a, b, cls=None):
     """profile of the section a->b in travel direction: (km, umum, [(o0,o1,v,tags,train_goes_up_chainage)], grade)"""
     p, rev = PROF.get(f"{a}-{b}"), False
     if p is None:
         p, rev = PROF.get(f"{b}-{a}"), True
     if p is None:
-        return None
+        p = _derive(a, b)
+        if p is None:
+            return None
+        rev = p.get("_flipped", False)
+        if rev:                                     # derived dicts are in travel direction; express in sheet order
+            p = _flip(p)
     L = p["km"]
     down = not rev                    # pairs are stored in sheet order (top -> bottom): moving down the sheet = hulu track
     rs = []
