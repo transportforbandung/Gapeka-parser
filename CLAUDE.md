@@ -188,7 +188,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   may meet a track up to 20 pt beyond its labelled span (Haurgeulis IV); every pair of tracks one switch group
   touches is linked. research/layout_directions.py vs GAPEKA: overtakes with a usable waiting track for the
   direction 453 / 456 (99.3 %), crossings with a usable track pair 709 / 732 (96.9 %); misses: Ciroyom (21
-  crossings, waiting for the user), Babat, Kalimas?, Kretek (1-2 each). Roman tracks usable in no direction:
+  crossings, waiting for the user), Bowerno, Kalimas, Kretek (1-2 each). Roman tracks usable in no direction:
   124 of 1635 (mostly termini and big yards; see 'enter').
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
