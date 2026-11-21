@@ -8,6 +8,8 @@ Corrections (ridge regression on training residuals, seconds):
 Writes station_effects.csv, section_effects.csv, relearn_test.csv; prints bands and a diagnosis.
 """
 import csv
+import json
+import os
 import sqlite3
 from collections import defaultdict
 
@@ -38,28 +40,44 @@ def phys_group(t):
     return "krl" if t == "krl" else ("freight" if t == "freight" else "loco/krd")
 
 
-def apply_zones(g, zones):
-    """manual station zones: (station, neighbour, length m, speed, types) for trains stopping at station"""
+def apply_zones(g, rules):
+    """station zones: speed cap for `length_m` on the side of `station` facing `towards` ('*' = any side),
+    for the listed train types, for trains that stop / pass / either at that station"""
     cap, st = g["cap"], g["stations"]
-    for s, nb, L, v, types in zones:
-        if g["type"] not in types:
+    for z in rules:
+        if g["type"] not in z["types"]:
             continue
-        n = min(int(L / pm.DX), len(cap))
-        if g["start_rest"] and st[0] == s and st[1] == nb:
-            cap = cap.copy(); cap[:n] = np.minimum(cap[:n], v)
-        if g["end_rest"] and st[-1] == s and st[-2] == nb:
-            cap = cap.copy(); cap[-n:] = np.minimum(cap[-n:], v)
+        for side in z["sides"]:                                   # 'dep' = leg starts at the station, 'arr' = ends there
+            L = z["dep_m"] if side == "dep" else z["arr_m"]
+            n = min(int(L / pm.DX), len(cap))
+            if not n:
+                continue
+            if side == "dep":
+                at, nb, rest = st[0], st[1], g["start_rest"]
+            else:
+                at, nb, rest = st[-1], st[-2], g["end_rest"]
+            if at != z["station"] or (z["towards"] != "*" and nb != z["towards"]):
+                continue
+            if (z["when"] == "stop" and not rest) or (z["when"] == "pass" and rest):
+                continue
+            cap = cap.copy()
+            if side == "dep":
+                cap[:n] = np.minimum(cap[:n], z["speed"])
+            else:
+                cap[-n:] = np.minimum(cap[-n:], z["speed"])
     return cap
 
 
-ZONES = [("KAC", "GDB", 1180, 30.0, ("intercity", "freight"))]      # user: Kiaracondong crossover to crossover
+RULES = json.load(open(os.environ.get("RULES", "rules.json"))) if os.path.exists(os.environ.get("RULES", "rules.json")) else []
 
 db = sqlite3.connect("/home/user/Gapeka-parser/gapeka.db")
 names = dict(db.execute("select code,name from stations"))
-legs, total = pm.build(db, "track")
+VMAX_RULE = os.environ.get("VMAX_RULE", "after")
+legs, total = pm.build(db, "track", VMAX_RULE)
+print("vmax rule:", VMAX_RULE)
 for g in legs:
     g["type"] = ttype(g)
-    g["cap"] = apply_zones(g, ZONES)
+    g["cap"] = apply_zones(g, RULES)
 print(f"legs with profile: {len(legs)} of {total}")
 
 # ---- physics simulation per rolling-stock group
@@ -87,12 +105,15 @@ def lad(X, yy):
     return c
 
 
-X = np.column_stack([sim, np.ones(len(legs)), nh])
+first = np.array([float(g["first"]) for g in legs]); last = np.array([float(g["last"]) for g in legs])
+TERM = os.environ.get("TERMINAL", "1") == "1"
+X = np.column_stack([sim, np.ones(len(legs)), nh] + ([last, first] if TERM else []))
 calib = {t: lad(X[train & (typ == t)], y[train & (typ == t)]) for t in TYPES}
 base = np.array([X[i] @ calib[typ[i]] for i in range(len(legs))])
 for t in TYPES:
     c = calib[t]
-    print(f"calibration {t:9s}: margin {c[0] - 1:+.1%}  const {c[1]:4.0f} s  per halt {c[2]:3.0f} s")
+    extra = f"  terminus arrival {c[3]:+4.0f} s  origin departure {c[4]:+4.0f} s" if TERM else ""
+    print(f"calibration {t:9s}: margin {c[0] - 1:+.1%}  const {c[1]:4.0f} s  per halt {c[2]:3.0f} s{extra}")
 
 # ---- correction features
 def feats(g):
@@ -100,6 +121,9 @@ def feats(g):
     st, t = g["stations"], g["type"]
     for a, b in zip(st, st[1:]):
         f.append(("sec", a, b, t))
+    if os.environ.get("HALT_DWELL", "1") == "1":
+        for h in g.get("halt_st", []):
+            f.append(("halt", h, t))                       # dwell (+ stop/start) at each halt, per halt station and type
     f.append(("dep", st[0], "stop" if g["start_rest"] else "pass", t))
     f.append(("arr", st[-1], "stop" if g["end_rest"] else "pass", t))
     return f
@@ -144,19 +168,22 @@ for t in TYPES:
 print(f"  legs with a note                {bands((pred - y)[test & noted])}")
 
 # ---- outputs
-with open("station_effects.csv", "w", newline="") as f:
+SUFFIX = "" if VMAX_RULE == "after" else "_" + VMAX_RULE
+with open(f"station_effects{SUFFIX}.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["station", "name", "end", "stop_or_pass", "train_type", "effect_s", "legs"])
     for k, j in col.items():
         if k[0] in ("dep", "arr"):
             w.writerow([k[1], names.get(k[1], ""), k[0], k[2], k[3], round(eff[j]), int(support[j])])
-with open("section_effects.csv", "w", newline="") as f:
+        if k[0] == "halt":
+            w.writerow([k[1], names.get(k[1], ""), "halt", "stop", k[2], round(eff[j]), int(support[j])])
+with open(f"section_effects{SUFFIX}.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["from", "to", "train_type", "effect_s", "legs"])
     for k, j in col.items():
         if k[0] == "sec":
             w.writerow([k[1], k[2], k[3], round(eff[j]), int(support[j])])
-with open("relearn_test.csv", "w", newline="") as f:
+with open(f"relearn_test{SUFFIX}.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["train", "service", "type", "from", "to", "ends", "note", "T_min", "pred_min", "err_min"])
     for i in np.where(test)[0]:
@@ -205,3 +232,24 @@ for (a, b, t), (e, n) in sorted(sec.items(), key=lambda kv: -abs(kv[1][0]))[:30]
     other_types = {tt: sec[(a, b, tt)][0] for tt in TYPES if tt != t and (a, b, tt) in sec}
     print(f"  {a:>5s} -> {b:<5s} {t:9s} {e:+5.0f} s ({n:3d})   opposite: {('%+.0f' % opp[0]) if opp else '  -':>5s}   "
           f"other types: {', '.join(f'{k} {v:+.0f}' for k, v in other_types.items()) or '-'}")
+
+print("\nRULE STATIONS (all legs, no note): mean error s, share |err|<0.5 / >1 min")
+for z in RULES:
+    for side in z["sides"]:
+        for tt in TYPES:
+            ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and
+                  ((side == "dep" and g["stations"][0] == z["station"] and (z["towards"] == "*" or g["stations"][1] == z["towards"])) or
+                   (side == "arr" and g["stations"][-1] == z["station"] and (z["towards"] == "*" or g["stations"][-2] == z["towards"])))]
+            if len(ii) < 3:
+                continue
+            e = (base[ii] - y[ii]) / 60
+            print(f"  {z['station']:4s} {side} {z['towards']:4s} {tt:9s} n={len(ii):3d}  physics only: mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")
+
+print("\nSUKABUMI LINE (PDF page 28 sections), physics only, no note")
+sk = {"SI","RI","GDS","CRG","LP","SSI","CBB","CJ","MLB","TPR","SLJ","CRJ","CPY","RM","CPT","PDL"}
+for tt in ("intercity", "commuter"):
+    for lab, f in (("stop->stop", lambda g: g["start_rest"] and g["end_rest"]), ("other", lambda g: not (g["start_rest"] and g["end_rest"]))):
+        ii = [i for i, g in enumerate(legs) if not g["noted"] and g["type"] == tt and set(g["stations"]) <= sk and f(g)]
+        if len(ii) >= 3:
+            e = (base[ii] - y[ii]) / 60
+            print(f"  {tt:9s} {lab:10s} n={len(ii):3d}  mean {np.mean(e) * 60:+5.0f} s  <0.5 {np.mean(np.abs(e) < .5):4.0%}  >1 {np.mean(np.abs(e) > 1):4.0%}")

@@ -212,7 +212,7 @@ def page_profile(page, use_ocr=False):
             for kb in B["km"]:
                 L = abs(kb - ka)
                 err = min((abs(L - x) for x in dd), default=0 if L < 30 else 99)
-                if 0.2 < L < 60 and (best is None or err < best[0]):
+                if 0.2 < L < 60 and (best is None or (err, L) < (best[0], abs(best[2] - best[1]))):
                     best = (err, ka, kb)
         # the distance column skips halts (station-to-station), so it only decides between two km values at a
         # chainage change; when both rows have a single km value the km positions are trusted directly

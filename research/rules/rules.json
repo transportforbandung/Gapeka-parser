@@ -1,0 +1,92 @@
+[
+ {
+  "station": "KAC",
+  "towards": "GDB",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 1180,
+  "arr_m": 1180,
+  "speed": 30,
+  "types": [
+   "intercity",
+   "freight"
+  ],
+  "when": "stop",
+  "source": "manual (user)",
+  "note": "crossover to crossover 1180 m; user: arrivals slightly shorter, data prefers ~1180"
+ },
+ {
+  "station": "KAC",
+  "towards": "GDB",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 600,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "commuter"
+  ],
+  "when": "stop",
+  "source": "fitted",
+  "note": "commuters use the other side of the station; 600 m fits"
+ },
+ {
+  "station": "YK",
+  "towards": "*",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 300,
+  "arr_m": 600,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity"
+  ],
+  "when": "any",
+  "source": "manual (user) + fitted length",
+  "note": "no through track at Yogyakarta; freight fits better without"
+ },
+ {
+  "station": "SPJ",
+  "towards": "WO",
+  "sides": [
+   "dep"
+  ],
+  "dep_m": 200,
+  "arr_m": 0,
+  "speed": 30,
+  "types": [
+   "krl",
+   "commuter",
+   "intercity",
+   "freight"
+  ],
+  "when": "any",
+  "source": "manual (user) + fitted length",
+  "note": "switch onto single track towards Wonokromo, 30 km/h"
+ },
+ {
+  "station": "RK",
+  "towards": "CTR",
+  "sides": [
+   "dep",
+   "arr"
+  ],
+  "dep_m": 1200,
+  "arr_m": 1200,
+  "speed": 30,
+  "types": [
+   "krl"
+  ],
+  "when": "any",
+  "source": "manual (user) + fitted length",
+  "note": "KRL use tracks 3 and 5 at Rangkasbitung, 30 km/h through the switches"
+ }
+]

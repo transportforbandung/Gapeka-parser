@@ -38,6 +38,26 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
   commuters use the other side and are mostly unaffected.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
+- Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
+  per end). Data still prefers about 1180 m for both; commuters fit a 600 m zone on their side.
+- Yogyakarta has no through track: every train gets the station restriction, stopping or passing. Not printed on the
+  sheet; fitted as 300 m (departure side) / 600 m (arrival side) at 30 km/h; freight fits better without it.
+- Sukabumi line: trains do not use loops at crossing stations except maybe Sukabumi (enters slow). The line is
+  slower than the rest of Java; its sheet restrictions were checked and are extracted correctly.
+- Ciroyom: commuters to Bandung are often held at Bandung's home signal (slip switches, one train at a time);
+  commuters to Andir wait for main-line trains (Bandung-Andir) to reach Cimindi's home signal. Operational waits,
+  not physics: leave them to the learned corrections.
+- Track notes in restriction cells: "Jalur ..." alone is usually loop/siding only, but not always.
+  "Dari/Ke Jalur X, XI, XII, XIII" at Manggarai = commuter tracks to Jakarta Kota and Bogor (KRL only).
+  Rangkasbitung: KRL use tracks 3 and 5, both 30 km/h for KRL (switches from the Tanah Abang side).
+- Jakarta core: the timetable has its own speed limit; intercity trains there are mostly arriving at / leaving their
+  terminus (Gambir, Pasarsenen), which carries recovery time (fitted: intercity +89 s at terminus arrival,
+  +66 s at origin departure).
+- Boharan / Kedinding halts: KAI may publish the halt departure there (not arrival).
+- Bandung station: the "Empl. Bd" restriction on the sheet is the only one; nothing else leaving Bandung.
+- Sepanjang to Wonokromo is single track; trains from Sepanjang take a 30 km/h switch at the Wonokromo end of
+  Sepanjang (fitted zone 200 m).
+- GitHub: ignore pushing for now (no access yet); commit locally.
 - Errors below 0.5 min are acceptable (GAPEKA rounds to whole minutes). Goal: shrink the 0.5 to 1 min band
   and almost eliminate errors above 1 min.
 
@@ -71,3 +91,18 @@ Not implemented yet. Next step is building `infra.db` and moving the research mo
 - Learned per-station "points zones" overfit; use the manual station zones instead (rules database).
 - The per-section correction must not be shared between commuter and intercity trains in the same group.
 - Outputs of the research scripts go to the working directory; they expect the repo at /home/user/Gapeka-parser.
+
+### Later round (research/relearn.py, the current best)
+- Train types: krl / commuter (non-KRL commuter, Ka Feeder, Bandara SMO) / intercity / freight. Calibration
+  (margin, const, per-halt, terminus arrival, origin departure) per type; corrections (ridge) per directed section
+  and type, per station end (dep/arr, stop/pass, type) and per halt station and type (dwell).
+- Held-out, legs without notes: physics + calibration 63 / 25 / 12 %; with corrections 80 / 16 / 4 %
+  (< 0.5 / 0.5-1 / > 1 min). KRL 90 / 8 / 2.
+- Timetable vmax on row i applies to the section i -> i+1 (tested against 'before' and 'min': slightly best).
+- Station zones (draft rules table): research/rules/station_zones.csv, used via rules.json (RULES env var).
+- Extraction fixes: restriction start/end paired by midpoint closest to the speed (Madiun), long restrictions
+  (Tarik-Sepanjang 31 km, Wates-Rewulu 10 km), joined tags 'hi-hu', notes in restriction cells (Jalur),
+  validate_profile.py checks pair lengths against the timetable (fixed Gundih-Gambringan, Surabaya Kota-Gubeng).
+- Gradient from sheet elevations: fixes the Sukabumi-line bias but is worse network-wide; elevations are crude. Off.
+- KRL halts: one dwell per halt does not fit (Pasarminggu-Manggarai gets ~the same time with or without halts:
+  path slots); per-halt-station dwell is learned instead.

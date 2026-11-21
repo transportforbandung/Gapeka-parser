@@ -1,0 +1,6 @@
+station,towards,dep_length_m,arr_length_m,speed_kmh,train_types,applies_when,source,note
+KAC,GDB,1180,1180,30,intercity freight,stop,manual (user),"crossover to crossover 1180 m; user: arrivals slightly shorter, data prefers ~1180"
+KAC,GDB,600,600,30,commuter,stop,fitted,commuters use the other side of the station; 600 m fits
+YK,*,300,600,30,krl commuter intercity,any,manual (user) + fitted length,no through track at Yogyakarta; freight fits better without
+SPJ,WO,200,0,30,krl commuter intercity freight,any,manual (user) + fitted length,"switch onto single track towards Wonokromo, 30 km/h"
+RK,CTR,1200,1200,30,krl,any,manual (user) + fitted length,"KRL use tracks 3 and 5 at Rangkasbitung, 30 km/h through the switches"

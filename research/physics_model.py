@@ -21,6 +21,8 @@ import gapeka_pipeline as gp  # noqa: E402
 from runtime_model import train_class  # noqa: E402
 
 DX = 50.0
+import os as _os
+GRADE = _os.environ.get('GRADE', '0') == '1'
 G = 9.81
 PROF = json.load(open("line_profile.json"))
 
@@ -49,8 +51,8 @@ def profile(a, b, cls=None):
         kind = track_kind(r.get("note", ""))
         if kind == "siding":
             continue                  # restriction on named station tracks (loops/sidings) only, not the main line
-        if kind == "platform-track" and cls == "emu":
-            continue                  # "Dari/Ke Jalur X..": trains using those platform tracks (hypothesis: not EMUs)
+        if kind == "platform-track" and cls not in (None, "emu"):
+            continue                  # "Dari/Ke Jalur X..": commuter platform tracks (Manggarai X-XIII, Rangkasbitung V): EMUs only
         o0, o1 = (L - r["o1"], L - r["o0"]) if rev else (r["o0"], r["o1"])
         rs.append((o0, o1, r["v"], r["tags"], down))
     grade = None
@@ -60,7 +62,7 @@ def profile(a, b, cls=None):
     return L, p["umum"], rs, grade
 
 
-def build(db, tag_rule):
+def build(db, tag_rule, vmax_rule="after"):
     """legs between timed points whose every section has a profile"""
     svc = dict(db.execute("select no,service from trains"))
     noted = {(r[0], r[1]) for r in db.execute("select train_no,station from notes")}
@@ -77,9 +79,16 @@ def build(db, tag_rule):
             total += 1
             T = (t1 - t0) % 86400
             cells_cap, cells_grade, halts, ok, x = [], [], [], True, 0.0
+            halt_st = []
             for i in range(p, n):
                 pr = profile(rows[i][1], rows[i + 1][1], train_class(service))
-                v = rows[i][5]
+                va, vb = rows[i][5], rows[i + 1][5]
+                if vmax_rule == "before" and vb:        # limit printed on the row of the station the section leads to
+                    v = vb
+                elif vmax_rule == "min" and va and vb:
+                    v = min(va, vb)
+                else:                                   # limit printed on the row of the station the section starts at
+                    v = va
                 if pr is None or not v:
                     ok = False
                     break
@@ -95,10 +104,12 @@ def build(db, tag_rule):
                         cap[int(o0 * 1000 / DX):max(int(o1 * 1000 / DX), int(o0 * 1000 / DX) + 1)] = np.minimum(
                             cap[int(o0 * 1000 / DX):max(int(o1 * 1000 / DX), int(o0 * 1000 / DX) + 1)], rv)
                 cells_cap.append(cap)
-                cells_grade.append(np.zeros(nc))              # gradient/curves are represented by the local limits
+                # gradient/curves are represented by the local limits (user); GRADE=1 tests acceleration on grades anyway
+                cells_grade.append(np.full(nc, grade if (GRADE and grade is not None) else 0.0))
                 x += L
                 if i + 1 < n and rows[i + 1][2] == "halt":
                     halts.append(sum(len(c) for c in cells_cap))
+                    halt_st.append(rows[i + 1][1])
             if not ok:
                 continue
             cap = np.concatenate(cells_cap)
@@ -107,7 +118,7 @@ def build(db, tag_rule):
                 continue
             legs.append(dict(train=no, service=service, cls=train_class(service), cap=cap, grade=np.concatenate(cells_grade),
                              halts=halts, start_rest=A[2] != "pass", end_rest=B[2] != "pass", T=T,
-                             stations=[r[1] for r in rows[p:n + 1]], noted=(no, A[1]) in noted or (no, B[1]) in noted, note_a=(no, A[1]) in noted, note_b=(no, B[1]) in noted,
+                             stations=[r[1] for r in rows[p:n + 1]], noted=(no, A[1]) in noted or (no, B[1]) in noted, note_a=(no, A[1]) in noted, note_b=(no, B[1]) in noted, first=(p == 0), last=(n == len(rows) - 1), halt_st=halt_st,
                              test=zlib.crc32(no.encode()) % 5 == 0))
     return legs, total
 
