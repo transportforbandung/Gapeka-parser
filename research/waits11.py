@@ -1,6 +1,7 @@
 """Block-point rule for overtaking (user):
  double track (automatic block): waiting train may leave when the overtaker has passed the NEXT BLOCK POINT =
-   the first of: next automatic block signal on that track, next halt (halts act as block points), next station;
+   the first block signal on that track (incl. signals at halts), else the next real station; halts are not block
+   points by themselves (user);
  single track (semaphores): next block point = next real station (halts have no signals).
 Waiting train departure = overtaker at the block point + g (dispatcher / route setting)."""
 import json
@@ -52,7 +53,7 @@ for (s, w), evs in groups.items():
                         ref, why = t0 + wrap(t1 - t0) * offs[0] / L, "block signal"
                     break
             cum += L
-            is_block_point = (st in STOPPED or st not in HALTS) if not dbl else True   # double: halts count
+            is_block_point = (st in STOPPED or st not in HALTS)   # halts only count through their signals (user)
             if is_block_point:
                 t1 = time_at(ov, st, None, None)
                 if t1 is not None:
