@@ -199,7 +199,8 @@ Read this first. It records decisions and findings from earlier sessions so they
   boxes) no longer join two diagrams (Bowerno was merged with the Gembong-side diagram below it); page 44 fixes:
   Mesigit = 'Empl. Mst' I-232 / II-236, Kalimas = the terminus yard X-354 ... I-461 (arrows from the names),
   Surabaya Pasarturi = VIII-337 ... I-281 (was taken by Kandangan). Now crossings 751 / 753, overtakes 457 / 458;
-  left: Sidotopo (yard drawn with curved ladders, no track readable as usable) and Kretek (IV-335 label not read).
+  Sidotopo (user): a yard station without routine through traffic, every Roman track usable both ways (manual
+  row with track '*'). Now crossings 753 / 753; left: Kretek overtake (IV-335 label not read, direction asked).
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.

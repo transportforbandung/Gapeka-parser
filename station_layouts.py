@@ -738,8 +738,9 @@ def write(inf, diagrams, refs=()):
             for d in diagrams:
                 if d.get("station") == r["station"] and d["page"] == int(r["page"]):
                     for t in d["tracks"]:
-                        if t["no"] == r["track"]:
+                        if t["no"] == r["track"] or (r["track"] == "*" and is_roman(t["no"])):   # * = every Roman track
                             t["usable"] = r["usable"]
+                            t["enter"] = "".join(sorted(set(t.get("enter", "") + r["usable"])))
                             if r.get("main") == "1":
                                 t["through"], t["arrows"] = True, r["usable"]
                     if not d["how"].endswith("+ manual directions"):
