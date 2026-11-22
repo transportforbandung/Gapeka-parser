@@ -81,8 +81,10 @@ says where it came from (`source`: sheet / sheet (joined) / manual) and the PDF 
 | `sections` | Every pair of adjacent stations: length, km at both ends, *Umum*, ruling gradient, elevations, single / double track and why, variant (two tracks between the same stations, e.g. Kasugihan–Maos) |
 | `restrictions` | Local speed restrictions: km from–to, speed, track (hu / hi / both), the note printed in the cell |
 | `block_signals` | Block signals: position, track, number |
-| `station_layouts` | Station track diagrams (right of the graph sheets): one row per diagram with the number of Roman (main / siding) and Arabic (yard) tracks, longest Roman track, PPKA / PAP posts and how the station was identified (`evidence`) |
-| `station_tracks` | The tracks of each diagram top to bottom: number, `roman` / `yard`, effective length (m), drawn running direction (`arrows`, `towards` = neighbour station), `through` |
+| `station_layouts` | Station track diagrams (right of the graph sheets): one row per diagram and line (a station can be drawn differently on different lines) with the number of usable Roman (main / siding) and Arabic / Y (yard) tracks, out-of-service tracks, longest Roman track, PPKA / PAP posts, the neighbour stations at both ends and how the station was identified (`evidence`) |
+| `station_tracks` | The tracks of each diagram: number, `roman` / `yard`, effective length (m), drawn arrows (`arrows`, `towards`), `through`, `out_of_service` (reached only by dashed lines), `usable` = directions (L / R on the sheet) in which a train can stand on it and continue, `usable_towards` = the same as neighbour stations, `enter` = directions from which a train can get onto it (termini, dead ends) |
+| `station_signal_marks` | Entry signals on a gradient over 8 permil (small signal icon at a diagram end): trains arriving from that side are not held at the entry signal |
+| `station_layout_refs` | "Emplasemen X periksa lintas Y" notes: X's diagram is drawn on line Y |
 | `double_track_header` | The "JALUR GANDA" lists from the sheet headers |
 | `qa` | Everything doubtful, for review (see "Reviewing the QA list") |
 | `meta` | PDF fingerprint, decree number, valid-from date, build time |
@@ -102,6 +104,7 @@ trains running back up use the **hilir** track.
 | `wait_gaps` | hand | When a train waiting for a crossing / overtake leaves |
 | `priority` | hand | Who yields at crossings / overtakes in the simulator (lower train number has priority) |
 | `station_attributes` | hand | CTC stations |
+| `mandatory_stops` | hand | Stations where every train stops (Cipeundeuy: brake check, 10 min) |
 | `fitted_calibration` | fitted | Per train type: margin, fixed times, steep-section allowance |
 | `fitted_corrections` | fitted | Small per-section / station / halt adjustments where GAPEKA is consistently faster or slower than physics |
 | `fitted_halt_offsets` | fitted | Per-halt adjustments for KRL, learned from KAI's Jabodetabek timetable |
@@ -229,6 +232,10 @@ When the sheet is read wrongly or says too little, add a line to one of these fi
 | `manual/station_aliases.csv` | A station printed under another name | `Lumajang,KK,...` (Klakah is called Lumajang on the sheet) |
 | `manual/pair_overrides.csv` | A section length; `delete` removes a false pair | `AK,KPB,4.102,...`; `KDO,PWS,delete,...` |
 | `manual/section_overrides.csv` | Umum, gradient, length or double track of a section | `KDO,SLO,umum_kmh,120,...`; `CCL,NG,double_track,0,...` |
+| `manual/layout_station_fixes.csv` | Which station a track diagram belongs to, when the reader cannot tell | `44,2229,SB,...` (page, y of the top track, station) |
+| `manual/layout_label_fixes.csv` | A misprinted end label on a diagram | `25,GDB,GDB,KAC,...` (Gedebage's left arrow is Kiaracondong) |
+| `manual/layout_tracks.csv` | Tracks whose labels cannot be read | `35,KRT,IV,335,...` (Kretek IV-335) |
+| `manual/layout_track_directions.csv` | Directions the drawing cannot show; `*` = every Roman track | `13,CKR,VI,R,1,...` (Cikarang VI eastbound main); `44,SDT,*,LR,0,...` |
 | `manual/restriction_overrides.csv` | Change a restriction's track or speed, or delete it (`action` = set / delete) | `CIR,BD,0.712,1.346,90,,delete,...` |
 
 ### 7. Change the rules (`rules/*.csv`)
@@ -242,6 +249,7 @@ When the sheet is read wrongly or says too little, add a line to one of these fi
 | `rules/wait_gaps.csv` | Departure rules for trains waiting for a crossing / overtake |
 | `rules/priority.csv` | Who yields in the simulator: the higher train number waits (overtakes 98 %, crossings 74 % in GAPEKA); real GAPEKA trains keep their printed waits |
 | `rules/station_attributes.csv` | CTC stations |
+| `rules/mandatory_stops.csv` | Stations where every train stops, with the minimum dwell |
 
 The KAI timetables in `reference/` are used to check the halt rules (step 8 report and `check.py`). When KAI
 publishes new timetables, replace those files to keep the check meaningful.
@@ -263,6 +271,8 @@ SELECT item, detail FROM qa WHERE check_name = 'timetable pair without a sheet s
 | station name from timetable neighbours | The name could not be read (e.g. Ijo) and was taken from the timetable | Check once |
 | sheet station not in the timetable | Sidings, junctions, inactive lines, stops no train serves | None |
 | bypass section dropped / section deleted (manual) | Wrong pairs removed | None |
+| station diagram assigned by position only (check) | The diagram's station came only from its position next to a row | Look at the sheet; fix in `manual/layout_station_fixes.csv` if wrong |
+| track label on no track line (check the diagram) | A track label (text or OCR) the reader could not attach to a drawn track | Add the track in `manual/layout_tracks.csv` |
 
 ### 9. A new GAPEKA edition
 
@@ -287,7 +297,8 @@ SELECT item, detail FROM qa WHERE check_name = 'timetable pair without a sheet s
 | `build_rules.py` | `rules/*.csv` + fitted model → `rules.db` |
 | `gapeka_model.py` | Running-time model, halt and KA Dinas times |
 | `train_index.py` | Reads the train-number index (Lampiran IV) |
-| `rosters.py` | Reads the rolling-stock duty diagrams (locomotive, KRD, KRL) |
+| `rosters.py` | Reads the rolling-stock duty diagrams (locomotive, KRD, KRL) and the consists (stamformasi) |
+| `station_layouts.py` | Reads the station track diagrams (tracks, lengths, directions, signal marks; OCR for outlined labels) |
 | `export_poster.py` | Timetable table SVG for the transit map and posts |
 | `export_headway.py` | Station time bar with headway colours (SVG) |
 | `export_trains.py` | Station × train matrix (CSV) |
