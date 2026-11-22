@@ -219,7 +219,7 @@ Read this first. It records decisions and findings from earlier sessions so they
   Cikarang 1-208, Prupuk 6-257, Sukabumi III-399, Sidoarjo II-371, Wonokerto III-293, Kasugihan III-302. Manual
   (unreadable): Karanggandul I-334, Rangkasbitung yard 8 / 9 (hairlines). Direction edges use Roman tracks only (a
   long yard track moved Cikarang's edge). 1719 tracks; overtakes 463 / 463, crossings 751 / 751; capacity 0
-  exceptions; 0 labels left unread.
+  exceptions; 3 labels still flagged in qa (Karanggandul I-334, Rangkasbitung 8 / 9), covered by manual tracks.
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
