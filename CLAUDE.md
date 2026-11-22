@@ -230,6 +230,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   gradient). Rejected look-alikes: switch points drawn as circles on track lines (pages 47 / 50), the dot of PPKA /
   PAP boxes, dots at the end of switch curves, stems lying on a track line (stub ends). Rule in rules/priority.csv
   (event entry_signal). Linggapura (LG) is the page 35 mark at y ~539 (not Lebeng).
+- Release timing (user): if the next station is full, do not hold a train until a train departs there; release it
+  so that it arrives when a track there (usable in its direction, long enough) becomes free: departure = free time -
+  running time + dispatcher gap, never before its own constraints; single track: section free too; strict at
+  entry signals with the > 8 permil mark. rules/priority.csv (event release). Not yet tested against GAPEKA.
+- Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
+  (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
+  allowed set per direction is derived).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
