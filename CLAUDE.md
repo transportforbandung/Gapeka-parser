@@ -233,7 +233,13 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Release timing (user): if the next station is full, do not hold a train until a train departs there; release it
   so that it arrives when a track there (usable in its direction, long enough) becomes free: departure = free time -
   running time + dispatcher gap, never before its own constraints; single track: section free too; strict at
-  entry signals with the > 8 permil mark. rules/priority.csv (event release). Not yet tested against GAPEKA.
+  entry signals with the > 8 permil mark. rules/priority.csv (event release). Tested (research/release_timing.py,
+  capacity per direction = tracks usable in the train's direction vs same-direction standing trains): 529 cases, 528
+  KRL on double track (Citayam, Bojonggede, Depok, UI, ...); GAPEKA never holds until the train ahead has left; the
+  follower leaves the previous station 1 min (10 cases 2 min) before the train ahead leaves the next station and
+  arrives ~4 min (median, p90 8) after the track frees, never before. Intercity / freight / single track: no full
+  stations ahead at release (planned away). Simulator: default release 1 min before the train ahead departs; the
+  user's 'arrive when free' timing is the earliest allowed.
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
