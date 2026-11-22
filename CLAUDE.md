@@ -203,6 +203,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   row with track "*"). Kretek (KRT, double track BMA-KRT-PAT): IV-335 label is an outline on page 35, added by
   hand (manual/layout_tracks.csv), westbound only (loop on main III, like Dawuan IV). Now crossings 753 / 753,
   overtakes 458 / 458.
+- Track labels drawn as outlines (pages 35-37, mostly IV / V): station_layouts.ocr_labels() OCRs the diagram column of
+  all three pages (they repeat the diagrams; union fills one page's OCR misses, e.g. Bumiayu V-406 only on page 36)
+  and adds labels where no text label sits: 19 tracks (Patuguran IV-297, Maos IV-254 / V-202, Kutoarjo IV-376 /
+  V-286, ...). Filled-outline mains can be drawn very slightly sloped (Butuh: 0.7 pt over 89 pt): long edges count as
+  horizontal up to a 1.2 % slope (and are not switch pieces) -> Butuh II / III / IV-500, Tambak I-538 / III-529.
+  Kretek IV-335 is not found by OCR either (overlapping labels): manual. After this: overtakes 471 / 471, crossings
+  743 / 743 with usable tracks; capacity still 0 exceptions.
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.

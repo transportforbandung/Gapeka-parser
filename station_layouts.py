@@ -74,7 +74,8 @@ def page_items(page, x_min):
             pts = [(it[1].x, it[1].y) for it in items] + [(it[2].x, it[2].y) for it in items]
             # long edges can be drawn as many short pieces: join collinear horizontal pieces into runs
             pieces = sorted(((min(it[1].x, it[2].x), max(it[1].x, it[2].x), (it[1].y + it[2].y) / 2) for it in items
-                             if it[0] == "l" and abs(it[1].y - it[2].y) < 0.4 and abs(it[1].x - it[2].x) > 0.8), key=lambda q: (round(q[2], 1), q[0]))
+                             if it[0] == "l" and abs(it[1].y - it[2].y) < max(0.4, 0.012 * abs(it[1].x - it[2].x))
+                             and abs(it[1].x - it[2].x) > 0.8), key=lambda q: (round(q[2], 1), q[0]))
             runs = []
             for a, b, y in pieces:
                 if runs and abs(runs[-1][2] - y) < 0.2 and a <= runs[-1][1] + 1.0:
@@ -88,7 +89,8 @@ def page_items(page, x_min):
                     hor.append((None, pymupdf.Point(a, y), pymupdf.Point(b, y)))
             for it in items:
                 a, b = it[1], it[2]
-                if abs(a.y - b.y) > 0.1 and abs(a.x - b.x) > 0.1:
+                if abs(a.y - b.y) > 0.1 and abs(a.x - b.x) > 0.1 and \
+                        not (abs(a.x - b.x) > 4 and abs(a.y - b.y) < 0.012 * abs(a.x - b.x)):   # not a track edge
                     solid.append((a.x, a.y, b.x, b.y))           # crossover / switch edges (also tiny curve steps)
             levels = []
             for it in sorted(hor, key=lambda it: it[1].y):
@@ -236,7 +238,7 @@ def components(segs, tol=2.2):
     return uf
 
 
-def read_page(page, codes, extra_words=()):
+def read_page(page, codes, extra_words=(), extra_labels=()):
     r = page.rect
     words = page.get_text("words")
     # the layout column: right of the graph's right-hand station-name axis
@@ -259,6 +261,10 @@ def read_page(page, codes, extra_words=()):
                 if m:
                     labels.append(dict(x0=w[0], x1=w[2], y=(w[1] + w[3]) / 2, no=m.group(1),
                                        length=float(m.group(2).replace(",", "."))))
+    # track labels drawn as outlines (OCR, pages 35-37): only where no text label sits
+    for l in extra_labels:
+        if not any(abs(l["y"] - t["y"]) < 4 and abs(l["x0"] - t["x0"]) < 15 for t in labels):
+            labels.append(dict(l))
     if not labels:
         return []
     x_min = min(l["x0"] for l in labels) - 120
@@ -468,6 +474,26 @@ def station_fixes(path="manual/layout_station_fixes.csv"):
     return [r for r in csv.DictReader(open(path)) if r.get("page")]
 
 
+OCR_LABEL_GROUPS = {35: (35, 36, 37)}      # sheets whose track labels are partly outlines (IV / V): OCR every page
+
+
+def ocr_labels(doc, pg, ocr):
+    """track labels ("IV-330") read by OCR from the diagram column of every page of the group (the pages repeat the
+    diagrams; the union fills what one page's OCR misses)"""
+    found = []
+    for p_ in OCR_LABEL_GROUPS[pg]:
+        page = doc[p_ - 1]
+        r = page.rect
+        _, lines = ocr.read(page, pymupdf.Rect(r.x1 - 330, 0, r.x1 - 60, r.y1), tag="layouts")
+        for x0, y0, x1, y1, t in lines:
+            t2 = t.replace(" ", "").replace("\u2013", "-").replace("\u2014", "-").replace("l", "I").replace("|", "I")
+            m = re.fullmatch(r"([IVXL]+|\d{1,2})-(\d{2,4}(?:[,.]\d+)?)", t2)
+            if m and not any(abs(f["y"] - (y0 + y1) / 2) < 4 and abs(f["x0"] - x0) < 15 for f in found):
+                found.append(dict(x0=x0, x1=x1, y=(y0 + y1) / 2, no=m.group(1),
+                                  length=float(m.group(2).replace(",", ".")), ocr=True))
+    return found
+
+
 def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
     """inf: infra.db connection (stations, sections); rows_by_page: {page: [(code, y)]} station rows of the graph
     sheet (build_infra.page_profile); ocr: build_infra.OCR for sheets that draw names as outlines"""
@@ -507,7 +533,7 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
             if n_text < 40:
                 words, _ = ocr.read(page, pymupdf.Rect(r.x1 - 330, 0, r.x1 - 60, r.y1), tag="layouts")
                 extra = [w for w in words if w[4].strip(":,.").upper() in codes]
-        D = read_page(page, codes, extra)
+        D = read_page(page, codes, extra, ocr_labels(doc, pg, ocr) if pg in OCR_LABEL_GROUPS and ocr else ())
         notes = reference_notes(page, codes)
         # a note takes its station's row in that table: no diagram there is assigned to it by position
         taken = set()
