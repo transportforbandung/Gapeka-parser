@@ -289,6 +289,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   A second drawing (narrow box, BLACK triangle in a circle, line to a small circle) means the same (user): Jakarta Kota
   -> Jayakarta, Bogor -> Bogor Paledang (row inside the box, also controlled, user) + Batutulis. section_symbols.
   control_boxes() -> infra.db joint_dispatch (station, dispatcher, position end / inside, triangle, page).
+- Dinas tutup in scheduling (user, debrief): closed stations are IGNORED in scheduling during the closed period; a
+  train must pass all closed stations and reach the next OPEN station before the block section is clear (the piece
+  between the boundary stations is one section, either direction). GAPEKA 2026: 271 runs through closed pieces, never
+  two trains in a piece at once. rules/priority.csv event dinas_tutup.
 - Dinas tutup (user): dashed arrows left of the symbol column on electromechanical single track. In a set period
   every station between the two arrow ends can be closed (no signalling / siding use); the end stations then work
   the section with each other. Long arrows carry short bars + arrowheads at stations that stay open (split points).
