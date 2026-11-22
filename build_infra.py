@@ -1097,6 +1097,11 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     continue
                 a, b = rows[min(i, j)]["code"], rows[max(i, j)]["code"]
                 closed = " ".join(r["code"] for r in rows[min(i, j) + 1:max(i, j)])
+                if not closed:
+                    # an arrow piece between adjacent stations closes nothing: a leftover of an older GAPEKA
+                    # (Purwoasri had dinas tutup before; user): not valid
+                    qa.append(("dinas tutup piece without a station between (ignored)", f"{a}-{b}", f"page {pg}"))
+                    continue
                 dt.setdefault((a, b), (closed, pg))
     out.executemany("insert into dinas_tutup values(?,?,?,?)", [k + v for k, v in dt.items()])
 

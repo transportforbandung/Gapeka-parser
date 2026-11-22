@@ -293,9 +293,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   every station between the two arrow ends can be closed (no signalling / siding use); the end stations then work
   the section with each other. Long arrows carry short bars + arrowheads at stations that stay open (split points).
   Dashes are dashed strokes or one filled shape (p47). section_symbols.dinas_tutup() -> infra.db dinas_tutup
-  (end_a, end_b, closed = rows between, page): 31 sections (Sukabumi line, Gumilir-Kasugihan, Sumberlawang-Kalioso,
-  Kertosono-Blitar-Malang, Blimbing-Lawang, Banyuwangi-Jember-Pasuruan); some pieces close no station (adjacent
-  open stations, e.g. Kertosono-Purwoasri). Timetable: trains stand at the end stations at 00-03 h but almost never
+  (end_a, end_b, closed = rows between, page): 25 sections (Sukabumi line, Gumilir-Kasugihan, Sumberlawang-Kalioso,
+  Kertosono-Blitar-Malang, Blimbing-Lawang, Banyuwangi-Jember-Pasuruan). Pieces with no station between the ends
+  are INVALID (user: leftovers of older GAPEKA editions, e.g. Purwoasri's dinas tutup was lifted): dropped, listed
+  in qa (Kertosono-Purwoasri-Papar, Susuhan-Kediri, Ngunut-Rejotangan, Probolinggo-Bayeman-Grati). Timetable: trains stand at the end stations at 00-03 h but almost never
   at the closable ones (supports it; the period per section is not printed in the strip).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
