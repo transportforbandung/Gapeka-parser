@@ -210,6 +210,16 @@ Read this first. It records decisions and findings from earlier sessions so they
   horizontal up to a 1.2 % slope (and are not switch pieces) -> Butuh II / III / IV-500, Tambak I-538 / III-529.
   Kretek IV-335 is not found by OCR either (overlapping labels): manual. After this: overtakes 471 / 471, crossings
   743 / 743 with usable tracks; capacity still 0 exceptions.
+- All 45 graph pages: OCR of the diagram column for every page (cache tag "layouts", ~4 s / page), every sheet group
+  (OCR_LABEL_GROUPS); a label position is read on each page of the group and the majority reading wins (OCR mixes
+  I / 1). Outside pages 35-37 OCR added only Bangil IV-380 / V-315 (page 50): the other sheets have text labels.
+  Labels on no track line are flagged in the qa table ("track label on no track line"). Fallbacks for labels whose
+  track is shorter than the label (line turns into a curve right beside the text) or sits on a curve: Jakarta Kota
+  2 / IX / XI (both pages; its lower tracks are drawn apart: manual station fix on page 19), Arjawinangun V-459,
+  Cikarang 1-208, Prupuk 6-257, Sukabumi III-399, Sidoarjo II-371, Wonokerto III-293, Kasugihan III-302. Manual
+  (unreadable): Karanggandul I-334, Rangkasbitung yard 8 / 9 (hairlines). Direction edges use Roman tracks only (a
+  long yard track moved Cikarang's edge). 1719 tracks; overtakes 463 / 463, crossings 751 / 751; capacity 0
+  exceptions; 0 labels left unread.
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.

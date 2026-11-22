@@ -1022,6 +1022,9 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
     diagrams, layout_refs = station_layouts.read_all(doc, out, rows_by_page, ocr)
     station_layouts.write(out, diagrams, layout_refs)
+    for u in station_layouts.unread_labels:
+        qa.append(("track label on no track line (check the diagram)", f"page {u['page']} y {u['y']}",
+                   u["label"] + (" (OCR)" if u["ocr"] else "")))
     for d in diagrams:
         if not d.get("station"):
             qa.append(("station diagram without a station", f"page {d['page']} y {d['y0']:.0f}",

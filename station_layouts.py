@@ -287,6 +287,38 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
             if cand:
                 best = cand[0]
         if best is None:
+            # the straight part is shorter than the label (the line turns into a curve right beside the text):
+            # build the track from line pieces / curve ends touching the label's ends at its height
+            near = [k for k, s_ in enumerate(segs) if (abs(s_[0] - s_[2]) >= 0.3 or abs(s_[1] - s_[3]) < 0.3)
+                    and any(abs(py - l["y"]) < 3 and (l["x0"] - 9 < px < l["x0"] + 2 or l["x1"] - 2 < px < l["x1"] + 9)
+                            for px, py in ((s_[0], s_[1]), (s_[2], s_[3])))]
+            if not near:                # a curve passing right under the label (Sukabumi III-399, Sidoarjo II-371)
+                cy_ = l["y"]
+                under = [k for k, s_ in enumerate(segs) if not (abs(s_[0] - s_[2]) < 0.3 and abs(s_[1] - s_[3]) > 8)
+                         and min(s_[0], s_[2]) - 1 <= cx <= max(s_[0], s_[2]) + 1 and pt_seg(cx, cy_, s_) < 3.5]
+                if under:
+                    k0 = min(under, key=lambda k: pt_seg(cx, cy_, segs[k]))
+                    yv = segs[k0][1] + (segs[k0][3] - segs[k0][1]) * ((cx - segs[k0][0]) / ((segs[k0][2] - segs[k0][0]) or 1))
+                    segs.append((l["x0"], yv, l["x1"], yv))
+                    uf.p.append(len(uf.p))
+                    uf.union(len(segs) - 1, k0)
+                    horiz.append(len(segs) - 1)
+                    best = len(segs) - 1
+            if near:
+                ys = [py for k in near for px, py in ((segs[k][0], segs[k][1]), (segs[k][2], segs[k][3]))
+                      if abs(py - l["y"]) < 3]
+                yv = sorted(ys)[len(ys) // 2]
+                xs_ = [px for k in near for px, py in ((segs[k][0], segs[k][1]), (segs[k][2], segs[k][3]))
+                       if abs(py - yv) < 1.5]
+                segs.append((min(xs_ + [l["x0"]]), yv, max(xs_ + [l["x1"]]), yv))
+                uf.p.append(len(uf.p))
+                for k in near:
+                    uf.union(len(segs) - 1, k)
+                horiz.append(len(segs) - 1)
+                best = len(segs) - 1
+        if best is None:
+            unread_labels.append(dict(page=page.number + 1, y=round(l["y"], 1), label=f"{l['no']}-{l['length']:g}",
+                                      ocr=bool(l.get("ocr"))))
             continue
         y = segs[best][1]
         # extent: all horizontal pieces on this y connected through the label gap
@@ -364,6 +396,10 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
         # unlabelled running lines (main tracks drawn as curves / lines without a label, e.g. Cikarang) join the
         # direction analysis as unnamed tracks; the diagram's edges are then those of all its lines
+        # diagram edges for the direction analysis: Roman tracks only (a long yard track must not move them)
+        rom_ = [t for t in ts if is_roman(t["no"])] or ts
+        ox0, ox1 = x0, x1
+        x0, x1 = min(t["lo"] for t in rom_), max(t["hi"] for t in rom_)
         bx0, bx1 = x0 - 45, x1 + 45
         box = lambda q: bx0 <= min(q[0], q[2]) and max(q[0], q[2]) <= bx1 and y0 - 14 <= min(q[1], q[3]) \
             and max(q[1], q[3]) <= y1 + 14
@@ -405,6 +441,7 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
                     t["usable"] = "".join(c for c in t["usable"] if c in t["arrows"])
                 t["enter"] = "".join(sorted(set(e + t["enter"])))
                 t["through"] = th
+        x0, x1 = ox0, ox1
         out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,
                         right=right, inside=inside, marks=marks))
     # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
@@ -474,23 +511,37 @@ def station_fixes(path="manual/layout_station_fixes.csv"):
     return [r for r in csv.DictReader(open(path)) if r.get("page")]
 
 
-OCR_LABEL_GROUPS = {35: (35, 36, 37)}      # sheets whose track labels are partly outlines (IV / V): OCR every page
+# every sheet group: OCR the diagram column of all its pages (they repeat the diagrams) for labels drawn as outlines
+OCR_LABEL_GROUPS = {7: range(7, 13), 13: range(13, 19), 19: range(19, 25), 25: range(25, 28), 28: (28,),
+                    29: range(29, 32), 32: range(32, 35), 35: range(35, 38), 38: range(38, 41), 41: range(41, 44),
+                    44: range(44, 47), 47: range(47, 50), 50: range(50, 52)}
+unread_labels = []                         # labels found (text or OCR) that sit on no track line: QA
 
 
 def ocr_labels(doc, pg, ocr):
-    """track labels ("IV-330") read by OCR from the diagram column of every page of the group (the pages repeat the
-    diagrams; the union fills what one page's OCR misses)"""
-    found = []
+    """track labels ("IV-330") read by OCR from the diagram column of every page of the group: the pages repeat the
+    diagrams, so each label position is read several times; the majority reading wins (OCR mixes up I / 1)"""
+    from collections import Counter
+    reads = []                                  # (x0, x1, y, text)
     for p_ in OCR_LABEL_GROUPS[pg]:
         page = doc[p_ - 1]
         r = page.rect
         _, lines = ocr.read(page, pymupdf.Rect(r.x1 - 330, 0, r.x1 - 60, r.y1), tag="layouts")
         for x0, y0, x1, y1, t in lines:
             t2 = t.replace(" ", "").replace("\u2013", "-").replace("\u2014", "-").replace("l", "I").replace("|", "I")
-            m = re.fullmatch(r"([IVXL]+|\d{1,2})-(\d{2,4}(?:[,.]\d+)?)", t2)
-            if m and not any(abs(f["y"] - (y0 + y1) / 2) < 4 and abs(f["x0"] - x0) < 15 for f in found):
-                found.append(dict(x0=x0, x1=x1, y=(y0 + y1) / 2, no=m.group(1),
-                                  length=float(m.group(2).replace(",", ".")), ocr=True))
+            if re.fullmatch(r"([IVXL]+|\d{1,2})-(\d{2,4}(?:[,.]\d+)?)", t2):
+                reads.append((x0, x1, (y0 + y1) / 2, t2))
+    groups = []
+    for rd in sorted(reads, key=lambda q: (q[2], q[0])):
+        g = next((g for g in groups if abs(g[0][2] - rd[2]) < 4 and abs(g[0][0] - rd[0]) < 15), None)
+        (g.append(rd) if g else groups.append([rd]))
+    found = []
+    for g in groups:
+        text = Counter(q[3] for q in g).most_common(1)[0][0]
+        m = re.fullmatch(r"([IVXL]+|\d{1,2})-(\d{2,4}(?:[,.]\d+)?)", text)
+        found.append(dict(x0=sum(q[0] for q in g) / len(g), x1=sum(q[1] for q in g) / len(g),
+                          y=sum(q[2] for q in g) / len(g), no=m.group(1), length=float(m.group(2).replace(",", ".")),
+                          ocr=True, reads=len(g)))
     return found
 
 
