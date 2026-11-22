@@ -253,6 +253,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   (y 1047: I 281, II 395, III 316, IV 247, 5 145); the copy in the inactive Panarukan table (y 2632) is ignored
   (manual/layout_station_fixes.csv with station '-' = ignore this diagram). Fixed: page 25 y 2495 is
   Andir (was Bandung), page 35 y 460 is Prupuk (was Kutoarjo).
+- Diagram sweep (sanity checks): Adi Soemarmo had old labels left under the visible ones ("I-372" / "II-37" under
+  II-144 / I-144, both black text): of two different labels at the same spot the later one (drawn on top) wins;
+  the only case in the PDF. Bumiayu IV-406 was OCR'd as "V-406" (manual delete + add); Semarang Poncol VII-218 added
+  by hand; Karangtalun / Batutulis (hand-entered tracks, no geometry) both ways. Malang yard 6-8 have no length on
+  the sheet (not read; yard only). Gundih and Brumbung have two emplacements each (duplicate numbers are real).
+  Same station on several lines with different lengths (Cikampek I 160 / 170, VII 307 / 303 / 277; Sukabumi III 399
+  / 299; Mojokerto IV 538 / 337; Gundih II 381 / 378) and Padalarang with two different layouts: kept per line
+  (the fit check uses the train's line). Open questions: Gundih IV-306 is connected by DOTTED lines (out of
+  service?), Semarang Poncol VII direction.
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

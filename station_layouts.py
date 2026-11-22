@@ -318,6 +318,14 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
                 if m:
                     labels.append(dict(x0=w[0], x1=w[2], y=(w[1] + w[3]) / 2, no=m.group(1),
                                        length=float(m.group(2).replace(",", "."))))
+    # two different labels at the same spot (old text left under a newer one, Adi Soemarmo "I-372" under "II-144"):
+    # the one written later is drawn on top and visible; drop the earlier
+    spans = [(sp["bbox"], sp["text"].strip()) for b in page.get_text("dict")["blocks"] for l_ in b.get("lines", [])
+             for sp in l_["spans"] if sp["bbox"][0] > r.x1 - 430 and LABEL.match(sp["text"].strip())]
+    hidden = [a for k, a in enumerate(spans) for b in spans[k + 1:]
+              if a[1] != b[1] and abs(a[0][1] - b[0][1]) < 2 and abs(a[0][0] - b[0][0]) < 4]
+    labels = [l for l in labels if not any(abs(l["x0"] - h[0][0]) < 1 and abs(l["y"] - (h[0][1] + h[0][3]) / 2) < 1
+                                           and LABEL.match(h[1]).group(1) == l["no"] for h in hidden)]
     # track labels drawn as outlines (OCR, pages 35-37): only where no text label sits
     for l in extra_labels:
         if not any(abs(l["y"] - t["y"]) < 4 and abs(l["x0"] - t["x0"]) < 15 for t in labels):
@@ -831,9 +839,14 @@ def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
             diagrams.append(dg)
         elif not dg["how"].endswith("+ manual tracks"):
             dg["how"] += " + manual tracks"
+        if r["length_m"] == "delete":                 # a track read wrongly (e.g. OCR "V-406" for IV-406)
+            dg["tracks"] = [t for t in dg["tracks"] if t["no"] != r["track"]]
+            continue
+        old_t = next((t for t in dg["tracks"] if t["no"] == r["track"]), None)
         dg["tracks"] = [t for t in dg["tracks"] if t["no"] != r["track"]] + [
-            dict(no=r["track"], length=float(r["length_m"]) if r["length_m"] else None, arrows="", through=False,
-                 line_y=9e9)]
+            dict(old_t or {}, no=r["track"], length=float(r["length_m"]) if r["length_m"] else None,
+                 arrows=(old_t or {}).get("arrows", ""), through=(old_t or {}).get("through", False),
+                 line_y=(old_t or {}).get("line_y", 9e9))]
     return diagrams
 
 
