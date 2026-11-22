@@ -309,6 +309,17 @@ Read this first. It records decisions and findings from earlier sessions so they
   Kediri-Blitar-Malang: closed ~20:00-22:30 to ~03:00-07:00; Salem daytime ~06-07 to ~14-15; Banyuwangi-Jember-
   Pasuruan line: closed most of the day, open only in a 4-10 h window (Argopuro open only at night). No marks: Sukabumi
   line (page 28) and Karangkandri (page 35, no text hour axis): never closed in this edition, or not readable.
+  PD 19 Jilid I Bab VI "Ketentuan perjalanan KA pada waktu kerja tutup" (web excerpts of unofficial copies; the full
+  text was not reachable from this session): petak jalan dinas tutup = section between two stasiun batas during
+  waktu kerja tutup with stasiun tutup between (Pasal 97), stated in GAPEKA with a code (the dashed arrow); closing /
+  opening hours set by the operations office based on GAPEKA (Pasal 98(1)); a stasiun tutup is unstaffed but may be
+  used as a stop (no staff service); a station that cannot close yet stays open as stasiun batas luar biasa;
+  stasiun batas sementara = extra temporary boundary; pieces can be lengthened / shortened by order (PPK / Wam); KLB
+  in a closed piece set by the Daop head (Direksi between regions), known at the latest on the open day before
+  (Pasal 105); at closed stations the main-line switches are locked for the straight track; a signal fault at a
+  closed station is reported by the boundary PPKA. Requirement: mechanical signalling (stations with electric
+  interlocking cannot be dinas tutup; matches 'electromechanical' sections). Rules: rules/priority.csv events
+  dinas_tutup, dinas_tutup_late.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
