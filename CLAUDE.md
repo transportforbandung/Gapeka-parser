@@ -289,6 +289,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   A second drawing (narrow box, BLACK triangle in a circle, line to a small circle) means the same (user): Jakarta Kota
   -> Jayakarta, Bogor -> Bogor Paledang (row inside the box, also controlled, user) + Batutulis. section_symbols.
   control_boxes() -> infra.db joint_dispatch (station, dispatcher, position end / inside, triangle, page).
+- Dinas tutup (user): dashed arrows left of the symbol column on electromechanical single track. In a set period
+  every station between the two arrow ends can be closed (no signalling / siding use); the end stations then work
+  the section with each other. Long arrows carry short bars + arrowheads at stations that stay open (split points).
+  Dashes are dashed strokes or one filled shape (p47). section_symbols.dinas_tutup() -> infra.db dinas_tutup
+  (end_a, end_b, closed = rows between, page): 31 sections (Sukabumi line, Gumilir-Kasugihan, Sumberlawang-Kalioso,
+  Kertosono-Blitar-Malang, Blimbing-Lawang, Banyuwangi-Jember-Pasuruan); some pieces close no station (adjacent
+  open stations, e.g. Kertosono-Purwoasri). Timetable: trains stand at the end stations at 00-03 h but almost never
+  at the closable ones (supports it; the period per section is not printed in the strip).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

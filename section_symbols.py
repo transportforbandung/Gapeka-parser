@@ -9,6 +9,7 @@ Each section between two station rows is filled with a column of small circles (
 The symbols are read from the vector drawing: a circle path (4+ Bezier pieces, 4-9.5 pt, square box) in the page's
 symbol column (the x where most such circles sit), its fill, and the line pieces inside it.
 """
+import re
 from collections import Counter
 
 BLOCK_NAMES = {"H": "closed automatic block", "V": "open automatic block", "B": "electromechanical block"}
@@ -130,4 +131,47 @@ def control_boxes(page):
             continue
         seen.add(key)
         out.append(dict(y0=r.y0, y1=r.y1, members=sorted(mem, key=lambda m: m["y"])))
+    return out
+
+
+def dinas_tutup(page):
+    """Dashed arrows left of the symbol column (user): 'dinas tutup' sections on electromechanical single track. In
+    a set period every station between the two arrow ends is closed (no signalling, no crossing) and the end
+    stations work the section with each other. Long arrows are split by short horizontal bars (with arrowheads both
+    ways) at the stations that stay open. Dashes are drawn as dashed strokes or as one filled shape (page 47).
+    Returns [dict(x, stops=[y, ...])]: consecutive stops are the ends of one section."""
+    syms = read_page(page)
+    if not syms:
+        return []
+    col = Counter(round(s["x"]) for s in syms).most_common(1)[0][0]
+    drs = page.get_drawings()
+    lines = []
+    for dr in drs:
+        r = dr["rect"]
+        if not (col - 25 < r.x0 < col + 1) or r.height <= 15:
+            continue
+        dashed = bool(re.search(r"\[\s*[\d.]", dr.get("dashes") or ""))
+        if (dashed and r.width < 1.5) or (dr["type"] == "f" and r.width < 6 and len(dr["items"]) > 12):
+            lines.append([(r.x0 + r.x1) / 2, r.y0, r.y1])
+    # join pieces of one arrow drawn as several dashed strokes
+    lines.sort(key=lambda l: (round(l[0]), l[1]))
+    merged = []
+    for l in lines:
+        if merged and abs(merged[-1][0] - l[0]) < 1.5 and l[1] - merged[-1][2] < 3:
+            merged[-1][2] = max(merged[-1][2], l[2])
+        else:
+            merged.append(list(l))
+    out = []
+    for x, y0, y1 in merged:
+        bars = [(dr["rect"].y0 + dr["rect"].y1) / 2 for dr in drs
+                if abs((dr["rect"].x0 + dr["rect"].x1) / 2 - x) < 3 and 2.5 < dr["rect"].width < 9
+                and y0 - 4 < dr["rect"].y0 < y1 + 4 and any(
+                    it[0] == "l" and abs(it[1].y - it[2].y) < 0.3 and abs(it[1].x - it[2].x) > 2.5 for it in dr["items"])]
+        stops = sorted(set([y0, y1] + bars))
+        clean = []
+        for y in stops:
+            if clean and y - clean[-1] < 4:
+                continue
+            clean.append(y)
+        out.append(dict(x=x, stops=clean))
     return out

@@ -62,6 +62,7 @@ CREATE TABLE section_systems(a TEXT, b TEXT, variant TEXT DEFAULT '', block_syst
                              symbols INTEGER, detail TEXT, page INTEGER, PRIMARY KEY(a, b, variant));
 CREATE TABLE joint_dispatch(station TEXT, dispatcher TEXT, position TEXT, triangle TEXT, page INTEGER,
                             PRIMARY KEY(station, dispatcher));
+CREATE TABLE dinas_tutup(end_a TEXT, end_b TEXT, closed TEXT, page INTEGER, PRIMARY KEY(end_a, end_b));
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -672,6 +673,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         prof["ocr"] = used_ocr
         syms = section_symbols.read_page(page)
         prof["boxes"] = section_symbols.control_boxes(page)
+        prof["dinas_tutup"] = section_symbols.dinas_tutup(page)
         for p in prof["pairs"]:
             p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
         per_page[i + 1] = prof
@@ -1075,6 +1077,28 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     pos = "end" if any(r is e for e, _ in ends) else "inside"
                     jd.setdefault((r["code"], disp[0]["code"]), (pos, tri, pg))
     out.executemany("insert into joint_dispatch values(?,?,?,?,?)", [k + v for k, v in jd.items()])
+
+    # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
+    #      arrow) every station can be closed in a set period, the end stations then work the section together
+    dt = {}
+    for pg, prof in sorted(per_page.items()):
+        rows = prof["rows"]
+        for ar in prof.get("dinas_tutup", []):
+            idx = []
+            for y in ar["stops"]:
+                i = min(range(len(rows)), key=lambda i: abs(rows[i]["y"] - y), default=None)
+                if i is None or abs(rows[i]["y"] - y) > 10:
+                    qa.append(("dinas tutup arrow end not at a station row", f"page {pg} y {y:.0f}", ""))
+                    idx.append(None)
+                else:
+                    idx.append(i)
+            for i, j in zip(idx, idx[1:]):
+                if i is None or j is None or i == j:
+                    continue
+                a, b = rows[min(i, j)]["code"], rows[max(i, j)]["code"]
+                closed = " ".join(r["code"] for r in rows[min(i, j) + 1:max(i, j)])
+                dt.setdefault((a, b), (closed, pg))
+    out.executemany("insert into dinas_tutup values(?,?,?,?)", [k + v for k, v in dt.items()])
 
     # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
