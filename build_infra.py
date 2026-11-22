@@ -35,6 +35,7 @@ from collections import Counter, defaultdict, deque
 import numpy as np
 import pymupdf
 
+import section_symbols
 import station_layouts
 
 KM = re.compile(r"^\d{1,3}\.\d{3}$")
@@ -57,6 +58,8 @@ CREATE TABLE restrictions(a TEXT, b TEXT, offset_from_km REAL, offset_to_km REAL
                           speed_kmh INTEGER, tracks TEXT, note TEXT, source TEXT, page INTEGER, variant TEXT DEFAULT '');
 CREATE TABLE block_signals(a TEXT, b TEXT, offset_km REAL, track TEXT, signal_no TEXT, km REAL, kind TEXT, page INTEGER,
                            variant TEXT DEFAULT '');
+CREATE TABLE section_systems(a TEXT, b TEXT, variant TEXT DEFAULT '', block_system TEXT, electrified INTEGER,
+                             symbols INTEGER, detail TEXT, page INTEGER, PRIMARY KEY(a, b, variant));
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -550,7 +553,7 @@ def page_profile(page, names, ocr=None, filler=None, km_filler=None):
         A["elev"], B["elev"] = elev_at(A["y"]), elev_at(B["y"])
         tno = table_of(A["y"]) if segs else None
         ctx = " ".join(r["code"] for r in rows if (table_of(r["y"]) if segs else None) == tno)
-        pairs.append(dict(table=tno, context=ctx, a=A["code"], b=B["code"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
+        pairs.append(dict(table=tno, context=ctx, a=A["code"], b=B["code"], y_a=A["y"], y_b=B["y"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
                           restr=rs, h_a=A["elev"], h_b=B["elev"], blocks=bl, ruling=grad_at(A["y"], B["y"])))
     return dict(rows=rows, pairs=pairs)
 
@@ -665,6 +668,9 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             used_ocr = True
         prof = prof or dict(rows=[], pairs=[])
         prof["ocr"] = used_ocr
+        syms = section_symbols.read_page(page)
+        for p in prof["pairs"]:
+            p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
         per_page[i + 1] = prof
         headers[i + 1] = header_info(page, ocr if used_ocr else None)
         if not used_ocr:
@@ -777,7 +783,12 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         bl = [dict(b_) for b_ in p1["blocks"]] + [dict(b_, o=round(b_["o"] + L1, 3)) for b_ in p2["blocks"]]
         r1, r2 = p1.get("ruling"), p2.get("ruling")
         ruling = round((r1 * L1 + r2 * p2["km"]) / (L1 + p2["km"]), 1) if r1 is not None and r2 is not None else None
-        return dict(a=a, b=b, km=round(L1 + p2["km"], 3), km_a=p1["km_a"], km_b=p2["km_b"], umum=umum, restr=rs,
+        sym = None
+        if p1.get("sym") and p2.get("sym"):
+            s1, s2 = p1["sym"], p2["sym"]
+            sym = dict(n=s1["n"] + s2["n"], electrified_n=s1["electrified_n"] + s2["electrified_n"],
+                       blocks=dict(Counter(s1["blocks"]) + Counter(s2["blocks"])))
+        return dict(a=a, b=b, km=round(L1 + p2["km"], 3), sym=sym, km_a=p1["km_a"], km_b=p2["km_b"], umum=umum, restr=rs,
                     h_a=p1["h_a"], h_b=p2["h_b"], blocks=bl, ruling=ruling, line=p1["line"], page=p1["page"],
                     source="sheet (joined)", via=via, table=p1.get("table"), context=p1.get("context"))
     partial = {k: dict(p, via=p.get("via")) for k, p in sections.items() if k[1].startswith("?") and not k[0].startswith("?")}
@@ -1013,6 +1024,14 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             out.execute("insert into restrictions values(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (a, b, r["o0"], r["o1"], kf, kt, r["v"], tracks, r.get("note") or None,
                          r.get("source", p["source"]), p.get("page"), var))
+        bs, el, note = section_symbols.summary_fields(p.get("sym"))
+        if p.get("sym"):
+            out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
+                        (a, b, var, bs, el, p["sym"]["n"], note, p.get("page")))
+            if note:
+                qa.append(("section symbols mixed (check)", f"{a}-{b}", note))
+        elif not (a.startswith("?") or b.startswith("?")):
+            qa.append(("section without block / electrification symbol", f"{a}-{b}", f"page {p.get('page')}"))
         for b_ in p["blocks"]:
             out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))

@@ -270,6 +270,16 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
+- Section symbols (left strip beside the graph, user): circle with a horizontal bar = closed automatic block, vertical
+  bar = open automatic block, solid black = electromechanical block, zigzag S inside = electrified (combined with the
+  block symbol); '*' after station names = station length (not used). section_symbols.py -> infra.db section_systems
+  (majority of the symbols between two rows, symbols within 6 pt of a row line ignored). Black circles can hide a bar
+  or zigzag under the fill (Cicurug-Sukabumi p19, p47, p50): only light-coloured lines on a black circle count.
+  549 sections: closed ABS 313 (68 on single track: Merak, Bandung-Banjar-Kroya, Tegal-Prupuk ...), open ABS 70
+  (all double track, Jabodetabek), electromechanical 166 (all single track); electrified 109 (Jabodetabek,
+  Yogyakarta-Solo). Every KRL leg is electrified except Yogyakarta-Lempuyangan (rows 23 pt apart, no symbol drawn).
+  No symbol: Surabaya freight / yard branches (Pasarturi-Kalimas, Gresik-Indro-Kandangan, Benteng-Segitiga Mesigit),
+  Panarukan line (qa: "section without block / electrification symbol"). Group pages repeat the strip (checked).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
