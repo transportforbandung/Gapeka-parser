@@ -284,6 +284,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   Group pages repeat the strip (checked). Closed block on single track (68 rows incl. joined): Merak line, Ancol-
   Tanjungpriuk, Citayam-Nambo, Bogor-Paledang, Purwakarta-Padalarang (parts), Tasikmalaya-Banjar-Kroya, Tegal-Prupuk,
   Andir-Ciroyom, Gambringan-Gundih, Adi Soemarmo-Kadipiro-Solo Balapan, Sepanjang-Wonokromo, Tarik-Tulangan.
+- Joint dispatch (user): a tall box in the symbol column linking two station rows; the circle with a WHITE triangle
+  inside marks the station of the one dispatcher for both (Lempuyangan for Yogyakarta, Cirebon for Cirebon Prujakan).
+  A second drawing (narrow box, BLACK triangle in a circle, line to a small circle): Jakarta Kota -> Jayakarta, Bogor ->
+  Bogor Paledang (inside the box) + Batutulis; meaning of the black variant not yet confirmed. section_symbols.
+  control_boxes() -> infra.db joint_dispatch (station, dispatcher, position end / inside, triangle, page).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer

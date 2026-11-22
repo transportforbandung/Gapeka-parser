@@ -91,3 +91,43 @@ def summary_fields(sm):
     if 0 < e < sm["n"]:
         notes.append(f"electrified on {e} of {sm['n']} symbols")
     return BLOCK_NAMES.get(block), int(e * 2 >= sm["n"]), "; ".join(notes) or None
+
+
+def control_boxes(page):
+    """Joint-dispatch boxes (user): a tall box beside the symbol column linking two station rows; the circle with a
+    triangle marks the station where the one dispatcher sits. Two drawings: white triangle in an open circle
+    (Yogyakarta-Lempuyangan, Cirebon-Cirebon Prujakan) and black triangle in a circle joined by a line to a small
+    circle (Jakarta Kota-Jayakarta, Bogor-Batutulis).
+    Returns [dict(y0, y1, members=[dict(y, triangle)])], triangle = 'white' / 'black' / None."""
+    drs = page.get_drawings()
+    circ = [dr for dr in drs if [i[0] for i in dr["items"]].count("c") >= 4 and 4 < dr["rect"].width < 12
+            and abs(dr["rect"].width - dr["rect"].height) < 1.2 and dr["rect"].x0 < 430]
+    tris = [dr for dr in drs if dr.get("fill") is not None and sum(1 for i in dr["items"] if i[0] == "l") >= 3
+            and dr["rect"].x0 < 430 and 3 < dr["rect"].width < 10 and 3 < dr["rect"].height < 10]
+    out, seen = [], set()
+    for dr in drs:
+        r = dr["rect"]
+        if r.x0 > 430 or not (6 < r.width < 16 and 18 < r.height < 150):
+            continue
+        kinds = [i[0] for i in dr["items"]]
+        if not ("re" in kinds or "qu" in kinds or kinds.count("l") >= 4):
+            continue
+        key = (round(r.x0), round(r.y0), round(r.y1))
+        if key in seen:
+            continue
+        inside = [c for c in circ if (r + (-1, -1, 1, 1)).contains(c["rect"])]
+        if len(inside) < 2:
+            continue
+        mem = []
+        for c in inside:
+            cr = c["rect"] + (-0.6, -0.6, 0.6, 0.6)
+            t = [x for x in tris if cr.contains(x["rect"])]
+            tri = None
+            if t:
+                tri = "black" if sum(t[0]["fill"]) < 1.5 else "white"
+            mem.append(dict(y=(c["rect"].y0 + c["rect"].y1) / 2, triangle=tri))
+        if sum(1 for m in mem if m["triangle"]) != 1:
+            continue
+        seen.add(key)
+        out.append(dict(y0=r.y0, y1=r.y1, members=sorted(mem, key=lambda m: m["y"])))
+    return out

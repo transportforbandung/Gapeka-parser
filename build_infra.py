@@ -60,6 +60,8 @@ CREATE TABLE block_signals(a TEXT, b TEXT, offset_km REAL, track TEXT, signal_no
                            variant TEXT DEFAULT '');
 CREATE TABLE section_systems(a TEXT, b TEXT, variant TEXT DEFAULT '', block_system TEXT, electrified INTEGER,
                              symbols INTEGER, detail TEXT, page INTEGER, PRIMARY KEY(a, b, variant));
+CREATE TABLE joint_dispatch(station TEXT, dispatcher TEXT, position TEXT, triangle TEXT, page INTEGER,
+                            PRIMARY KEY(station, dispatcher));
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -669,6 +671,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         prof = prof or dict(rows=[], pairs=[])
         prof["ocr"] = used_ocr
         syms = section_symbols.read_page(page)
+        prof["boxes"] = section_symbols.control_boxes(page)
         for p in prof["pairs"]:
             p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
         per_page[i + 1] = prof
@@ -1050,6 +1053,28 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     for k, r in sys_manual.items():
         if k not in sys_used and (k[1], k[0]) not in sys_used and k == (r["from"], r["to"]):
             qa.append(("section system override not applied", f"{k[0]}-{k[1]}", r["block_system"]))
+
+    # ---- joint dispatch (user): a box linking station rows in the symbol column; the circle with a triangle marks the
+    #      station of the one dispatcher (PPKA) for all stations in the box
+    jd = {}
+    for pg, prof in sorted(per_page.items()):
+        rows = prof["rows"]
+        for bx in prof.get("boxes", []):
+            def row_at(y):
+                r = min(rows, key=lambda r: abs(r["y"] - y), default=None)
+                return r if r is not None and abs(r["y"] - y) <= 12 else None
+            ends = [(row_at(m["y"]), m) for m in bx["members"]]
+            disp = [r for r, m in ends if m["triangle"] and r]
+            if len(disp) != 1 or any(r is None for r, _ in ends):
+                qa.append(("joint dispatch box not matched to station rows", f"page {pg} y {bx['y0']:.0f}", ""))
+                continue
+            tri = next(m["triangle"] for _, m in ends if m["triangle"])
+            lo, hi = min(r["y"] for r, _ in ends), max(r["y"] for r, _ in ends)
+            for r in rows:
+                if lo <= r["y"] <= hi and r["code"] != disp[0]["code"]:
+                    pos = "end" if any(r is e for e, _ in ends) else "inside"
+                    jd.setdefault((r["code"], disp[0]["code"]), (pos, tri, pg))
+    out.executemany("insert into joint_dispatch values(?,?,?,?,?)", [k + v for k, v in jd.items()])
 
     # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
