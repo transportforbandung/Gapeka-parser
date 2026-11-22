@@ -54,18 +54,17 @@ Kesamben  (arrow Wlingi - Pogajih, page 47): 8 of 32 trains pass it closed
 Rejoso  (arrow Grati - Pasuruan, page 50): 21 of 32 trains pass it closed
    closed from 14:26-15:17 to 06:47-07:49  (21 closed passes, last open train before 313, first open after 43)
 
-Sempolan  (arrow Garahan - Kalisat, page 50): 14 of 26 trains pass it closed
-   closed from 13:46-14:48 to 14:48-16:33  (1 closed passes, last open train before 263, first open after 84)
-   closed from 17:30-18:05 to 05:44-06:43  (13 closed passes, last open train before 148, first open after 330)
+Sempolan  (arrow Garahan - Kalisat, page 50): 16 of 26 trains pass it closed
+   closed from 13:46-14:48 to 05:44-06:43  (16 closed passes, last open train before 263, first open after 330)
 
-Ledokombo  (arrow Garahan - Kalisat, page 50): 14 of 26 trains pass it closed
-   closed from 17:38-17:57 to 06:51-07:12  (14 closed passes, last open train before 148, first open after 83)
+Ledokombo  (arrow Garahan - Kalisat, page 50): 17 of 26 trains pass it closed
+   closed from 14:40-16:41 to 07:12-08:22  (17 closed passes, last open train before 509, first open after 292)
 
 Mangli  (arrow Jember - Rambipuji, page 50): 17 of 28 trains pass it closed
    closed from 13:23-15:57 to 05:52-06:34  (17 closed passes, last open train before 174, first open after 83)
 
-Mrawan  (arrow Kalibaru - Garahan, page 50): 17 of 26 trains pass it closed
-   closed from 17:14-18:21 to 08:36-10:25  (17 closed passes, last open train before 148, first open after 331)
+Mrawan  (arrow Kalibaru - Garahan, page 50): 18 of 26 trains pass it closed
+   closed from 16:17-17:14 to 08:36-10:25  (18 closed passes, last open train before 84, first open after 331)
 
 Ranuyoso  (arrow Klakah - Malasan, page 50): 18 of 28 trains pass it closed
    closed from 19:14-20:11 to 11:09-12:03  (18 closed passes, last open train before 148, first open after 263)
@@ -116,10 +115,10 @@ Predicted closing hours (8 h shifts, 10 / 5 min steps)
   Ngebruk        closed 20:10 - 04:10 (8 h, step 10 min; possible starts 20:00-20:10) 
   Kesamben       closed 19:50 - 03:50 (8 h, step 10 min; possible starts 19:30-20:10) 
   Rejoso         closed 15:00 - 07:00 (16 h, step 10 min; possible starts 14:50-15:10) 
-  Sempolan       closed 18:00 - 06:00 (12 h, step 10 min; possible starts 17:50-18:00) main window only (1 isolated closed passes ignored)
-  Ledokombo      no 8 / 16 h window fits
+  Sempolan       closed 14:10 - 06:10 (16 h, step 10 min; possible starts 13:50-14:30) 
+  Ledokombo      closed 15:50 - 07:50 (16 h, step 10 min; possible starts 15:20-16:10) 
   Mangli         closed 14:10 - 06:10 (16 h, step 10 min; possible starts 14:00-14:20) 
-  Mrawan         closed 17:50 - 09:50 (16 h, step 10 min; possible starts 17:20-18:10) 
+  Mrawan         closed 17:00 - 09:00 (16 h, step 10 min; possible starts 16:40-17:10) 
   Ranuyoso       closed 19:40 - 11:40 (16 h, step 10 min; possible starts 19:20-19:50) 
   Kotok          closed 15:50 - 07:50 (16 h, step 10 min; possible starts 15:20-16:20) 
   Arjasa         closed 14:30 - 06:30 (16 h, step 10 min; possible starts 14:20-14:40) 

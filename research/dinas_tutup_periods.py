@@ -89,7 +89,7 @@ for a, b, closed, pg in pieces:
             if tm is None:
                 continue
             dd = min(abs(t - tm % DAY), DAY - abs(t - tm % DAY))
-            if dd <= 150 and (best is None or dd < best[0]):
+            if dd <= 300 and (best is None or dd < best[0]):
                 best = (dd, no)
         if best:
             marked[best[1]].add(frozenset((ra, rb)))

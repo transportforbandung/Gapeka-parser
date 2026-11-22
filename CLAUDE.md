@@ -328,8 +328,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   crossing outside, open >= 10 min before the next open train; the middle of the feasible starts. research/
   dinas_tutup_periods.py -> rules/dinas_tutup_hours.csv (rules.db table dinas_tutup_hours). Kediri-Blitar-Malang /
   Jatiroto / Glenmore / Sumberwadung 8 h (~20:00-22:00 to ~04:00-06:00), Salem 06:40-14:40, Banyuwangi-Jember-Pasuruan
-  stations mostly 16 h, Sempolan 12 h 18:00-06:00 (one isolated mark ignored); Ledokombo fits nothing (marks
-  17:57-06:51 = 13 h; train 330's mark may belong to the next sub-section).
+  stations 16 h (Sempolan 14:10-06:10: last open 263, first open 330; Ledokombo 15:50-07:50: last open 509, first
+  open 292 - both confirmed by the user). Lesson: some train LINES are drawn a few minutes off their printed times
+  (84 / 148 on page 51 are drawn ~3 min early; the minute labels match the timetable), so marks are matched to trains
+  within 5 min (150 s missed them and gave Sempolan / Ledokombo false 'open' passes; a 'noise' explanation was wrong).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
