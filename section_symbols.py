@@ -267,3 +267,30 @@ def grid_axes(page, pno):
             h0 = (pno - g[0]) * 24 / n
         out.append(dict(y0=y0, y1=y1, x0=x0, spacing=s, h0=h0))
     return out
+
+
+def ctc_rows(page, rows):
+    """CTC stations (user: station names in dashed boxes) by geometry only, for pages whose names are outlines (the row
+    names come from OCR): a dashed box in the name column on a station row's line. rows = [(code, y)]. (Loose dash runs
+    are not used: on the text pages every CTC station has a real dashed box, and dash runs hit halts' dashed rows.)"""
+    boxes, segs = [], []
+    for x in page.get_drawings():
+        rr = x["rect"]
+        if x["type"] == "s" and 270 < rr.x0 < 360 and 15 < rr.width < 120 and 6 < rr.height < 25 \
+                and x.get("dashes") and re.search(r"\[\s*[\d.]", x["dashes"]):
+            boxes.append(rr)
+        if x["type"] != "s":
+            continue                      # outlined glyphs are fills: their edges are not dashes
+        for it in x["items"]:
+            if it[0] == "l":
+                a, b = it[1], it[2]
+                if 270 < min(a.x, b.x) < 360 and abs(a.x - b.x) < 6 and abs(a.y - b.y) < 6:
+                    segs.append(((a.x + b.x) / 2, (a.y + b.y) / 2))
+    out = {}
+    for code, y in rows:
+        if code.startswith("?"):
+            continue
+        if any(rr.y0 - 4 < y < rr.y1 + 4 for rr in boxes):
+            out[code] = page.number + 1
+            continue
+    return out

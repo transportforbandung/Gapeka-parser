@@ -343,7 +343,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   transparent) -> 0 of 76 crossings / overtakes at closable stations fall in a closed window ('either side': 8).
   Kediri-Blitar-Malang: closed ~20:00-22:30 to ~03:00-07:00; Salem daytime ~06-07 to ~14-15; Banyuwangi-Jember-
   Pasuruan line: closed most of the day, open only in a 4-10 h window (Argopuro open only at night). No marks: Sukabumi
-  line (page 28) and Karangkandri (page 35, no text hour axis): never closed in this edition, or not readable.
+  line (page 28) and Karangkandri (page 35): their marks are rotated '=' CHARACTERS (ArialMT text), not drawings;
+  now read (closed_pass_marks adds '=' words), times from the hour grid. Karangkandri: 7 trains pass closed 23:03-03:42
+  (last open 2751F 21:23, first open 2712 04:19 -> at most ~6 h 45 min fits: no 8 h shift). Sukabumi line: all 6
+  daily Siliwangi trips mostly marked (stations closed nearly all day, still used as stops), but marks are not on
+  both sides of every station (351 / 354 at Cireungas one side only): patchy, Lampegan fits no shift.
+  ')(' marks: not found anywhere in the PDF (an earlier note of mine, not a sheet symbol). Triangles after names
+  are irrelevant except the joint-dispatch triangle; single / double underlined names = crew tasks (user).
   PD 19 Jilid I Bab VI "Ketentuan perjalanan KA pada waktu kerja tutup" (web excerpts of unofficial copies; the full
   text was not reachable from this session): petak jalan dinas tutup = section between two stasiun batas during
   waktu kerja tutup with stasiun tutup between (Pasal 97), stated in GAPEKA with a code (the dashed arrow); closing /
@@ -479,7 +485,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   70 at km 211.4-209.2 on Kalisat-Kotok).
 - Dashed station boxes on the graph sheets = centrally controlled stations (CTC) (user). The marks OCR adds
   around names (":", "I", "F") come from these dashed boxes, not from halts. 26 CTC stations detected on the text
-  pages (Cikampek-Cirebon, Klaten-Solo-Sragen; OCR pages not yet), stored in rules/station_attributes.csv.
+  pages (Cikampek-Cirebon, Klaten-Solo-Sragen), stored in rules/station_attributes.csv. Outlined pages (OCR):
+  section_symbols.ctc_rows() matches dashed boxes in the name column to the OCR'd rows by position (every text-page
+  CTC station has a real dashed box; loose dash runs hit halts' dashed rows, not used): + 9 on page 35, Kroya -
+  Kutoarjo (Kebasen, Notog, Randegan, Kemranjen, Sumpiuh, Tambak, Gombong, Karanganyar, Ijo; Ijo's name comes from
+  the timetable later, added in the CSV); none on pages 19-24 (Jakarta core). infra.db stations.ctc: 34.
   Overtakes on double track: CTC releases the waiting train a bit sooner and more consistently (median +3.0 vs
   +4.0 min after the next block point; 28 % vs 6 % within 0.5 min; n = 50). No crossings at CTC stations found.
 - User decisions (this round): freight calculation is on hold (freight hardly follows GAPEKA; 1 min error is fine).

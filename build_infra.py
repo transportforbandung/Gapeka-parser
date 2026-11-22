@@ -687,6 +687,10 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         if not used_ocr:
             for c, pg in find_ctc(page, names).items():
                 ctc.setdefault(c, pg)
+        else:
+            # outlined names (OCR pages 19-24, 35-37): dashed boxes matched to the OCR'd rows by position
+            for c, pg in section_symbols.ctc_rows(page, [(r["code"], r["y"]) for r in prof["rows"]]).items():
+                ctc.setdefault(c, pg)
         print(f"  page {i + 1:3d}: {len(prof['rows']):3d} station rows, {len(prof['pairs']):3d} pairs, "
               f"{sum(len(p['restr']) for p in prof['pairs']):3d} restrictions{'  (OCR)' if used_ocr else ''}")
 
