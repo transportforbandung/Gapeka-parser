@@ -1263,21 +1263,29 @@ def add_rosters(db, pdfs):
     # rangkaian pokok (Buku Dukungan Sarana): the day's train chain of every KRL / KRD set and its cars (SF). Cleaner
     # than the time-bar loops for KRL / KRD (1469 of 1473 consecutive trains connect); also gives every KRL / KRD
     # train its set length (consists rows with locomotive NULL)
+    # freight sets ('RANGKAIAN POKOK KA BARANG', pages 1758-1766): wagons per set (SF), wagon type, locomotive class
     db.executescript("""DROP TABLE IF EXISTS rangkaian_pokok;
     CREATE TABLE rangkaian_pokok(set_id INTEGER, kind TEXT, page INTEGER, row INTEGER, seq INTEGER, train_no TEXT,
-                                 cars INTEGER, connects INTEGER, PRIMARY KEY(set_id, seq));""")
+                                 cars INTEGER, connects INTEGER, locomotive TEXT, wagon TEXT, sets INTEGER,
+                                 PRIMARY KEY(set_id, seq));""")
+    misprint = {"2623F": "2763F"}          # p1760 Ketandan '2762F-2623F' (2623 is a Gamao Tanker; timetable 2762F-2763F)
     sid = 0
     for path in pdfs:
-        for r in ro.read_pokok(pymupdf.open(path)):
+        doc = pymupdf.open(path)
+        for r in ro.read_pokok(doc) + ro.read_pokok_freight(doc):
             sid += 1
             prev = None
             for k, no in enumerate(r["trains"], 1):
+                if r["kind"] == "freight" and no not in trains:
+                    no = misprint.get(no, no)
                 con = int(last[prev] == first[no]) if prev in last and no in first else None
-                db.execute("INSERT INTO rangkaian_pokok VALUES(?,?,?,?,?,?,?,?)",
-                           (sid, r["kind"], r["page"], r["row"], k, no, r["sf"], con))
+                db.execute("INSERT INTO rangkaian_pokok VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                           (sid, r["kind"], r["page"], r["row"], k, no, r["sf"], con, r.get("locomotive"),
+                            r.get("wagon"), r.get("sets")))
                 if no in trains and no not in cons:
                     cons[no] = None
-                    db.execute("INSERT INTO consists VALUES(?,?,?,?,?,?)", (no, r["sf"], 1, r["sf"], None, r["page"]))
+                    db.execute("INSERT INTO consists VALUES(?,?,?,?,?,?)",
+                               (no, r["sf"], 1, r["sf"], r.get("locomotive"), r["page"]))
                 prev = no
     return len(rows), ok, tot
 

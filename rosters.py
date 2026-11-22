@@ -228,3 +228,93 @@ def read_pokok(doc, first=1674, last=1824):
             seen.add(k)
             uniq.append(r)
     return uniq
+
+
+def read_pokok_freight(doc, first=1674, last=1824):
+    """'RANGKAIAN POKOK KA BARANG' tables (Buku Dukungan Sarana, pages 1758-1766): per freight set its trains
+    ('2519 / 2520', '2610-2611-2614 / 2613-2612-2609', groups joined by '=' or '//'), the locomotive class (JENIS LOK,
+    'CC 206'), SF = wagons per set, the wagon type (column of the daily wagon need) and the number of sets (Jumlah
+    RANG). A page can hold several tables (one per depot). One NO row can hold several sets, each with its own SF on
+    its own line (p1765 row 2); an SF cell can also span two train lines (p1760 row 2): every SF figure is one set,
+    train lines go to the nearest SF line, locomotive cells may be merged over rows (taken from the row above).
+    Returns [dict(kind='freight', page, row, trains, sf, locomotive, wagon, sets)]."""
+    out = []
+    for pno in range(first, last + 1):
+        page = doc[pno - 1]
+        if "RANGKAIAN POKOK KA BARANG" not in " ".join(page.get_text().split()):
+            continue
+        words = page.get_text("words")
+        ends = sorted(w[1] for w in words if w[4] == "Stamformasi")
+        full_rules = []
+        for dr in page.get_drawings():
+            for it in dr["items"]:
+                r = it[1] if it[0] == "re" else (pymupdf.Rect(it[1], it[2]) if it[0] == "l" else None)
+                if r is not None and abs(r.y1 - r.y0) < 1.5 and r.x0 < 40 and r.x1 > page.rect.width * 0.9:
+                    full_rules.append((r.y0 + r.y1) / 2)
+        for nomor in sorted((w for w in words if w[4] == "NOMOR"), key=lambda w: w[1]):
+            y0 = nomor[1] - 30
+            y1 = min([e for e in ends if e > nomor[1]] or [page.rect.height])
+            tw = [w for w in words if y0 < w[1] < y1]
+            def head(*names):
+                c = [w for w in tw if w[4] in names and w[1] < nomor[1] + 12]
+                return min(c, key=lambda w: w[1]) if c else None
+            no_w, sf_w, nama_w, jenis_w = head("NO", "NO."), head("SF"), head("NAMA"), head("JENIS")
+            rang_w, dinas_w, km_w = head("RANG"), head("DINAS"), head("KM")
+            if not (no_w and sf_w and nama_w and jenis_w):
+                continue
+            hl = [w for w in tw if w[1] < sf_w[3] + 12 and w[0] > sf_w[0] and w[4] in ("T", "PULP", "AFTUR")]
+            head_y = max([w[3] for w in hl] + [sf_w[3]])
+            sf_x = (sf_w[0] + sf_w[2]) / 2
+            labels = []
+            hw = sorted((w for w in tw if sf_w[1] - 4 < w[1] < head_y and w[0] > sf_w[2]), key=lambda w: (round(w[1]), w[0]))
+            for i, w in enumerate(hw):
+                if w[4] in ("GD", "GK", "GB", "GT") and i + 1 < len(hw) and re.match(r"[\d/]+$", hw[i + 1][4]):
+                    labels.append(((w[0] + hw[i + 1][2]) / 2, f"{w[4]} {hw[i + 1][4]}T"))
+            cyw = lambda w: (w[1] + w[3]) / 2
+            body = [w for w in tw if w[1] > head_y]
+            num = lambda w: re.fullmatch(r"\d+", w[4])
+            rows = sorted((cyw(w), int(w[4])) for w in body if abs(w[0] - no_w[0]) < 10 and num(w))
+            sfs = sorted((cyw(w), int(w[4])) for w in body if abs((w[0] + w[2]) / 2 - sf_x) < 10 and num(w))
+            if not sfs:
+                continue
+            x_chain0, x_chain1 = no_w[2] + 3, nama_w[0] - 8
+            x_loco1 = (km_w[0] if km_w else sf_w[0]) - 4
+            # row borders: full-width rules (partial rules only split a row's sub-lines)
+            rules = sorted({round(y, 1) for y in full_rules if y0 < y < y1})
+            cell = lambda cy: sum(1 for y in rules if y < cy)
+            chains, locos = defaultdict(list), []
+            for w in body:
+                cy = cyw(w)
+                if x_chain0 < w[0] < x_chain1 and not (abs(w[0] - no_w[0]) < 10 and num(w)):
+                    cand = [s for s in sfs if cell(s[0]) == cell(cy)] if rules else sfs
+                    if not cand:
+                        continue
+                    a = min(cand, key=lambda s: abs(s[0] - cy))
+                    if abs(a[0] - cy) <= 14:
+                        chains[a].append((round(cy), w[0], w[4]))
+                elif jenis_w[0] - 6 < w[0] < x_loco1:
+                    locos.append((round(cy), w[0], w[4]))
+            loco_lines = defaultdict(list)
+            for cy, x, t in sorted(locos):
+                loco_lines[cy].append(t)
+            prev_loco = None
+            for a in sfs:
+                parts = [t[2] for t in sorted(chains[a])]
+                trains = POKOK_TOKEN.findall(" ".join(parts).replace("/", " ").replace("=", " "))
+                near = [(abs(cy - a[0]), " ".join(ts)) for cy, ts in loco_lines.items() if abs(cy - a[0]) <= 8]
+                loco = min(near)[1] if near else prev_loco
+                prev_loco = loco
+                if not trains:
+                    continue                                     # spare sets (WESEL STEL ...)
+                row = min(rows, key=lambda r: abs(r[0] - a[0]) if r[0] <= a[0] + 6 else 1e9)[1] if rows else None
+                same = [w for w in body if abs(cyw(w) - a[0]) < 4]
+                rang = [int(w[4]) for w in same if rang_w and abs((w[0] + w[2]) / 2 - (rang_w[0] + rang_w[2]) / 2) < 10
+                        and num(w)]
+                wag = None
+                for w in sorted(same):
+                    if labels and num(w) and sf_w[2] + 4 < w[0] < (dinas_w[0] - 4 if dinas_w else 9e9):
+                        wag = min(labels, key=lambda l: abs(l[0] - (w[0] + w[2]) / 2))[1]
+                        break
+                out.append(dict(kind="freight", page=pno, row=row, trains=trains, sf=a[1], sets=rang[0] if rang else None,
+                                locomotive=loco, wagon=wag))
+    return out

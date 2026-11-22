@@ -317,15 +317,27 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Buku Dukungan Sarana (Lampiran III, PDF pages 1674-1824; user: all rosters can be checked there, KRL / KRD in
   their own sections): 'RANGKAIAN POKOK' tables = one row per set with its day's train chain ('1125-1126-1187-...')
   and SF (cars per set): KRD 1705-1706 (13 sets), KRL Jabodetabek 1787-1790 (86 sets; 1791-1795 repeat them by line),
-  Basoetta 1816 (5), Yogyakarta area 1821 (8); freight sets 1758-1766 (wagon counts, not read yet).
+  Basoetta 1816 (5), Yogyakarta area 1821 (8); freight sets 1758-1766 (read, see below).
   rosters.read_pokok() -> gapeka.db rangkaian_pokok (set_id, kind, page, row, seq, train_no, cars, connects): 1469 of
   1473 consecutive trains connect (old KRL time-bar reading: 34 breaks, e.g. it skipped 1516 between 1243 and 1517).
   Use rangkaian_pokok for KRL / KRD duties; roster_duties stays for locomotives. SF also fills consists for every KRL
   / KRD train (locomotive NULL): consists now intercity 313 / 345, commuter 272 / 280, KRL 1342 / 1342, freight
   2 / 126. layout_checks with KRL: waits 0.7 % longer than the longest Roman track (same 6 cases, all follow the
   crossing rule); the fit formula still adds 16 m of locomotive to KRL (conservative).
-- Train length for the fit checks: consists (cars x 21 m + 16 m locomotive): stamformasi tables + rangkaian pokok
-  (see above); trains without a consist (most freight, KA Dinas) are not checked.
+- Freight sets (rosters.read_pokok_freight, 'RANGKAIAN POKOK KA BARANG' pp 1758-1766, one table per depot, several
+  per page): 36 sets / 116 trains (115 in the timetable; p1760 Ketandan '2762F-2623F' is a misprint of 2763F, fixed
+  in gapeka_pipeline). Row borders = full-width rules; one NO row can hold several sets each with its own SF line
+  (p1765 row 2: 2639F/2640F SF 18 + 2647F/2648F SF 6), an SF cell can span two train lines (p1760 row 2, two chains
+  of one set: the only freight break). rangkaian_pokok now also has locomotive (JENIS LOK, e.g. CC 206), wagon
+  (column of the daily need: GD 42T containers, GK 30T / 40T tankers, GT 30T) and sets (Jumlah RANG). Freight
+  connects 79 / 80. consists freight 118 / 126; without a consist: R951-R954 (Ejek Sidotopo) and the parcel trains (Barang Hantaran
+  Parcel) 343 / 344 / 347 / 348 (345 / 346 have one from the stamformasi tables).
+- Train length for the fit checks: consists (cars x 21 m, freight wagons x 14 m placeholder, + 16 m locomotive):
+  stamformasi tables + rangkaian pokok; KA Dinas without a consist are not checked. Freight does NOT fit like
+  passenger trains: freight waits longer than the longest Roman track 9.5 % (passenger 0.7 %), other freight stops
+  19 %; fitting every freight wait would need 8-10 m wagons (unrealistic), e.g. Telawa (TW) 2713 30 wagons on 308 m,
+  Kalisetail (KSL) 2763F 20 wagons on 218 m. Open question for the user: real wagon lengths and how GAPEKA places freight
+  longer than the sidings (main track? fewer wagons than SF?).
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
