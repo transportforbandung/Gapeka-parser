@@ -135,6 +135,63 @@ def page_items(page, x_min):
     return segs, chev, boxes, dots, pointers
 
 
+def signal_marks(page):
+    """small signal icons drawn at a diagram end: post base (vertical tick) - horizontal stem - lamp (open circle),
+    the lamp touching no track line (switch points on some sheets are open circles ON the track lines). Meaning
+    (user): "kelandaian sinyal masuk lebih dari 8 permil, tidak perlu mempertahankan sinyal masuk pada semboyan 7":
+    trains arriving from that side are not held at the entry signal. Drawn with or without a raised arm: same mark
+    (every marked end faces a section of 10-25 permil)."""
+    r = page.rect
+    circles, lines, curves, small_boxes = [], [], [], []
+    for dr in page.get_drawings():
+        q = dr["rect"]
+        if q.x0 < r.x1 - 430:
+            continue
+        it = dr["items"]
+        if len(it) == 1 and it[0][0] == "re" and 4 < q.width < 16 and 4 < q.height < 16:
+            small_boxes.append(q)                       # PPKA / PAP boxes: their dot is no lamp
+        if dr["type"] not in ("s", "fs"):
+            continue
+        if dr["type"] == "s":                          # stroked lines only (filled shapes' edges are no stems)
+            for x in it:
+                if x[0] == "c":
+                    curves.append((x[1].x, x[1].y, x[-1].x, x[-1].y))
+        if len(it) == 4 and all(x[0] == "c" for x in it) and 0.8 < q.width < 4 and 0.8 < q.height < 4:
+            circles.append(((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2, q.width / 2))      # lamp: open or a small dot
+        if dr["type"] == "s":
+            for x in it:
+                if x[0] == "l":
+                    lines.append((x[1].x, x[1].y, x[2].x, x[2].y))
+    long_h = [l for l in lines if abs(l[1] - l[3]) < 0.4 and abs(l[0] - l[2]) > 15]
+    out = []
+    longer = [l for l in lines + curves if abs(l[0] - l[2]) + abs(l[1] - l[3]) > 6]
+    for cx, cy, rad in circles:
+        if any(pt_seg(cx, cy, l) < rad + 1.2 for l in long_h):
+            continue                                   # a switch point on a track line
+        if any(b.x0 - 0.5 <= cx <= b.x1 + 0.5 and b.y0 - 0.5 <= cy <= b.y1 + 0.5 for b in small_boxes):
+            continue                                   # the dot of a PPKA / PAP box
+        if any(pt_seg(cx, cy, l) < rad + 0.6 for l in longer if abs(l[1] - l[3]) > 0.4 or abs(l[0] - l[2]) > 15) or \
+                any(min(abs(cx - l[0]) + abs(cy - l[1]), abs(cx - l[2]) + abs(cy - l[3])) < rad + 2.2 for l in curves
+                    if abs(l[0] - l[2]) + abs(l[1] - l[3]) > 6):
+            continue                                   # on a switch curve / longer line (only a short arm / stem may touch)
+        for st in (l for l in lines if abs(l[1] - l[3]) < 0.3 and 4 < abs(l[0] - l[2]) < 12 and abs(l[1] - cy) < 5
+                   and min(abs(l[0] - cx), abs(l[2] - cx)) < 6):
+            if any(abs(l[1] - st[1]) < 1.0 and min(l[0], l[2]) - 3 <= max(st[0], st[2])
+                   and min(st[0], st[2]) <= max(l[0], l[2]) + 3 for l in long_h):
+                continue                               # the stem lies on a track line (a stub end), not beside it
+            base = max((st[0], st[2]), key=lambda x: abs(x - cx))
+            if any(abs(l[0] - l[2]) < 0.3 and 0.8 < abs(l[1] - l[3]) < 4 and abs(l[0] - base) < 0.8
+                   and min(l[1], l[3]) - 0.5 <= st[1] <= max(l[1], l[3]) + 0.5 for l in lines):
+                # semaphore: the lamp sits on a raised diagonal arm (Kretek, Lebeng, Patuguran); post_lamp: the lamp
+                # sits on the stem itself (next to switches on pages 28 / 50, meaning not yet known)
+                arm = any(1.5 < abs(l[0] - l[2]) + abs(l[1] - l[3]) < 6 and abs(l[1] - l[3]) > 0.8
+                          and min(((l[0] - cx) ** 2 + (l[1] - cy) ** 2) ** .5, ((l[2] - cx) ** 2 + (l[3] - cy) ** 2) ** .5) < rad + 0.8
+                          for l in lines)
+                if not any(abs(base - o["x"]) < 3 and abs(st[1] - o["y"]) < 3 for o in out):
+                    out.append(dict(x=base, y=st[1], lamp_x=cx, kind="semaphore" if arm else "post_lamp"))
+    return out
+
+
 def usable_directions(ts, pieces, x0, x1):
     """per track: the directions ('L' / 'R' on the sheet) in which a train can use it, from the switch geometry.
     A train only moves forward: it takes a connection (switch curve / crossover, a chain of pieces from a point on
@@ -444,6 +501,15 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
         x0, x1 = ox0, ox1
         out.append(dict(ptr_from=ptr_from, y0=y0, y1=y1, x0=x0, x1=x1, tracks=sorted(ts, key=lambda t: t["line_y"]), own=own, own_y=own_y, left=left,
                         right=right, inside=inside, marks=marks))
+    # signal icons at a diagram end (see signal_marks)
+    for mk in signal_marks(page):
+        cand = [d_ for d_ in out if d_["y0"] - 18 < mk["y"] < d_["y1"] + 18
+                and (abs(mk["x"] - d_["x0"]) < 30 or abs(mk["x"] - d_["x1"]) < 30)]
+        if cand:
+            d_ = min(cand, key=lambda d_: min(abs(mk["x"] - d_["x0"]), abs(mk["x"] - d_["x1"])) + abs(mk["y"] - (d_["y0"] + d_["y1"]) / 2) / 4)
+            side = "L" if abs(mk["x"] - d_["x0"]) < abs(mk["x"] - d_["x1"]) else "R"
+            d_.setdefault("signal_marks", []).append(dict(side=side, x=round(mk["x"], 1), y=round(mk["y"], 1),
+                                                          kind=mk["kind"]))
     # loose pieces without any name (thin lines not touching the rest) join the nearest named diagram
     out.sort(key=lambda d: d["y0"])
     named = [d for d in out if d["own"] or d["left"] or d["right"] or d["inside"]]
@@ -733,6 +799,8 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
 
 
 SCHEMA = """
+CREATE TABLE station_signal_marks(station TEXT, line_id TEXT, page INTEGER, side TEXT, towards TEXT, kind TEXT,
+                                  x REAL, y REAL);
 CREATE TABLE station_layout_refs(station TEXT, line_id TEXT, page INTEGER, y REAL, see_line TEXT, note TEXT);
 CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, evidence TEXT, left_ends TEXT, right_ends TEXT,
                              roman_tracks INTEGER, yard_tracks INTEGER, out_of_service_tracks INTEGER,
@@ -851,6 +919,14 @@ def write(inf, diagrams, refs=()):
                     (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
                      sum(1 for t in tr if not is_roman(t["no"])), oos, max((t["length"] for t in rom if t["length"] is not None), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
+        for side in sorted({mk["side"] for mk in d.get("signal_marks", [])}):
+            mk = next(m for m in d["signal_marks"] if m["side"] == side)
+            if inf.execute("SELECT 1 FROM station_signal_marks WHERE station = ? AND line_id = ? AND side = ?",
+                           (d["station"], ln, side)).fetchone():
+                continue                                   # the same icon read twice / repeated diagram
+            tw_ = (left[0] if side == "L" and left else right[0] if side == "R" and right else None)
+            inf.execute("INSERT INTO station_signal_marks VALUES(?,?,?,?,?,?,?,?)",
+                        (d["station"], ln, d["page"], side, tw_, "entry signal on > 8 permil", mk["x"], mk["y"]))
         for k, t in enumerate(tr, 1):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
             ut = " ".join(([left[0]] if "L" in t.get("usable", "") and left else []) +

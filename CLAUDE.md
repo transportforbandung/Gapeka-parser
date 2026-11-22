@@ -222,6 +222,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   exceptions; 3 labels still flagged in qa (Karanggandul I-334, Rangkasbitung 8 / 9), covered by manual tracks.
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
+- Entry-signal gradient mark (user): a small signal icon at a diagram end (post base tick - stem - lamp, lamp open or
+  a small dot, with or without a raised arm) = "kelandaian sinyal masuk lebih dari 8 permil, tidak perlu
+  mempertahankan sinyal masuk pada semboyan 7": trains arriving from that side are not held at the entry signal
+  (plan the wait at the previous station). station_layouts.signal_marks() -> infra.db station_signal_marks (station,
+  line, side, towards); 54 ends, all with a known gradient face 10-40 permil (7 on mountain lines without a stored
+  gradient). Rejected look-alikes: switch points drawn as circles on track lines (pages 47 / 50), the dot of PPKA /
+  PAP boxes, dots at the end of switch curves, stems lying on a track line (stub ends). Rule in rules/priority.csv
+  (event entry_signal). Linggapura (LG) is the page 35 mark at y ~539 (not Lebeng).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
