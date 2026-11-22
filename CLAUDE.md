@@ -200,7 +200,9 @@ Read this first. It records decisions and findings from earlier sessions so they
   Mesigit = 'Empl. Mst' I-232 / II-236, Kalimas = the terminus yard X-354 ... I-461 (arrows from the names),
   Surabaya Pasarturi = VIII-337 ... I-281 (was taken by Kandangan). Now crossings 751 / 753, overtakes 457 / 458;
   Sidotopo (user): a yard station without routine through traffic, every Roman track usable both ways (manual
-  row with track '*'). Now crossings 753 / 753; left: Kretek overtake (IV-335 label not read, direction asked).
+  row with track "*"). Kretek (KRT, double track BMA-KRT-PAT): IV-335 label is an outline on page 35, added by
+  hand (manual/layout_tracks.csv), westbound only (loop on main III, like Dawuan IV). Now crossings 753 / 753,
+  overtakes 458 / 458.
   'Unusable' (usable = '') = no forward path from an entry main through the track to an exit main in either
   direction: termini / dead-end tracks (see 'enter'), or switches the reader could not follow.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
