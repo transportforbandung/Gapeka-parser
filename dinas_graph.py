@@ -65,31 +65,66 @@ def page_segments(page, pno, row_ys=()):
                 if it[0] == "c":
                     pts = [pts[0], pts[-1]]
                 edges += list(zip(pts, pts[1:]))
-            cross = []
+            def xs_at(yy):
+                return sorted(p.x + (q.x - p.x) * (yy - p.y) / (q.y - p.y) for p, q in edges
+                              if min(p.y, q.y) <= yy <= max(p.y, q.y) and p.y != q.y)
+
+            def clusters(xs):
+                out, cur = [], []
+                for x in xs:
+                    if cur and x - cur[-1] > 3:
+                        out.append(cur)
+                        cur = []
+                    cur.append(x)
+                if cur:
+                    out.append(cur)
+                return [c[len(c) // 2] for c in out if c[-1] - c[0] < 8]
+
+            # levels: station rows inside the shape (crossings searched within +-2.5 pt: dashes leave gaps) and the
+            # page's left / right graph edge (the line continues on the next page)
+            levels = []
             for y in row_ys:
-                if not (r.y0 - 1.5 <= y <= r.y1 + 1.5):
+                if not (r.y0 - 3.5 <= y <= r.y1 + 3.5):          # a line may stop a few pt short of its row
                     continue
-                found = None
-                for dy in (0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5):
+                for dy in (0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5, 3.5, -3.5):
                     yy = min(max(y + dy, r.y0 + 0.01), r.y1 - 0.01)
-                    xs = [p.x + (q.x - p.x) * (yy - p.y) / (q.y - p.y) for p, q in edges
-                          if min(p.y, q.y) <= yy <= max(p.y, q.y) and p.y != q.y]
-                    if xs:
-                        found = xs
+                    cs = clusters(xs_at(yy))
+                    if cs:
+                        levels.append((y, cs))
                         break
-                if found and max(found) - min(found) < 8:          # arrowheads at a row widen the outline
-                    found.sort()
-                    cross.append(pymupdf.Point(found[len(found) // 2], y))
-            # where the outline meets the page's left / right graph edge (line continues on the next page)
             ax = axis_for((r.y0 + r.y1) / 2)
             for xe in (ax["x0"], ax["x0"] + ax["spacing"] * hpp):
                 if r.x0 - 1.5 <= xe <= r.x1 + 1.5:
                     near = [p for p, q in edges for p in (p, q) if abs(p.x - xe) < 1.6]
                     if near and max(p.y for p in near) - min(p.y for p in near) < 4:
-                        cross.append(pymupdf.Point(xe, sum(p.y for p in near) / len(near)))
-            cross.sort(key=lambda p: p.y)
-            for a, b in zip(cross, cross[1:]):
-                add(a, b, "filled")
+                        levels.append((sum(p.y for p in near) / len(near), [xe]))
+            levels.sort()
+
+            def supported(x1, y1, x2, y2):
+                """the outline runs along the straight line between the two points (dashes: 30 % of 24 samples)"""
+                hits = n = 0
+                for k in range(1, 25):                          # dense: a few samples can all fall in dash gaps
+                    yy = y1 + (y2 - y1) * k / 25
+                    xx = x1 + (x2 - x1) * k / 25
+                    n += 1
+                    if any(abs(x - xx) < 3.0 for x in xs_at(yy)):
+                        hits += 1
+                return hits / n
+
+            single = all(len(c) == 1 for _, c in levels)       # one line in the shape: join every level
+            for (y1, c1), (y2, c2) in zip(levels, levels[1:]):
+                if y2 - y1 < 1:
+                    continue
+                if single:
+                    for x1 in c1:
+                        for x2 in c2:
+                            add(pymupdf.Point(x1, y1), pymupdf.Point(x2, y2), "filled")
+                    continue
+                # several lines in one shape: pair each crossing with its best-supported partner (mutually best)
+                sc = {(x1, x2): supported(x1, y1, x2, y2) for x1 in c1 for x2 in c2}
+                for (x1, x2), v in sc.items():
+                    if v >= 0.3 and v >= max(sc[(x1, z)] for z in c2) and v >= max(sc[(z, x2)] for z in c1):
+                        add(pymupdf.Point(x1, y1), pymupdf.Point(x2, y2), "filled")
             continue
         if dr["type"] != "s" or not re.search(r"\[\s*[\d.]", dr.get("dashes") or ""):
             continue
@@ -133,8 +168,10 @@ def read(pdf_path, infra_db, tt_db, tol_start=6.0):
     inf = sqlite3.connect(infra_db)
     tt = tt_db if isinstance(tt_db, sqlite3.Connection) else sqlite3.connect(tt_db)
     pairs = collections.defaultdict(list)          # page -> [(a, b, y_a, y_b)]
-    for pg, a, b, ya, yb in inf.execute("select page, a, b, y_a, y_b from sheet_pairs"):
+    tables = {}
+    for pg, a, b, ya, yb, tb in inf.execute("select page, a, b, y_a, y_b, tbl from sheet_pairs"):
         pairs[pg].append((a, b, ya, yb))
+        tables[(pg, round(ya, 1), round(yb, 1))] = tb
     segs, labels = [], []
     for pno in range(7, 52):
         s, l = page_segments(doc[pno - 1], pno, sorted({y for _, _, ya, yb in pairs[pno] for y in (ya, yb)}))
@@ -153,6 +190,7 @@ def read(pdf_path, infra_db, tt_db, tol_start=6.0):
             # a segment may run over several rows (halts crossed without a break): every pair inside its span
             if min(ya, yb) >= lo[0] - 3 and max(ya, yb) <= hi[0] + 3:
                 ta, tb = t_at(ya), t_at(yb)
+                s = dict(s, tbl=tables.get((s["page"], round(ya, 1), round(yb, 1))))
                 if ta <= tb:
                     legs[(a, b)].append((ta, tb, s))
                 else:
@@ -209,7 +247,8 @@ def read(pdf_path, infra_db, tt_db, tol_start=6.0):
             for k in range(k0, len(steps)):
                 a, b = steps[k]
                 nb = []
-                for score, t_prev, ch in beam:
+                for max_gap in (10, 30):          # a longer wait (e.g. reversal at Gumilir) only if nothing closer
+                  for score, t_prev, ch in beam:
                     for ta, tb, s in legs.get((a, b), []):
                         for shift in (0, 1440, -1440):
                             ta2, tb2 = ta + shift, tb + shift
@@ -219,9 +258,16 @@ def read(pdf_path, infra_db, tt_db, tol_start=6.0):
                                     nb.append((d + 3 * k0, tb2, ch + [(a, b, ta2, tb2, s)]))
                             else:
                                 gap = ta2 - t_prev
-                                if -0.6 <= gap <= 10:
+                                # a wait over 10 min only where the move continues in another table of the sheet
+                                # (reversal / junction, e.g. Gumilir); otherwise the line has ended
+                                if gap > 10 and ((ch and ch[-1][4].get("tbl") == s.get("tbl"))
+                                                 or (arr1 is not None and tb2 > arr1 / 60 + 5)):
+                                    continue
+                                if -0.6 <= gap <= max_gap:
                                     pen = abs(gap) if abs(gap) <= 1 else 2 + gap
                                     nb.append((score + pen, tb2, ch + [(a, b, ta2, tb2, s)]))
+                  if nb:
+                      break
                 if not nb:
                     break
                 nb.sort(key=lambda x: x[0])
@@ -281,10 +327,11 @@ def apply(db, pdf_path, infra_db):
     for no, r in res.items():
         status = "confirmed" if r["confirmed"] else ("unlabelled" if no not in labelled else "doubtful")
         # times at rows (first time a row is reached)
-        tl = {}
+        tl, dep_t = {}, {}
         for a, b, ta, tb, s in r["chain"]:
             tl.setdefault(a, (ta, s["page"]))
             tl.setdefault(b, (tb, s["page"]))
+            dep_t.setdefault(a, ta)                     # leaving a station after a wait (e.g. reversal at Gumilir)
         stops = db.execute("select seq, station, arr_s, dep_s from stops where train_no=? order by seq", (no,)).fetchall()
         ref = {st: (h if h is not None else None) for _, st, *_ in stops for h in [None]}
         est = dict(((seq, st), t) for seq, st, t in db.execute(
@@ -315,8 +362,9 @@ def apply(db, pdf_path, infra_db):
                 rejected.append(st)
                 continue
             last = t
+            td = t + (dep_t.get(st, tl[st][0]) - tl[st][0]) * 60
             db.execute("UPDATE halt_est SET arr_s=?, dep_s=?, method='dinas-graph' WHERE train_no=? AND seq=?",
-                       (int(round(t)), int(round(t)), no, seq))
+                       (int(round(t)), int(round(td)), no, seq))
             n_used += 1
         if rejected:
             db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (no, "graph time outside the index window "
@@ -325,8 +373,13 @@ def apply(db, pdf_path, infra_db):
         db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (no, "in the timetable, not found on the graph",
                                                                     f"{f[0]}-{f[1]}" if f else why))
     for raw, pg in graph_only:
-        db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (raw, "on the graph, not in the timetable",
-                                                                    f"page {pg}"))
+        if raw.startswith(("DR", "DL")):
+            # user: DR / DL = Jakarta Gudang shunting moves, KA Dinas that are part of a regular freight trip
+            # (the freight uses Kampung Bandan as its origin / terminus); not in the train index
+            issue = "on the graph only: Jakarta Gudang shunting move (part of a freight trip)"
+        else:
+            issue = "on the graph, not in the timetable"
+        db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (raw, issue, f"page {pg}"))
     db.commit()
     return res, missing, graph_only, n_used
 

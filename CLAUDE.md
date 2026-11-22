@@ -120,11 +120,17 @@ Read this first. It records decisions and findings from earlier sessions so they
   Result: 541 / 550 found (464 label beside the line, 30 no label anywhere, 47 label elsewhere = doubtful, model
   kept); 1292 passing times 'dinas-graph' in halt_est (graph - model: median 0, p5 -2.5 / p95 +2.4 min), only inside
   the index window (+-5 min) and never backwards; printed start / end times kept. gapeka.db dinas_graph (rows crossed,
-  status) and dinas_graph_flags: 9 timetable KA Dinas not on the graph (Cilacap L2711, Surabaya yard R97-4 / R98-3 /
-  L84-4 / L809 / L810, R1784-1, L212-3), 42 graph labels without a timetable train (DR... freight trainset moves,
+  status) and dinas_graph_flags: 7 timetable KA Dinas not on the graph (Surabaya yard R97-4 / R98-3 / L84-4 / L809 /
+  L810, R1784-1, L212-3), 42 graph labels without a timetable train (DR... : user = Jakarta Gudang shunting moves, KA
+  Dinas that are part of a regular freight trip whose origin / terminus is Kampung Bandan; DL... = timetable L...,
   Surabaya L5-4 ... L12-3 / R951-R954, page 35-37 fragments 'L27' / 'L271' / 'L272' / 'LL5' = split labels of
   L2711 / L2712 / ...?), 10 end times off the index, 27 partial routes. Some train lines are drawn a few minutes off
-  their printed times (see dinas tutup note).
+  their printed times (see dinas tutup note). L2711 / L2711-2 (one move, user: on page 35): Karangtalun 06:35 ->
+  Gumilir 06:45, waits (horizontal dashes along the row), Gumilir 06:58 -> Cilacap 07:08 in the other table. Reader
+  details from it: a filled outline can hold several lines (crossings clustered per row; a pair of crossings is
+  joined only by its mutually best-supported partner, 24 samples, >= 30 % on the outline, dash gaps); a line may stop
+  3 pt short of its row; a wait > 10 min only when the move continues in another table and still ends by the index
+  arrival + 5 min; via stations with a wait get separate arrival / departure in halt_est (37).
 - Rolling-stock duties (rosters.py, pipeline step 6b): O.18 diagrams are time-bar charts, one row per unit per day.
   Locomotive pages 1680-1700 (row label = number in the first column; train numbers with names above the bar,
   KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates
