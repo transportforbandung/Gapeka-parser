@@ -1,11 +1,14 @@
 
-Cipeuyeum  (arrow Ciranjang - Cipatat, page 28): 0 of 6 trains pass it closed
+Cipeuyeum  (arrow Ciranjang - Cipatat, page 28): 2 of 6 trains pass it closed
+   closed from 19:46-07:11 to 08:11-12:46  (2 closed passes, last open train before 355, first open after 354)
 
 Rajamandala  (arrow Ciranjang - Cipatat, page 28): 0 of 6 trains pass it closed
 
-Cireungas  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
+Cireungas  (arrow Gandasoli - Cianjur, page 28): 3 of 6 trains pass it closed
+   closed from 15:49-17:08 to 05:38-09:44  (3 closed passes, last open train before 353, first open after 351)
 
-Lampegan  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
+Lampegan  (arrow Gandasoli - Cianjur, page 28): 5 of 6 trains pass it closed
+   closed from 15:39-17:18 to 11:23-15:39  (5 closed passes, last open train before 353, first open after 353)
 
 Sindangresmi  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
 
@@ -13,7 +16,8 @@ Cibeber  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
 
 Cilaku  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
 
-Karangkandri  (arrow Gumilir - Kasugihan, page 35): 0 of 26 trains pass it closed
+Karangkandri  (arrow Gumilir - Kasugihan, page 35): 7 of 26 trains pass it closed
+   closed from 21:23-23:03 to 03:42-04:19  (7 closed passes, last open train before 2751F, first open after 2712)
 
 Salem  (arrow Sumberlawang - Kalioso, page 38): 9 of 30 trains pass it closed
    closed from 05:50-07:16 to 13:38-15:22  (9 closed passes, last open train before 233, first open after 287)
@@ -102,6 +106,10 @@ Randuagung  (arrow Tanggul - Klakah, page 50): 18 of 28 trains pass it closed
 rule 'both': crossings / overtakes at closable stations 76, inside a closed window 0
 
 Predicted closing hours (8 h shifts, 10 / 5 min steps)
+  Cipeuyeum      closed 02:30 - 10:30 (8 h, step 10 min; possible starts 00:20-04:30) 
+  Cireungas      closed 16:30 - 08:30 (16 h, step 10 min; possible starts 15:50-17:00) 
+  Lampegan       no 8 / 16 h window fits
+  Karangkandri   no 8 / 16 h window fits
   Salem          closed 06:40 - 14:40 (8 h, step 10 min; possible starts 06:00-07:10) 
   Garum          closed 21:00 - 05:00 (8 h, step 10 min; possible starts 20:50-21:10) 
   Talun          closed 21:00 - 05:00 (8 h, step 10 min; possible starts 20:50-21:10) 

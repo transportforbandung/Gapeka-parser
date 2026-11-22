@@ -678,6 +678,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         prof["boxes"] = section_symbols.control_boxes(page)
         prof["dinas_tutup"] = section_symbols.dinas_tutup(page)
         prof["hour_axis"] = section_symbols.hour_axis(page)
+        prof["grid_axes"] = section_symbols.grid_axes(page, i + 1)
         prof["dt_marks"] = section_symbols.closed_pass_marks(page) if prof["dinas_tutup"] else []
         for p in prof["pairs"]:
             p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
@@ -1113,13 +1114,15 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     continue
                 dt.setdefault((a, b), (closed, pg))
                 # '=' marks on train lines inside this piece: trains passing during dinas tutup (user)
-                ax = prof.get("hour_axis")
+                gax = prof.get("grid_axes") or []
                 lo, hi = rows[min(i, j)]["y"], rows[max(i, j)]["y"]
                 for mx, my in prof.get("dt_marks", []):
-                    if not (lo < my < hi) or ax is None:
+                    if not (lo < my < hi) or not gax:
                         continue
                     k = max(n for n in range(min(i, j), max(i, j)) if rows[n]["y"] < my)
-                    t = round((ax[0] + ax[1] * mx) * 3600)
+                    # time from the hour grid (works on pages whose hour labels are outlines, e.g. 35-37)
+                    g = min(gax, key=lambda a: 0 if a["y0"] - 30 <= my <= a["y1"] + 30 else 1)
+                    t = round((g["h0"] + (mx - g["x0"]) / g["spacing"]) * 3600)
                     frac = (my - rows[k]["y"]) / max(rows[k + 1]["y"] - rows[k]["y"], 1e-6)
                     dt_marks.append((a, b, rows[k]["code"], rows[k + 1]["code"], round(frac, 3), t, pg, round(mx, 1),
                                      round(my, 1)))

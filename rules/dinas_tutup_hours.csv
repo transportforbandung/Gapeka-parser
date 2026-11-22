@@ -1,4 +1,8 @@
 station,end_a,end_b,closed_from,closed_to,hours,possible_starts,source,note
+CPY,CRJ,CPT,02:30,10:30,8,00:20-04:30,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),
+CRG,GDS,CJ,16:30,08:30,16,15:50-17:00,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),
+LP,GDS,CJ,,,,,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),no 8 / 16 h window fits the marks
+KKD,GM,KH,,,,,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),no 8 / 16 h window fits the marks
 SLM,SUM,KO,06:40,14:40,8,06:00-07:10,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),
 GRM,BL,WG,21:00,05:00,8,20:50-21:10,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),
 TAL,BL,WG,21:00,05:00,8,20:50-21:10,predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py),

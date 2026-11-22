@@ -206,16 +206,15 @@ def closed_pass_marks(page, x_min=375):
     segs = []
     for dr in page.get_drawings():
         w = dr.get("width") or 0
-        if dr["type"] != "s" or not 0.6 < w < 1.2 or dr["rect"].x0 < x_min or dr["rect"].x1 > 1640:
-            continue
-        for it in dr["items"]:
-            if it[0] != "l":
-                continue
-            a, b = it[1], it[2]
-            dx, dy = b.x - a.x, b.y - a.y
-            L = (dx * dx + dy * dy) ** 0.5
-            if 4 < L < 13 and abs(dy) < 0.6 * L:
-                segs.append(((a.x + b.x) / 2, (a.y + b.y) / 2, dy / dx if dx else 99))
+        if dr["type"] == "s" and 0.6 < w < 1.2 and dr["rect"].x0 >= x_min and dr["rect"].x1 <= 1640:
+            for it in dr["items"]:
+                if it[0] != "l":
+                    continue
+                a, b = it[1], it[2]
+                dx, dy = b.x - a.x, b.y - a.y
+                L = (dx * dx + dy * dy) ** 0.5
+                if 4 < L < 13 and abs(dy) < 0.6 * L:
+                    segs.append(((a.x + b.x) / 2, (a.y + b.y) / 2, dy / dx if dx else 99))
     segs.sort()
     out, used = [], set()
     for i, s in enumerate(segs):
@@ -229,6 +228,12 @@ def closed_pass_marks(page, x_min=375):
                 used |= {i, j}
                 out.append(((s[0] + t[0]) / 2, (s[1] + t[1]) / 2))
                 break
+    # outlined pages (35-37): the marks are rotated '=' characters (ArialMT) on the line, not drawings
+    for w in page.get_text("words"):
+        if w[4] == "=" and w[0] >= x_min and w[2] <= 1640:
+            c = ((w[0] + w[2]) / 2, (w[1] + w[3]) / 2)
+            if all(abs(c[0] - o[0]) > 3 or abs(c[1] - o[1]) > 3 for o in out):
+                out.append(c)
     return out
 
 
