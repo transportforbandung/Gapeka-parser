@@ -157,3 +157,77 @@ for a, b, pg, st, n, nc, wins, rowsv, conflicts, um in report:
         print("   crossings inside a closed window:", ", ".join(conflicts))
 print(f"\nrule '{RULE}': crossings / overtakes at closable stations {totals['meets']}, inside a closed window "
       f"{totals['conflicts']}")
+
+
+# ---- predicted closing hours (user): a closing period of 8 h (one shift; 16 h = two shifts if 8 h cannot hold the
+#      closed passes), start / end on 10-minute steps (5 min if no 10-minute start fits). Constraints: every closed
+#      pass inside; every open pass before the start or at least 10 min after the end (PD 19: open 10 min before
+#      the first open-period train); crossings at the station outside the closed period.
+def fit_hours(rowsv, meets_st):
+    closed = [t / 60 for t, _, f in rowsv if f]
+    opens = [t / 60 for t, _, f in rowsv if not f] + [t / 60 for t, _, _ in meets_st]
+    if not closed:
+        return None
+    for dur in (480, 960, 720):
+        for step in (10, 5):
+            ok = []
+            for s in range(0, 1440, step):
+                def inside(t, lo, ln):
+                    return (t - lo) % 1440 < ln
+                if all(inside(t, s, dur) for t in closed) and not any(inside(t, s, dur + 10) for t in opens):
+                    ok.append(s)
+            if ok:
+                # the middle of the longest run of feasible starts (cyclic)
+                runs, cur = [], [ok[0]]
+                for s in ok[1:]:
+                    if s - cur[-1] == step:
+                        cur.append(s)
+                    else:
+                        runs.append(cur); cur = [s]
+                runs.append(cur)
+                if len(runs) > 1 and runs[0][0] == 0 and runs[-1][-1] == 1440 - step:
+                    runs = [runs[-1] + runs[0]] + runs[1:-1]
+                best = max(runs, key=len)
+                s = best[len(best) // 2]
+                return dict(start=s, end=(s + dur) % 1440, dur=dur, step=step,
+                            start_range=(best[0], best[-1]), dropped=0)
+    return None
+
+
+def hhmm(m):
+    m = int(m) % 1440
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
+print("\nPredicted closing hours (8 h shifts, 10 / 5 min steps)")
+rows_out = []
+for a, b, pg, st, n, nc, wins, rowsv, conflicts, um in report:
+    if not nc:
+        continue
+    f = fit_hours(rowsv, meets.get(st, []))
+    note = ""
+    if f is None:
+        # isolated closed passes outside the main window are taken as reading noise: keep the main window only
+        if wins:
+            main = max(wins, key=lambda w: (w[1] - w[0]) % n)
+            keep = {(main[0] + i) % n for i in range((main[1] - main[0]) % n + 1)}
+            rv = [(t, no, fl and i in keep) for i, (t, no, fl) in enumerate(rowsv)]
+            f = fit_hours(rv, meets.get(st, []))
+            note = f"main window only ({nc - len(keep)} isolated closed passes ignored)"
+    if f is None:
+        print(f"  {nm.get(st, st):14s} no 8 / 16 h window fits")
+        rows_out.append((st, a, b, "", "", "", "", "no 8 / 16 h window fits the marks"))
+        continue
+    s0, s1 = f["start_range"]
+    print(f"  {nm.get(st, st):14s} closed {hhmm(f['start'])} - {hhmm(f['end'])} ({f['dur'] // 60} h, step {f['step']} min;"
+          f" possible starts {hhmm(s0)}-{hhmm(s1)}) {note}")
+    rows_out.append((st, a, b, hhmm(f["start"]), hhmm(f["end"]), f["dur"] // 60,
+                     f"{hhmm(s0)}-{hhmm(s1)}", note))
+
+import csv
+with open(f"{REPO}/rules/dinas_tutup_hours.csv", "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["station", "end_a", "end_b", "closed_from", "closed_to", "hours", "possible_starts", "source", "note"])
+    for st, a, b, c0, c1, h, rng, note in rows_out:
+        w.writerow([st, a, b, c0, c1, h, rng, "predicted from GAPEKA '=' marks (research/dinas_tutup_periods.py)",
+                    note])

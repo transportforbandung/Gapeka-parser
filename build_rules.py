@@ -25,7 +25,7 @@ import numpy as np
 import gapeka_model as gm
 
 CSV_TABLES = ("station_zones", "section_buffers", "station_buffers", "station_attributes", "wait_gaps", "halt_rules",
-              "priority", "mandatory_stops")
+              "priority", "mandatory_stops", "dinas_tutup_hours")
 
 
 def read_manual_halt_offsets(path):

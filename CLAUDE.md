@@ -323,6 +323,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   block / train-report exchange for the last closed-period train, or switch the equipment back with both links
   working, at the latest 10 min before the first train of the open period; a delay that moves the change is logged
   (Lapka). GAPEKA 2026: last closed pass -> first open train 21-133 min at every closable station (all >= 10).
+  Predicted closing hours (user): 8 h shifts (16 h = two shifts if 8 h cannot hold the closed passes; 12 h only as a
+  last resort), start / end on 10-minute steps (5 min if needed); every closed pass inside, every open pass and
+  crossing outside, open >= 10 min before the next open train; the middle of the feasible starts. research/
+  dinas_tutup_periods.py -> rules/dinas_tutup_hours.csv (rules.db table dinas_tutup_hours). Kediri-Blitar-Malang /
+  Jatiroto / Glenmore / Sumberwadung 8 h (~20:00-22:00 to ~04:00-06:00), Salem 06:40-14:40, Banyuwangi-Jember-Pasuruan
+  stations mostly 16 h, Sempolan 12 h 18:00-06:00 (one isolated mark ignored); Ledokombo fits nothing (marks
+  17:57-06:51 = 13 h; train 330's mark may belong to the next sub-section).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
