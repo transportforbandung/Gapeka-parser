@@ -994,6 +994,11 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     [(ln["id"], ln["title"], " ".join(map(str, ln["pages"])), headers[ln["best"]][0]) for ln in lines])
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
+    sys_manual, sys_used = {}, set()
+    pth = os.path.join(manual_dir, "section_systems.csv")
+    if os.path.exists(pth):
+        for r in csv.DictReader(open(pth)):
+            sys_manual[(r["from"], r["to"])] = r
     allsec = [((a, b), p, "") for (a, b), p in sections.items()] + [((a, b), p, v) for (a, b, v), p in variants.items()]
     for (a, b), p, var in allsec:
         key = frozenset((a, b))
@@ -1025,17 +1030,26 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                         (a, b, r["o0"], r["o1"], kf, kt, r["v"], tracks, r.get("note") or None,
                          r.get("source", p["source"]), p.get("page"), var))
         bs, el, note = section_symbols.summary_fields(p.get("sym"))
-        if p.get("sym"):
-            out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
-                        (a, b, var, bs, el, p["sym"]["n"], note, p.get("page")))
+        ms = sys_manual.get((a, b)) or sys_manual.get((b, a))
+        if ms:
+            bs, el, note = ms["block_system"], int(ms["electrified"]), f"manual: {ms['source']}: {ms['note']}"
+            sys_used.add((ms["from"], ms["to"]))
+        elif p.get("sym"):
             if note:
                 qa.append(("section symbols mixed (check)", f"{a}-{b}", note))
-        elif not (a.startswith("?") or b.startswith("?")):
-            qa.append(("section without block / electrification symbol", f"{a}-{b}", f"page {p.get('page')}"))
+        else:
+            # no symbol on the sheet = no block system between the stations, legacy communication (user: the
+            # Surabaya freight / yard branches); also the inactive Panarukan line
+            bs, el, note = "none", 0, "no symbol on the sheet: no block between stations (legacy communication)"
+        out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
+                    (a, b, var, bs, el, (p.get("sym") or {}).get("n", 0), note, p.get("page")))
         for b_ in p["blocks"]:
             out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
+    for k, r in sys_manual.items():
+        if k not in sys_used and (k[1], k[0]) not in sys_used and k == (r["from"], r["to"]):
+            qa.append(("section system override not applied", f"{k[0]}-{k[1]}", r["block_system"]))
 
     # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
