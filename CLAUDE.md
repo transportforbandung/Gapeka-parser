@@ -249,7 +249,9 @@ Read this first. It records decisions and findings from earlier sessions so they
   Manggarai, Jakarta Kota, Gambir, Duri, Cepu, Gundih, Banjar, Padalarang, Sukabumi, Walikukun, Wlingi, Mojokerto,
   Tarik, Wonokromo, Andir (main line + Ciroyom branch), ...). Kutoarjo is repeated in two page-35 tables (same
   drawing). Kalisat is drawn twice on page 50 with the same layout but DIFFERENT lengths (I 281 / 275.5, II 395 /
-  327.6, III 316 / 344.2, IV 247 / 313.8, 5 145 / 175.9): a PDF inconsistency, both kept. Fixed: page 25 y 2495 is
+  327.6, III 316 / 344.2, IV 247 / 313.8, 5 145 / 175.9): a PDF inconsistency. User: use the active line's diagram
+  (y 1047: I 281, II 395, III 316, IV 247, 5 145); the copy in the inactive Panarukan table (y 2632) is ignored
+  (manual/layout_station_fixes.csv with station '-' = ignore this diagram). Fixed: page 25 y 2495 is
   Andir (was Bandung), page 35 y 460 is Prupuk (was Kutoarjo).
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the

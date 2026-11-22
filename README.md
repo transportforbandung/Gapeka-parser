@@ -232,7 +232,7 @@ When the sheet is read wrongly or says too little, add a line to one of these fi
 | `manual/station_aliases.csv` | A station printed under another name | `Lumajang,KK,...` (Klakah is called Lumajang on the sheet) |
 | `manual/pair_overrides.csv` | A section length; `delete` removes a false pair | `AK,KPB,4.102,...`; `KDO,PWS,delete,...` |
 | `manual/section_overrides.csv` | Umum, gradient, length or double track of a section | `KDO,SLO,umum_kmh,120,...`; `CCL,NG,double_track,0,...` |
-| `manual/layout_station_fixes.csv` | Which station a track diagram belongs to, when the reader cannot tell | `44,2229,SB,...` (page, y of the top track, station) |
+| `manual/layout_station_fixes.csv` | Which station a track diagram belongs to, when the reader cannot tell; station `-` ignores the diagram | `44,2229,SB,...` (page, y of the top track, station); `50,2632,-,...` (Kalisat copy in the inactive Panarukan table) |
 | `manual/layout_label_fixes.csv` | A misprinted end label on a diagram | `25,GDB,GDB,KAC,...` (Gedebage's left arrow is Kiaracondong) |
 | `manual/layout_tracks.csv` | Tracks whose labels cannot be read | `35,KRT,IV,335,...` (Kretek IV-335) |
 | `manual/layout_track_directions.csv` | Directions the drawing cannot show; `*` = every Roman track | `13,CKR,VI,R,1,...` (Cikarang VI eastbound main); `44,SDT,*,LR,0,...` |

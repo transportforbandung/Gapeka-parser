@@ -778,6 +778,7 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
             for dg in D:
                 if pg == int(f["page"]) and abs(dg["y0"] - float(f["y"])) < 15:
                     dg["station"], dg["how"] = f["station"], "manual (user)"
+        D = [dg for dg in D if dg["station"] != "-"]          # station '-': diagram to ignore (user)
         # pieces of one station (some sheets draw the two halves of a double-track station unconnected) and
         # repeated copies of a diagram on the same sheet
         keep = []
