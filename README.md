@@ -60,7 +60,8 @@ times against KAI's published timetables: Bandung 79 %, Jabodetabek 90 %, Suraba
 | `stops` | Every timetable row: station, `kind` (stop / halt / pass / origin_or_end), `vmax` for the next section, printed arrival / departure (seconds after midnight; times after midnight continue past 86400), remark, PDF page |
 | `schedule` (view) | `stops` with the estimated times filled in where nothing is printed (`estimated` = 1, `method`). **Use this one for exports.** |
 | `schedule_hhmm` (view) | The same with times as HH:MM, the way KAI publishes them |
-| `halt_est` | The estimates: `manual` (KAI times from `rules/halt_offsets.csv`), `model-split…` (running-time model with the region's rule), `dinas-model` (KA Dinas passing times) |
+| `halt_est` | The estimates: `manual` (KAI times from `rules/halt_offsets.csv`), `model-split…` (running-time model with the region's rule), `dinas-graph` (KA Dinas passing times read from the graph lines), `dinas-model` (KA Dinas passing times where the graph gives none or the match is doubtful) |
+| `dinas_graph`, `dinas_graph_flags` | Times where each KA Dinas line crosses a station row (status confirmed / unlabelled / doubtful) and the flags: KA Dinas in the timetable not on the graph, graph labels without a timetable train, partial routes, end times off the index |
 | `train_index` | The train-number index (Lampiran IV) as printed: number, regular / facultative, name, route, km, departure, arrival, class |
 | `roster_units`, `roster_duties` | Rolling-stock duties (O.18 diagrams): one locomotive, KRD set or KRL trainset per day and the trains it works in order, including KA Dinas moves; `connects` = the train starts where the previous one ended |
 | `consists` | Stamformasi: cars of one trainset and locomotive class per passenger train |
