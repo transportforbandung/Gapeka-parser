@@ -260,8 +260,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   the sheet (not read; yard only). Gundih and Brumbung have two emplacements each (duplicate numbers are real).
   Same station on several lines with different lengths (Cikampek I 160 / 170, VII 307 / 303 / 277; Sukabumi III 399
   / 299; Mojokerto IV 538 / 337; Gundih II 381 / 378) and Padalarang with two different layouts: kept per line
-  (the fit check uses the train's line). Open questions: Gundih IV-306 is connected by DOTTED lines (out of
-  service?), Semarang Poncol VII direction.
+  (the fit check uses the train's line). User: dotted = out of service too (Gundih IV-306: the whole track dotted,
+  dash pattern "[.57 .57]"); a track whose own line is dashed / dotted is out of service; buffer brackets "]" are no
+  connection (Pabuaran IV was missed). Out of service now: Dawuan IV / I, Pabuaran IV / I, Gundih IV. Semarang
+  Poncol VII both ways (user). Different lengths of the same track on several lines (user): use the LONGEST (stations
+  are being lengthened): station_tracks.length_m = longest, length_on_sheet = this diagram's figure; a number
+  repeated inside one diagram is another physical track (Gundih, Brumbung, Tanjung Priok: matched by n-th
+  occurrence). Changed: Cikampek, Gundih, Mojokerto (IV 337 -> 538), Sukabumi III 299 -> 399, Padalarang.
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

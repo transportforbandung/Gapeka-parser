@@ -44,9 +44,9 @@ class UF:
 
 def page_items(page, x_min):
     """segments (x0,y0,x1,y1) of drawn track lines, chevrons, small boxes, filled dots, right of x_min"""
-    global dashed, solid
+    global dashed, solid, dashed_lines
     segs, chev, boxes, dots, pointers = [], [], [], [], []
-    dashed, solid = [], []
+    dashed, solid, dashed_lines = [], [], []
     for dr in page.get_drawings():
         r = dr["rect"]
         if r.x1 < x_min:
@@ -119,7 +119,7 @@ def page_items(page, x_min):
             continue
         if dr["type"] not in ("s", "fs") or w < 0.15:
             continue
-        is_dashed = bool(re.search(r"\[\s*\d", dr.get("dashes") or ""))
+        is_dashed = bool(re.search(r"\[\s*[\d.]", dr.get("dashes") or ""))     # dashed "[2.4 2.4]" or dotted "[.57 .57]"
         for it in items:
             if it[0] == "l":
                 seg = (it[1].x, it[1].y, it[2].x, it[2].y)
@@ -128,9 +128,12 @@ def page_items(page, x_min):
             else:
                 continue
             segs.append(seg)
+            if is_dashed and abs(seg[1] - seg[3]) < 0.4 and abs(seg[0] - seg[2]) > 4:
+                dashed_lines.append(seg)                   # a track line itself drawn dashed / dotted
             ln_ = abs(seg[0] - seg[2]) + abs(seg[1] - seg[3])
             if (abs(seg[1] - seg[3]) > 0.4 and abs(seg[0] - seg[2]) > 0.2) or \
-                    (len(items) > 2 and ln_ < 4 and abs(seg[0] - seg[2]) > 0.2):   # switch curves (also tiny flat steps)
+                    (len(items) > 2 and ln_ < 4 and abs(seg[0] - seg[2]) > 0.2 and abs(seg[1] - seg[3]) > 0.05):
+                # switch curves, also their tiny steps (never exactly flat: a buffer bracket "]" is no connection)
                 (dashed if is_dashed else solid).append(seg)
     return segs, chev, boxes, dots, pointers
 
@@ -455,7 +458,9 @@ def read_page(page, codes, extra_words=(), extra_labels=()):
             # connections drawn dashed = out of service (user, Dawuan IV / I): a siding reached only by dashed lines
             touch = lambda segs_: sum(1 for sg in segs_ for (px, py) in ((sg[0], sg[1]), (sg[2], sg[3]))
                                       if abs(py - t["line_y"]) < 1.2 and t["lo"] - 3 <= px <= t["hi"] + 3)
-            t["out_of_service"] = (not t["through"]) and touch(dashed) > 0 and touch(solid) == 0
+            own_dashed = any(abs(sg[1] - t["line_y"]) < 0.6 and min(sg[0], sg[2]) < (t["lo"] + t["hi"]) / 2 < max(sg[0], sg[2])
+                             for sg in dashed_lines)
+            t["out_of_service"] = (not t["through"]) and ((touch(dashed) > 0 and touch(solid) == 0) or own_dashed)
             near = [w for w in ends if abs((w[1] + w[3]) / 2 - t["line_y"]) < 9]
             t["end_l"] = [w[4].strip(":,.").upper() for w in near if abs(w[0] - t["lo"]) < 30 and w[2] < t["lo"] + 45]
             t["end_r"] = [w[4].strip(":,.").upper() for w in near if abs(w[2] - t["hi"]) < 30 and w[0] > t["hi"] - 45]
@@ -815,7 +820,8 @@ CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, e
                              roman_tracks INTEGER, yard_tracks INTEGER, out_of_service_tracks INTEGER,
                              longest_roman_m REAL, ppka INTEGER, pap INTEGER);
 CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
-                            length_m REAL, arrows TEXT, towards TEXT, through INTEGER, out_of_service INTEGER,
+                            length_m REAL, length_on_sheet REAL, arrows TEXT, towards TEXT, through INTEGER,
+                            out_of_service INTEGER,
                             usable TEXT, usable_towards TEXT, enter TEXT);
 """
 
@@ -872,7 +878,8 @@ def next_stations(inf, st, line_id):
 
 def write(inf, diagrams, refs=()):
     """station_layouts: one row per diagram; station_tracks: its tracks top to bottom. kind 'roman' = main or siding
-    track, 'yard' = Arabic-numbered stabling / yard track; out_of_service = connected only by dashed lines (user);
+    track, 'yard' = Arabic-numbered stabling / yard track; length_m = the longest length printed for that station
+    and track on any line (user), length_on_sheet = this diagram's figure; out_of_service = connected only by dashed lines (user);
     roman_tracks / longest_roman_m count usable (in-service) Roman tracks only. usable: directions (L / R on the
     sheet) in which a train can stand on the track and continue (forward moves over the drawn switches; through
     mains only in their arrow direction); usable_towards: the same as neighbour stations; enter: directions in
@@ -917,9 +924,26 @@ def write(inf, diagrams, refs=()):
             copies.append(dict(d, how=f"copy of line {line_of.get(d['page'])} page {d['page']} ({r['note']})",
                                copy_line=ln))
             have.add((r["station"], ln))
+    # the same station's track drawn on several lines with different lengths: use the longest (user: stations are
+    # being lengthened, the longer figure is the newer one); the printed value stays in length_on_sheet
+    # a number repeated inside one diagram is another physical track (two emplacements: Gundih, Brumbung, Tanjung
+    # Priok yard): tracks are matched across lines by (number, n-th occurrence top to bottom)
+    def occ_keys(d):
+        seen, out = defaultdict(int), {}
+        for t in sorted(d["tracks"], key=lambda t: t.get("line_y", 9e9)):
+            out[id(t)] = (d["station"], t["no"], seen[t["no"]])
+            seen[t["no"]] += 1
+        return out
+    longest = {}
+    for d in [x for x in diagrams if x.get("station")]:
+        ks = occ_keys(d)
+        for t in d["tracks"]:
+            if t.get("length") is not None:
+                longest[ks[id(t)]] = max(longest.get(ks[id(t)], 0), t["length"])
     for d in [x for x in diagrams if x.get("station")] + copies:
         ln = d.get("copy_line") or line_of.get(d["page"])
         tr = d["tracks"]
+        ks_ = occ_keys(d)
         rom = [t for t in tr if is_roman(t["no"]) and not t.get("out_of_service")]      # usable main / siding
         oos = sum(1 for t in tr if t.get("out_of_service"))
         left = list(dict.fromkeys(x for x in d["left"] if x != d["station"]))
@@ -931,7 +955,7 @@ def write(inf, diagrams, refs=()):
                 (left if not left else right).append(other[0])
         inf.execute("INSERT INTO station_layouts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (d["station"], ln, d["page"], round(d["y0"], 1), d["how"], " ".join(left), " ".join(right), len(rom),
-                     sum(1 for t in tr if not is_roman(t["no"])), oos, max((t["length"] for t in rom if t["length"] is not None), default=None),
+                     sum(1 for t in tr if not is_roman(t["no"])), oos, max((longest.get(ks_[id(t)], t["length"]) for t in rom if t["length"] is not None), default=None),
                      int(any(m["kind"] == "PPKA" for m in d["marks"])), int(any(m["kind"] == "PAP" for m in d["marks"]))))
         for side in sorted({mk["side"] for mk in d.get("signal_marks", [])}):
             mk = next(m for m in d["signal_marks"] if m["side"] == side)
@@ -945,9 +969,10 @@ def write(inf, diagrams, refs=()):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
             ut = " ".join(([left[0]] if "L" in t.get("usable", "") and left else []) +
                           ([right[0]] if "R" in t.get("usable", "") and right else []))
-            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if is_roman(t["no"]) else int(re.sub(r"\D", "", t["no"])),
-                         "roman" if is_roman(t["no"]) else "yard", t["length"], t["arrows"], tw or None,
+                         "roman" if is_roman(t["no"]) else "yard", longest.get(ks_[id(t)], t["length"]),
+                         t["length"], t["arrows"], tw or None,
                          int(t["through"]), int(bool(t.get("out_of_service"))), t.get("usable"), ut or None,
                          t.get("enter")))
 
