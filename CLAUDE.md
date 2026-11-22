@@ -245,6 +245,12 @@ Read this first. It records decisions and findings from earlier sessions so they
   a larger margin where the blocks after the next station are long. Data cannot show it (whole-minute times; only
   12 terminating / other-route cases, also 1-2 min; KRL lines have short blocks, no length effect): rule in
   rules/priority.csv (event release_margin) from the user's reasoning.
+- Stations with more than one diagram (one per line / table): junctions and line ends (Cikampek x3, Tegal x3,
+  Manggarai, Jakarta Kota, Gambir, Duri, Cepu, Gundih, Banjar, Padalarang, Sukabumi, Walikukun, Wlingi, Mojokerto,
+  Tarik, Wonokromo, Andir (main line + Ciroyom branch), ...). Kutoarjo is repeated in two page-35 tables (same
+  drawing). Kalisat is drawn twice on page 50 with the same layout but DIFFERENT lengths (I 281 / 275.5, II 395 /
+  327.6, III 316 / 344.2, IV 247 / 313.8, 5 145 / 175.9): a PDF inconsistency, both kept. Fixed: page 25 y 2495 is
+  Andir (was Bandung), page 35 y 460 is Prupuk (was Kutoarjo).
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
