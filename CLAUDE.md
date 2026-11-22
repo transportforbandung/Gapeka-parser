@@ -131,6 +131,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   joined only by its mutually best-supported partner, 24 samples, >= 30 % on the outline, dash gaps); a line may stop
   3 pt short of its row; a wait > 10 min only when the move continues in another table and still ends by the index
   arrival + 5 min; via stations with a wait get separate arrival / departure in halt_est (37).
+  Unmatched numbers (user): a KA Dinas number may appear with another suffix (L4 = locomotive of train 4 -> L4-2,
+  L4-4 ...); match by base number (letter + number) only where the label's rows lie on that train's route; if none,
+  keep what the graph shows. Result: L2507-2 = label variant of L2507F-2; R518 and the page 35-37 'L27' / 'L271' /
+  'L272' / 'L2' / 'LL5' / 'LL50' are fragments of longer labels; R951-R954 are freight trains (Ejek Sidotopo), not
+  KA Dinas. 26 graph-only KA Dinas added to gapeka.db as trains (first_page 'graph:<page>', klasifikasi 'graph only',
+  times traced along their line, through runs only): 9 DR (cut to Kampung Bandan - Jakarta Gudang; the line carries
+  on as the freight train), 13 Surabaya yard L moves (Sidotopo - Surabaya Kota / Gubeng, L10-3 from Wonokromo),
+  R595-2 / R604-1 (Madiun - Caruban), R809-2 (Manggarai - Bogor 03:52-04:44), R916-1 (Bogor - Gambir 21:59-23:10).
+  Still timetable-only (7): R1784-1, L212-3, R97-4, R98-3, L84-4, L809, L810.
 - Rolling-stock duties (rosters.py, pipeline step 6b): O.18 diagrams are time-bar charts, one row per unit per day.
   Locomotive pages 1680-1700 (row label = number in the first column; train numbers with names above the bar,
   KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates

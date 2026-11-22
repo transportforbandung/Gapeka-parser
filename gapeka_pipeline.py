@@ -1304,7 +1304,7 @@ def model_stages(db, out, pdfs, dwell, here):
         db.execute("UPDATE trains SET n_stops=? WHERE no=?", (len(path), no))
     # KA Dinas drawn on the graph: passing times read from the lines replace the model where the match is trusted
     import dinas_graph
-    dres, dmiss, donly, n_graph = dinas_graph.apply(db, pdfs[0], infra_path)
+    dres, dmiss, donly, n_graph, n_new = dinas_graph.apply(db, pdfs[0], infra_path)
     print(f"[9b] KA Dinas read from the graph: {len(dres)} of {len(dres) + len(dmiss)} "
           f"({sum(r['confirmed'] for r in dres.values())} label-confirmed); {n_graph} passing times from the graph; "
           f"flags in dinas_graph_flags")

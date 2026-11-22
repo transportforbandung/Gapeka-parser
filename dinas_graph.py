@@ -309,15 +309,95 @@ def read(pdf_path, infra_db, tt_db, tol_start=6.0):
         results[no] = dict(chain=chain, end_dev=end_dev, confirmed=confirmed, partial=partial, dep0=dep0 / 60,
                            arr1=None if arr1 is None else arr1 / 60)
     tt_nos = {n for (n,) in trains}
-    graph_only = sorted({(raw, lpg) for name, _, _, lpg, raw in labels if name not in tt_nos})
-    return results, missing, graph_only, labels
+    all_nos = {n for (n,) in tt.execute("select no from trains")}     # R951-R954 are freight trains (Ejek Sidotopo)
+    graph_only = sorted({(raw, lpg) for name, _, _, lpg, raw in labels if name not in all_nos})
+    # ---- labels with no timetable train: trace their line on the graph (user: a KA Dinas number may appear under
+    #      another suffix, e.g. L4 = locomotive of train 4 -> L4-2, L4-4 ...; when there is none, keep what the graph
+    #      shows as a trip of its own)
+    def base(n):
+        m = re.fullmatch(r"([RL])(\d+)F?(?:-\d+)?", n)
+        return (m.group(1), m.group(2)) if m else None
+    by_base = collections.defaultdict(list)
+    for n in tt_nos:
+        by_base[base(n)].append(n)
+    route = {n: {r[0] for r in tt.execute("select station from stops where train_no=?", (n,))} for n in tt_nos}
+    found_pages = collections.defaultdict(set)
+    for n, r in results.items():
+        for *_, s in r["chain"]:
+            found_pages[n].add(s["page"])
+    leg_list = [(a, b, ta, tb, s) for (a, b), v in legs.items() for ta, tb, s in v]
+
+    def near_legs(lx, ly, pg):
+        """legs whose drawn segment passes within 25 pt of the label"""
+        out = []
+        for a, b, ta, tb, s in leg_list:
+            if s["page"] != pg:
+                continue
+            x0, y0, x1, y1 = s["x0"], s["y0"], s["x1"], s["y1"]
+            if not (min(y0, y1) - 15 <= ly <= max(y0, y1) + 15):
+                continue
+            f = (ly - y0) / (y1 - y0) if y1 != y0 else 0
+            d = abs(x0 + f * (x1 - x0) - lx)
+            if d < 25:
+                out.append((d, a, b, ta, tb, s))
+        return sorted(out, key=lambda x: x[0])
+
+    def extend(chain):
+        """follow the line forward and backward from a seed leg (through runs only: gaps -0.6 .. +2 min)"""
+        while True:
+            a, b, ta, tb, s = chain[-1]
+            nxt = [(abs(ta2 - tb) + (0 if s2 is s else 0.5), (b, c, ta2, tb2, s2)) for (b2, c), v in legs.items()
+                   if b2 == b and c != a for ta2, tb2, s2 in v if -0.6 <= ta2 - tb <= 2]
+            if not nxt or len(chain) > 40:
+                break
+            chain.append(min(nxt, key=lambda x: x[0])[1])
+        while True:
+            a, b, ta, tb, s = chain[0]
+            prv = [(abs(ta - tb2) + (0 if s2 is s else 0.5), (z, a, ta2, tb2, s2)) for (z, a2), v in legs.items()
+                   if a2 == a and z != b for ta2, tb2, s2 in v if -0.6 <= ta - tb2 <= 2]
+            if not prv or len(chain) > 40:
+                break
+            chain.insert(0, min(prv, key=lambda x: x[0])[1])
+        return chain
+
+    graph_trips = {}
+    for name, lx, ly, lpg, raw in labels:
+        if name in all_nos:
+            continue
+        # fragment of a longer label on an outlined page (L27 / L271 / LL5 ... beside L2711, L503 on the same page)
+        frag = sorted(n for n in tt_nos if n.startswith(name) and n != name and lpg in found_pages[n])
+        if frag:
+            graph_trips.setdefault(name, dict(kind="label fragment (outlined page) of", match=frag[:6], chain=None,
+                                              raw=raw))
+            continue
+        cand = near_legs(lx, ly, lpg)
+        if not cand:
+            continue
+        _, a, b, ta, tb, s = cand[0]
+        # same locomotive / trainset number with another suffix, on this part of the network
+        sib = [n for n in by_base.get(base(name), []) if {a, b} <= route[n]]
+        if sib:
+            kind = "label variant of a train found on the graph" if all(n in results for n in sib) \
+                else "same number, other suffix"
+            graph_trips.setdefault(name, dict(kind=kind, match=sib, chain=None, raw=raw))
+            continue
+        ch = extend([(a, b, ta, tb, s)])
+        if raw.startswith("DR"):
+            # user: DR = Jakarta Gudang shunting moves (Kampung Bandan - Jakarta Gudang); the line carries on as the
+            # freight train itself, which is not part of the KA Dinas
+            yard = {"KPB", "JAKG", "?jakartagudang"}
+            ch = [x for x in ch if x[0] in yard and x[1] in yard] or ch[:1]
+        g = graph_trips.setdefault(name, dict(kind="graph only", match=[], chain=ch, raw=raw))
+        if g["chain"] and len(ch) > len(g["chain"]):
+            g["chain"] = ch
+    return results, missing, graph_only, labels, graph_trips
 
 
 def apply(db, pdf_path, infra_db):
     """Write graph times for KA Dinas into gapeka.db (db = connection): tables dinas_graph (every row a matched line
     crosses) and dinas_graph_flags; passing times in halt_est become 'dinas-graph' where the match is trusted
     (label beside the line, or the train has no label anywhere). Printed start / end times are kept."""
-    res, missing, graph_only, labels = read(pdf_path, infra_db, db)
+    res, missing, graph_only, labels, graph_trips = read(pdf_path, infra_db, db)
     labelled = {n for n, *_ in labels}
     db.execute("DROP TABLE IF EXISTS dinas_graph")
     db.execute("DROP TABLE IF EXISTS dinas_graph_flags")
@@ -372,7 +452,40 @@ def apply(db, pdf_path, infra_db):
     for no, why, f in missing:
         db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (no, "in the timetable, not found on the graph",
                                                                     f"{f[0]}-{f[1]}" if f else why))
+    # graph-only KA Dinas become trains of their own (type dinas), timed from the graph
+    n_new = 0
+    db.execute("DELETE FROM stops WHERE page LIKE 'graph:%'")
+    for no, g in graph_trips.items():
+        key = g["raw"] if g["raw"].startswith("DR") else no
+        if g["chain"] is None:
+            db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (g["raw"], g["kind"], " ".join(g["match"])))
+            continue
+        ch = g["chain"]
+        if db.execute("SELECT 1 FROM trains WHERE no=?", (key,)).fetchone():
+            continue
+        pg = ch[0][4]["page"]
+        path = [ch[0][0]] + [x[1] for x in ch]
+        times = [ch[0][2]] + [x[3] for x in ch]
+        db.execute("INSERT INTO trains(no, service, route, first_page, n_stops, type, klasifikasi, kelas, facultative,"
+                   " operator) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                   (key, "KA Dinas (graph only)", f"{path[0]} - {path[-1]}", f"graph:{pg}", len(path), "dinas",
+                    "KERETA API DINAS", "graph only (not in the train index)", 0, None))
+        for i, (st, t) in enumerate(zip(path, times), 1):
+            end = i in (1, len(path))
+            ts = int(round(t * 60)) % 86400
+            db.execute("INSERT OR IGNORE INTO stations VALUES(?,?)", (st, st))
+            db.execute("INSERT INTO stops VALUES(?,?,?,?,?,?,?,?,?)",
+                       (key, i, st, None, "origin_or_end" if end else "pass", ts if i == len(path) else None,
+                        ts if i == 1 else None, None, f"graph:{pg}"))
+            if not end:
+                db.execute("INSERT INTO halt_est VALUES(?,?,?,?,?,?)", (key, i, st, ts, ts, "dinas-graph"))
+        db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (key, "graph only: added as a KA Dinas trip",
+                                                                    f"{path[0]} - {path[-1]}, page {pg}"))
+        n_new += 1
+    handled = {g["raw"] for g in graph_trips.values()}
     for raw, pg in graph_only:
+        if raw in handled:
+            continue
         if raw.startswith(("DR", "DL")):
             # user: DR / DL = Jakarta Gudang shunting moves, KA Dinas that are part of a regular freight trip
             # (the freight uses Kampung Bandan as its origin / terminus); not in the train index
@@ -381,11 +494,11 @@ def apply(db, pdf_path, infra_db):
             issue = "on the graph, not in the timetable"
         db.execute("INSERT INTO dinas_graph_flags VALUES(?,?,?)", (raw, issue, f"page {pg}"))
     db.commit()
-    return res, missing, graph_only, n_used
+    return res, missing, graph_only, n_used, n_new
 
 
 if __name__ == "__main__":
-    res, missing, graph_only, labels = read("GAPEKA-JAWA-2026.pdf", "infra.db", "gapeka.db")
+    res, missing, graph_only, labels, graph_trips = read("GAPEKA-JAWA-2026.pdf", "infra.db", "gapeka.db")
     conf = sum(r["confirmed"] for r in res.values())
     bad_end = [(n, round(r["end_dev"], 1)) for n, r in res.items() if abs(r["end_dev"]) > 3 and not r["partial"]]
     print(f"KA Dinas found on the graph: {len(res)} (label confirmed {conf}, partial route {sum(r['partial'] for r in res.values())}); not found: {len(missing)}")
