@@ -319,7 +319,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   (Pasal 105); at closed stations the main-line switches are locked for the straight track; a signal fault at a
   closed station is reported by the boundary PPKA. Requirement: mechanical signalling (stations with electric
   interlocking cannot be dinas tutup; matches 'electromechanical' sections). Rules: rules/priority.csv events
-  dinas_tutup, dinas_tutup_late.
+  dinas_tutup, dinas_tutup_late, dinas_tutup_open. Reopening (Pasal 99-100, 102A): the boundary stations finish the
+  block / train-report exchange for the last closed-period train, or switch the equipment back with both links
+  working, at the latest 10 min before the first train of the open period; a delay that moves the change is logged
+  (Lapka). GAPEKA 2026: last closed pass -> first open train 21-133 min at every closable station (all >= 10).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
