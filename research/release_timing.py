@@ -108,3 +108,39 @@ for t in ("krl", "commuter", "intercity", "freight"):
               f"arrival after free median {np.median(a_):+.1f} (p90 {np.percentile(a_, 90):+.1f})")
 for c in [c for c in cases if typ_of(c) != "krl"][:12]:
     print("    ", c, typ_of(c))
+
+# --- user: the 1 min margin protects the follower's path BEYOND Y (not blocked by the train ahead at the station after
+#     Y); it should not apply when the follower ends at Y or leaves Y on another route, and grow with long blocks after Y
+nxt = {no: [x for x, *_ in R_] for no, R_ in rows.items()}
+km = {}
+for a, b, k in i.execute("select a, b, km from sections"):
+    km[(a, b)] = km[(b, a)] = k
+nblk = defaultdict(int)
+for a, b in i.execute("select a, b from block_signals"):
+    nblk[(a, b)] += 1
+    nblk[(b, a)] += 1
+groups = defaultdict(list)
+rows2 = []
+for c in cases:
+    no, x, y = c[0], c[1], c[2]
+    occ_lead = [o for o in standing(y, [d for st, k, a, d in rows[no] if st == x][0], no) if dir_of(o[2], y)[0] == c[3]]
+    lead = min(occ_lead, key=lambda o: o[1])[2] if occ_lead else None
+    r_f, r_l = nxt[no], nxt.get(lead, [])
+    after_f = r_f[r_f.index(y) + 1] if y in r_f and r_f.index(y) + 1 < len(r_f) else None
+    after_l = r_l[r_l.index(y) + 1] if y in r_l and r_l.index(y) + 1 < len(r_l) else None
+    kind = "follower ends at Y" if after_f is None else ("same route after Y" if after_f == after_l else "other route after Y")
+    groups[kind].append(c[6])
+    if kind == "same route after Y":
+        L = km.get((y, after_f))
+        rows2.append((c[6], L, nblk.get((y, after_f), 0)))
+print("\n  release offset by what the follower does after Y:")
+for k, v in groups.items():
+    v = np.array(v)
+    print(f"    {k:22s} n {len(v):4d}  release median {np.median(v):+.1f}  values {sorted(Counter(np.round(v).astype(int)).items())}")
+if rows2:
+    r2 = np.array([(a, b if b is not None else np.nan, c) for a, b, c in rows2], float)
+    for lo, hi in ((0, 2), (2, 3), (3, 5), (5, 99)):
+        m = (r2[:, 1] >= lo) & (r2[:, 1] < hi)
+        if m.any():
+            print(f"    same route, next section {lo}-{hi} km: n {m.sum():3d}, release median {np.median(r2[m, 0]):+.1f}, "
+                  f"share released 2 min early {np.mean(r2[m, 0] <= -1.5):.0%}")

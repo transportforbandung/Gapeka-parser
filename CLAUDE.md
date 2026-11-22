@@ -240,6 +240,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   arrives ~4 min (median, p90 8) after the track frees, never before. Intercity / freight / single track: no full
   stations ahead at release (planned away). Simulator: default release 1 min before the train ahead departs; the
   user's 'arrive when free' timing is the earliest allowed.
+  Why the margin (user): it protects the follower's path beyond the next station (not blocked by the train ahead
+  at the station after). No onward margin when the follower ends at the next station or leaves it on another route;
+  a larger margin where the blocks after the next station are long. Data cannot show it (whole-minute times; only
+  12 terminating / other-route cases, also 1-2 min; KRL lines have short blocks, no length effect): rule in
+  rules/priority.csv (event release_margin) from the user's reasoning.
 - Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
   (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
