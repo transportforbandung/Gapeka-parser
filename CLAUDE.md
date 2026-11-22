@@ -286,8 +286,8 @@ Read this first. It records decisions and findings from earlier sessions so they
   Andir-Ciroyom, Gambringan-Gundih, Adi Soemarmo-Kadipiro-Solo Balapan, Sepanjang-Wonokromo, Tarik-Tulangan.
 - Joint dispatch (user): a tall box in the symbol column linking two station rows; the circle with a WHITE triangle
   inside marks the station of the one dispatcher for both (Lempuyangan for Yogyakarta, Cirebon for Cirebon Prujakan).
-  A second drawing (narrow box, BLACK triangle in a circle, line to a small circle): Jakarta Kota -> Jayakarta, Bogor ->
-  Bogor Paledang (inside the box) + Batutulis; meaning of the black variant not yet confirmed. section_symbols.
+  A second drawing (narrow box, BLACK triangle in a circle, line to a small circle) means the same (user): Jakarta Kota
+  -> Jayakarta, Bogor -> Bogor Paledang (row inside the box, also controlled, user) + Batutulis. section_symbols.
   control_boxes() -> infra.db joint_dispatch (station, dispatcher, position end / inside, triangle, page).
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.

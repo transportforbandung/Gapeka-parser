@@ -97,7 +97,7 @@ def control_boxes(page):
     """Joint-dispatch boxes (user): a tall box beside the symbol column linking two station rows; the circle with a
     triangle marks the station where the one dispatcher sits. Two drawings: white triangle in an open circle
     (Yogyakarta-Lempuyangan, Cirebon-Cirebon Prujakan) and black triangle in a circle joined by a line to a small
-    circle (Jakarta Kota-Jayakarta, Bogor-Batutulis).
+    circle (Jakarta Kota-Jayakarta, Bogor-Batutulis); both mean the same (user), rows inside the box too.
     Returns [dict(y0, y1, members=[dict(y, triangle)])], triangle = 'white' / 'black' / None."""
     drs = page.get_drawings()
     circ = [dr for dr in drs if [i[0] for i in dr["items"]].count("c") >= 4 and 4 < dr["rect"].width < 12
