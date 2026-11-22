@@ -298,8 +298,25 @@ Read this first. It records decisions and findings from earlier sessions so they
   are being lengthened): station_tracks.length_m = longest, length_on_sheet = this diagram's figure; a number
   repeated inside one diagram is another physical track (Gundih, Brumbung, Tanjung Priok: matched by n-th
   occurrence). Changed: Cikampek, Gundih, Mojokerto (IV 337 -> 538), Sukabumi III 299 -> 399, Padalarang.
-- Layout data status (this round): complete for what the sheets show; open: 57 position-only diagram assignments
-  (qa), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
+- Position-only diagrams reviewed (Nov 2026): 37 'pointer arrow from the name' + 18 'nearest row'; build_infra now
+  flags one only when its end labels do not name stations within 3 rows of it; checked by eye: Bagor ('Wlg' / 'Bgr'
+  beside the rows are code labels, ends Srd / Nj), Sukabumi (Gds = Gandasoli, Cianjur line), Indro, and those without
+  end labels (Rangkasbitung, Jakarta Kota, Cicurug, Parungkuda, Cibadak, Cisaat, Karanggandul, Margasari, Sengon,
+  Panarukan line = inactive): all right. qa now 0.
+- User decisions (Nov 2026): header "Ks X untuk lintas ..." = who may cancel a trip on a line: not needed now.
+  Directional restrictions (Kadipiro-Solo Balapan "Dari KDO ke SLO"): keep for both directions (trains there have
+  the same limit anyway). Manual fixes keyed by page + y stay as they are (user will come back if a new edition
+  breaks them).
+- Rosters: connects = 0 (66) means the unit's next train starts at a different station than its previous train
+  ended (a jump). 6 are covered by a KA Dinas move that the roster does not list (e.g. 333 Pasarsenen -> R333-2 ->
+  R334-1 Jatinegara); the others look like a missing move or a reading problem (KRL loops skipping a trip, e.g. 1517
+  ends Jakarta Kota -> 1523 starts Nambo; locomotive rows mixing two units, e.g. 2708F / L2724F-1 / 2710F around
+  Solo - Cirebon; units 202 / 667 typed krl). connects = NULL (464): one of the trains has no stops (not timed).
+- Train length for the fit checks: consists from the stamformasi tables only (cars x 21 m + 16 m locomotive):
+  intercity 287 / 345, commuter 126 / 280, freight 2 / 126, KRL 0 / 1342, KA Dinas 0; trains without a consist are
+  not checked.
+- Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
+  see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
 - Section symbols (left strip beside the graph, user): circle with a horizontal bar = closed automatic block, vertical
   bar = open automatic block, solid black = electromechanical block, zigzag S inside = electrified (combined with the

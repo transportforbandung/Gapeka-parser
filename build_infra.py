@@ -1137,6 +1137,25 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
     diagrams, layout_refs = station_layouts.read_all(doc, out, rows_by_page, ocr)
     station_layouts.write(out, diagrams, layout_refs)
+    # position-only diagrams (pointer arrow / nearest row): reviewed Nov 2026 -> flag only those whose end labels do
+    # not name stations within 3 rows of the assigned station on that page (halts / stations without a diagram are
+    # skipped by the labels); Sukabumi (Gds = Gandasoli, the Cianjur line on page 28) and Indro (Kandangan beyond the
+    # sheet-only stops) were checked by eye and are right
+    # no end labels read: checked by eye (diagram on the station's row, neighbours fit); Panarukan line = inactive
+    reviewed_ok = {("SI", 19), ("IDO", 44), ("RK", 7), ("JAKK", 19), ("CCR", 19), ("PRK", 19), ("CBD", 19), ("CSA", 19),
+                   ("KGD", 35), ("MGS", 35), ("SN", 47), ("?panarukan", 50), ("?situbondo", 50), ("?prajekan", 50),
+                   ("?bonosare", 50), ("?bondowoso", 50), ("?grujugan", 50), ("?tamanan", 50)}
+    for st, pg, y, how, le, rgt in out.execute(
+            "select station, page, y, evidence, left_ends, right_ends from station_layouts "
+            "where evidence like 'nearest row%' or evidence like 'pointer%'"):
+        codes = [r["code"] for r in per_page.get(pg, {}).get("rows", [])]
+        near = set()
+        for k, c in enumerate(codes):
+            if c == st:
+                near |= set(codes[max(0, k - 3):k + 4])
+        ends = set((le or "").split()) | set((rgt or "").split())
+        if (st, pg) not in reviewed_ok and (not ends or not ends <= near):
+            qa.append(("station diagram assigned by position only (check)", st, f"page {pg} y {y:.0f}, {how}"))
     for u in station_layouts.unread_labels:
         qa.append(("track label on no track line (check the diagram)", f"page {u['page']} y {u['y']}",
                    u["label"] + (" (OCR)" if u["ocr"] else "")))
@@ -1144,9 +1163,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         if not d.get("station"):
             qa.append(("station diagram without a station", f"page {d['page']} y {d['y0']:.0f}",
                        " ".join(t["no"] for t in d["tracks"])))
-        elif d["how"].startswith(("nearest row", "pointer")):
-            qa.append(("station diagram assigned by position only (check)", d["station"],
-                       f"page {d['page']} y {d['y0']:.0f}, {d['how']}, tracks " + " ".join(t["no"] for t in d["tracks"])))
+
 
     # ---- QA
     covered = {frozenset(k) for k in sections}
