@@ -6,7 +6,8 @@ the train's position is interpolated by km between its timed rows. Per closable 
 listed in time order with a flag (closed / open for this train), and the possible closing windows are the runs of
 'closed' trains. Rules tested for which station a mark belongs to:
   either  - the station is closed for the train if a mark sits on either sub-section next to it
-  both    - only if the train is marked on both sub-sections next to it (inside the arrow)
+  both    - only if the train is marked on both sub-sections next to it, or on one side whose far end is an
+            arrow end (open boundary station: the mark can only mean this station; user)
 Check: crossings / overtakes printed at a closable station (notes 'x' / '//' / '=') need the station open.
 Usage: python3 research/dinas_tutup_periods.py [either|both]"""
 import collections
@@ -115,7 +116,14 @@ for a, b, closed, pg in pieces:
             if tm is None:
                 continue
             m = marked.get(no, set())
-            flag = (bool(prev_ & m) and bool(next_ & m)) if RULE == "both" else bool((prev_ | next_) & m)
+            if RULE == "both":
+                # marked on both sides; or on one side whose far end is an arrow end (an open boundary station):
+                # that mark can only mean this station (user: Karangkandri, the only closable station between
+                # Gumilir and Kasugihan; Cireungas is closed only when the Gandasoli side is marked)
+                pm, nmk = bool(prev_ & m), bool(next_ & m)
+                flag = (pm and nmk) or (pm and i0 == 0) or (nmk and i1 == len(seq) - 1)
+            else:
+                flag = bool((prev_ | next_) & m)
             rowsv.append((tm % DAY, no, flag))
         rowsv.sort()
         # windows of consecutive closed trains (cyclic)
@@ -215,6 +223,23 @@ for a, b, pg, st, n, nc, wins, rowsv, conflicts, um in report:
             f = fit_hours(rv, meets.get(st, []))
             note = f"main window only ({nc - len(keep)} isolated closed passes ignored)"
     if f is None:
+        # short working hours (user: Lampegan): the station is open only briefly; fit the OPEN window instead = the
+        # widest window on 10-minute steps between the closed passes that holds every open pass (open >= 10 min
+        # before each) -> closed = the rest of the day
+        cl = sorted(t / 60 for t, _, fl in rowsv if fl)
+        op = sorted(t / 60 for t, _, fl in rowsv if not fl) + [t / 60 for t, _, _ in meets.get(st, [])]
+        if cl and op:
+            o = op[0]
+            before = max([c for c in cl if c < o] or [max(cl) - 1440])
+            after = min([c for c in cl if c > o] or [min(cl) + 1440])
+            o0 = int(-(-(before + 1) // 10) * 10)           # first 10-min step after the last closed pass
+            o1 = int((after - 1) // 10 * 10)                # last 10-min step before the next closed pass
+            if all((t - o0) % 1440 >= 10 and (t - o0) % 1440 <= (o1 - o0) % 1440 for t in op):
+                print(f"  {nm.get(st, st):14s} short working hours: open {hhmm(o0)} - {hhmm(o1)}, "
+                      f"closed {hhmm(o1)} - {hhmm(o0)} ({((o0 - o1) % 1440) / 60:.1f} h)")
+                rows_out.append((st, a, b, hhmm(o1), hhmm(o0), round(((o0 - o1) % 1440) / 60, 1), "",
+                                 "short working hours (user): open window fitted between the closed passes"))
+                continue
         print(f"  {nm.get(st, st):14s} no 8 / 16 h window fits")
         rows_out.append((st, a, b, "", "", "", "", "no 8 / 16 h window fits the marks"))
         continue

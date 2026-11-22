@@ -344,10 +344,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   Kediri-Blitar-Malang: closed ~20:00-22:30 to ~03:00-07:00; Salem daytime ~06-07 to ~14-15; Banyuwangi-Jember-
   Pasuruan line: closed most of the day, open only in a 4-10 h window (Argopuro open only at night). No marks: Sukabumi
   line (page 28) and Karangkandri (page 35): their marks are rotated '=' CHARACTERS (ArialMT text), not drawings;
-  now read (closed_pass_marks adds '=' words), times from the hour grid. Karangkandri: 7 trains pass closed 23:03-03:42
-  (last open 2751F 21:23, first open 2712 04:19 -> at most ~6 h 45 min fits: no 8 h shift). Sukabumi line: all 6
-  daily Siliwangi trips mostly marked (stations closed nearly all day, still used as stops), but marks are not on
-  both sides of every station (351 / 354 at Cireungas one side only): patchy, Lampegan fits no shift.
+  now read (closed_pass_marks adds '=' words), times from the hour grid. One-side rule (user): a station is closed
+  for a train marked on both sides, OR on one side whose far end is an arrow end (open boundary station: the mark can
+  only mean this station). Karangkandri (only closable station Gumilir - Kasugihan): 2712 passes closed (one-side
+  mark), first open train 2711 -> 21:40-05:40 (8 h). Sukabumi line: marks before and after Lampegan = Lampegan closed
+  while Cireungas / Cibeber are open; Cireungas closed only when the Gandasoli side is marked -> 16:30-08:30 (16 h).
+  Lampegan has short working hours (user): open only around 353 (15:39); fitted as an OPEN window between the closed
+  passes, 11:30-17:10 (closed 17:10-11:30, 18.3 h). Other stations keep the general rule unless the same case.
   ')(' marks: not found anywhere in the PDF (an earlier note of mine, not a sheet symbol). Triangles after names
   are irrelevant except the joint-dispatch triangle; single / double underlined names = crew tasks (user).
   PD 19 Jilid I Bab VI "Ketentuan perjalanan KA pada waktu kerja tutup" (web excerpts of unofficial copies; the full
