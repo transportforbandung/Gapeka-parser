@@ -63,6 +63,8 @@ CREATE TABLE section_systems(a TEXT, b TEXT, variant TEXT DEFAULT '', block_syst
 CREATE TABLE joint_dispatch(station TEXT, dispatcher TEXT, position TEXT, triangle TEXT, page INTEGER,
                             PRIMARY KEY(station, dispatcher));
 CREATE TABLE dinas_tutup(end_a TEXT, end_b TEXT, closed TEXT, page INTEGER, PRIMARY KEY(end_a, end_b));
+CREATE TABLE dinas_tutup_marks(end_a TEXT, end_b TEXT, row_above TEXT, row_below TEXT, frac REAL, time_s INTEGER,
+                               page INTEGER, x REAL, y REAL);
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -674,6 +676,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         syms = section_symbols.read_page(page)
         prof["boxes"] = section_symbols.control_boxes(page)
         prof["dinas_tutup"] = section_symbols.dinas_tutup(page)
+        prof["hour_axis"] = section_symbols.hour_axis(page)
+        prof["dt_marks"] = section_symbols.closed_pass_marks(page) if prof["dinas_tutup"] else []
         for p in prof["pairs"]:
             p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
         per_page[i + 1] = prof
@@ -1080,7 +1084,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
 
     # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
     #      arrow) every station can be closed in a set period, the end stations then work the section together
-    dt = {}
+    dt, dt_marks = {}, []
     for pg, prof in sorted(per_page.items()):
         rows = prof["rows"]
         for ar in prof.get("dinas_tutup", []):
@@ -1103,7 +1107,19 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     qa.append(("dinas tutup piece without a station between (ignored)", f"{a}-{b}", f"page {pg}"))
                     continue
                 dt.setdefault((a, b), (closed, pg))
+                # '=' marks on train lines inside this piece: trains passing during dinas tutup (user)
+                ax = prof.get("hour_axis")
+                lo, hi = rows[min(i, j)]["y"], rows[max(i, j)]["y"]
+                for mx, my in prof.get("dt_marks", []):
+                    if not (lo < my < hi) or ax is None:
+                        continue
+                    k = max(n for n in range(min(i, j), max(i, j)) if rows[n]["y"] < my)
+                    t = round((ax[0] + ax[1] * mx) * 3600)
+                    frac = (my - rows[k]["y"]) / max(rows[k + 1]["y"] - rows[k]["y"], 1e-6)
+                    dt_marks.append((a, b, rows[k]["code"], rows[k + 1]["code"], round(frac, 3), t, pg, round(mx, 1),
+                                     round(my, 1)))
     out.executemany("insert into dinas_tutup values(?,?,?,?)", [k + v for k, v in dt.items()])
+    out.executemany("insert into dinas_tutup_marks values(?,?,?,?,?,?,?,?,?)", dt_marks)
 
     # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
     rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}

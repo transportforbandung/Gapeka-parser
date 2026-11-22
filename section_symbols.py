@@ -175,3 +175,58 @@ def dinas_tutup(page):
             clean.append(y)
         out.append(dict(x=x, stops=clean))
     return out
+
+
+def hour_axis(page):
+    """(a, b): time in hours = a + b * x, fitted to the hour labels above the graph; None if not found."""
+    ws = [w for w in page.get_text("words") if w[0] > 360 and w[1] < 600 and w[4].isdigit() and len(w[4]) <= 2
+          and w[3] - w[1] > 8]
+    rows = Counter(round(w[1]) for w in ws)
+    best = None
+    for y, n in rows.most_common(5):
+        pts = sorted(((w[0] + w[2]) / 2, int(w[4])) for w in ws if abs(round(w[1]) - y) <= 3)
+        vals = [v for _, v in pts]
+        if len(set(vals)) != len(vals):
+            continue
+        if len(pts) >= 6 and all(b_ - a_ == 1 for a_, b_ in zip(vals, vals[1:])):
+            best = pts
+            break
+    if not best:
+        return None
+    n = len(best)
+    mx = sum(x for x, _ in best) / n
+    mv = sum(v for _, v in best) / n
+    b = sum((x - mx) * (v - mv) for x, v in best) / sum((x - mx) ** 2 for x, _ in best)
+    return mv - b * mx, b
+
+
+def closed_pass_marks(page, x_min=375):
+    """'=' marks on train lines (user): two short parallel strokes across a train line = the train passes a station
+    that is closed (dinas tutup). Returns [(x, y)] mark centres."""
+    segs = []
+    for dr in page.get_drawings():
+        w = dr.get("width") or 0
+        if dr["type"] != "s" or not 0.6 < w < 1.2 or dr["rect"].x0 < x_min or dr["rect"].x1 > 1640:
+            continue
+        for it in dr["items"]:
+            if it[0] != "l":
+                continue
+            a, b = it[1], it[2]
+            dx, dy = b.x - a.x, b.y - a.y
+            L = (dx * dx + dy * dy) ** 0.5
+            if 4 < L < 13 and abs(dy) < 0.6 * L:
+                segs.append(((a.x + b.x) / 2, (a.y + b.y) / 2, dy / dx if dx else 99))
+    segs.sort()
+    out, used = [], set()
+    for i, s in enumerate(segs):
+        if i in used:
+            continue
+        for j in range(i + 1, len(segs)):
+            t = segs[j]
+            if t[0] - s[0] > 4.5:
+                break
+            if j not in used and abs(t[1] - s[1]) < 3.5 and abs(t[2] - s[2]) < 0.15 and (t[0] - s[0]) ** 2 + (t[1] - s[1]) ** 2 > 1:
+                used |= {i, j}
+                out.append(((s[0] + t[0]) / 2, (s[1] + t[1]) / 2))
+                break
+    return out

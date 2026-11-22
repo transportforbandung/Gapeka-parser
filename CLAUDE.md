@@ -298,6 +298,17 @@ Read this first. It records decisions and findings from earlier sessions so they
   are INVALID (user: leftovers of older GAPEKA editions, e.g. Purwoasri's dinas tutup was lifted): dropped, listed
   in qa (Kertosono-Purwoasri-Papar, Susuhan-Kediri, Ngunut-Rejotangan, Probolinggo-Bayeman-Grati). Timetable: trains stand at the end stations at 00-03 h but almost never
   at the closable ones (supports it; the period per section is not printed in the strip).
+  Closing periods (user: KAI does not publish them): train lines marked '=' (two short parallel strokes across the
+  line; 0.75 pt slanted on p44-51, 1.13 pt horizontal on p41) pass closed stations. section_symbols.
+  closed_pass_marks() + hour_axis() (hour labels above the graph) -> infra.db dinas_tutup_marks (piece, rows of the
+  sub-section, frac, time). research/dinas_tutup_periods.py matches each mark to the train at that spot (km
+  interpolated between timed rows) and lists per closable station the closed windows (runs of closed passes, bounded
+  by the last / first open train): output research/dinas_tutup_periods.txt. A mark covers only its sub-section: a
+  station is closed for a train when the train is marked on BOTH sides (out to the next real station; halts are
+  transparent) -> 0 of 76 crossings / overtakes at closable stations fall in a closed window ('either side': 8).
+  Kediri-Blitar-Malang: closed ~20:00-22:30 to ~03:00-07:00; Salem daytime ~06-07 to ~14-15; Banyuwangi-Jember-
+  Pasuruan line: closed most of the day, open only in a 4-10 h window (Argopuro open only at night). No marks: Sukabumi
+  line (page 28) and Karangkandri (page 35, no text hour axis): never closed in this edition, or not readable.
 - Tarik to Sepanjang has a long local restriction (100 km/h) on the hulu track only.
 - Bekasi is where most trains stop.
 - Kiaracondong arrivals from Gedebage also cross the crossover, slightly shorter than departures (one crossover fewer
