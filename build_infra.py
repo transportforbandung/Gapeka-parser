@@ -65,6 +65,7 @@ CREATE TABLE joint_dispatch(station TEXT, dispatcher TEXT, position TEXT, triang
 CREATE TABLE dinas_tutup(end_a TEXT, end_b TEXT, closed TEXT, page INTEGER, PRIMARY KEY(end_a, end_b));
 CREATE TABLE dinas_tutup_marks(end_a TEXT, end_b TEXT, row_above TEXT, row_below TEXT, frac REAL, time_s INTEGER,
                                page INTEGER, x REAL, y REAL);
+CREATE TABLE sheet_pairs(page INTEGER, a TEXT, b TEXT, y_a REAL, y_b REAL, tbl INTEGER);
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -1081,6 +1082,10 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     pos = "end" if any(r is e for e, _ in ends) else "inside"
                     jd.setdefault((r["code"], disp[0]["code"]), (pos, tri, pg))
     out.executemany("insert into joint_dispatch values(?,?,?,?,?)", [k + v for k, v in jd.items()])
+    # station rows of every page: adjacent pairs with their y positions (graph reading, e.g. KA Dinas lines)
+    out.executemany("insert into sheet_pairs values(?,?,?,?,?,?)",
+                    [(pg, p["a"], p["b"], round(p["y_a"], 1), round(p["y_b"], 1), p.get("table"))
+                     for pg, prof in sorted(per_page.items()) for p in prof["pairs"]])
 
     # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
     #      arrow) every station can be closed in a set period, the end stations then work the section together

@@ -109,6 +109,22 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Halts between Wonokromo and Sidoarjo are inactive but still in GAPEKA (user): keep them.
 - KA Dinas passing times (model, scaled to the index times) are OK for now (user will check the graph later); pass
   rows without a printed time stay empty (user).
+- KA Dinas from the graph (dinas_graph.py, pipeline step 9b; user: only KA Dinas, regular trains keep timetable
+  times): every dashed stroke and every filled line outline in the graph area (sampled at each station row; arrowheads
+  widen it up to 8 pt) -> (time, y) with the hour GRID (section_symbols.grid_axes: grid spacing + page position in its
+  group, page 28 = two 12 h graphs; agrees with the hour labels within 0.7 min); pieces cut at page edges joined
+  (also last page -> first page at midnight). infra.db sheet_pairs (page, adjacent rows with y) maps y to stations; a
+  segment may cross several rows (halts) in one stroke. Per KA Dinas a beam search follows its stops path from the
+  index departure (+-6 min; a later start row allowed: part of a route may be undrawn, e.g. Sidotopo-Surabaya Kota),
+  gaps <= 10 min. Labels: 'LL101' / 'DL2509-2' = timetable L101 / L2509-2; 'DR...' have no timetable train.
+  Result: 541 / 550 found (464 label beside the line, 30 no label anywhere, 47 label elsewhere = doubtful, model
+  kept); 1292 passing times 'dinas-graph' in halt_est (graph - model: median 0, p5 -2.5 / p95 +2.4 min), only inside
+  the index window (+-5 min) and never backwards; printed start / end times kept. gapeka.db dinas_graph (rows crossed,
+  status) and dinas_graph_flags: 9 timetable KA Dinas not on the graph (Cilacap L2711, Surabaya yard R97-4 / R98-3 /
+  L84-4 / L809 / L810, R1784-1, L212-3), 42 graph labels without a timetable train (DR... freight trainset moves,
+  Surabaya L5-4 ... L12-3 / R951-R954, page 35-37 fragments 'L27' / 'L271' / 'L272' / 'LL5' = split labels of
+  L2711 / L2712 / ...?), 10 end times off the index, 27 partial routes. Some train lines are drawn a few minutes off
+  their printed times (see dinas tutup note).
 - Rolling-stock duties (rosters.py, pipeline step 6b): O.18 diagrams are time-bar charts, one row per unit per day.
   Locomotive pages 1680-1700 (row label = number in the first column; train numbers with names above the bar,
   KA Dinas R/L moves below), KRD page 1704 and KRL loops 1796-1803 / 1817 / 1821-1824 (line above the bar alternates

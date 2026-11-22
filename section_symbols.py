@@ -230,3 +230,35 @@ def closed_pass_marks(page, x_min=375):
                 out.append(((s[0] + t[0]) / 2, (s[1] + t[1]) / 2))
                 break
     return out
+
+
+GROUPS = [(7, 12), (13, 18), (19, 24), (25, 27), (28, 28), (29, 31), (32, 34), (35, 37), (38, 40), (41, 43), (44, 46),
+          (47, 49), (50, 51)]
+
+
+def grid_axes(page, pno):
+    """Time axes of a graph page from its hour grid lines: [dict(y0, y1, x0, spacing, h0)], time in hours at x =
+    h0 + (x - x0) / spacing within the band y0..y1. A page covers 24 h / pages in its group; page 28 holds two graphs
+    (top 0-12 h, bottom 12-24 h)."""
+    import statistics
+    g = next(g for g in GROUPS if g[0] <= pno <= g[1])
+    n = g[1] - g[0] + 1
+    lines = [dr["rect"] for dr in page.get_drawings() if dr["type"] == "s" and dr["rect"].width < 1.5
+             and dr["rect"].height > 200 and 340 < dr["rect"].x0 < 1700]
+    bands = {}
+    for r in lines:
+        key = next((k for k in bands if abs(k[0] - r.y0) < 5 and abs(k[1] - r.y1) < 5), None)
+        bands.setdefault(key or (r.y0, r.y1), []).append(r.x0)
+    bands = sorted((k, sorted(set(round(x, 1) for x in v))) for k, v in bands.items() if len(set(round(x) for x in v)) >= 4)
+    out = []
+    for bi, ((y0, y1), xs) in enumerate(bands):
+        diffs = [b - a for a, b in zip(xs, xs[1:]) if b - a > 40]
+        s = statistics.median(diffs)
+        offs = [x - s * round((x - 370) / s) for x in xs]
+        x0 = statistics.median(offs)
+        if len(bands) == 2 and n == 1:
+            h0 = 12 * bi
+        else:
+            h0 = (pno - g[0]) * 24 / n
+        out.append(dict(y0=y0, y1=y1, x0=x0, spacing=s, h0=h0))
+    return out
