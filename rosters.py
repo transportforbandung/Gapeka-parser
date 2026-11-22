@@ -161,3 +161,70 @@ if __name__ == "__main__":
     for kind in ("loco", "krd", "krl"):
         for r in [r for r in R if r["kind"] == kind][:2]:
             print(kind, r["page"], r["unit"][:50], r["trains"][:14])
+
+
+# ------------------------------------------------------------------ rangkaian pokok (Buku Dukungan Sarana, Lampiran III)
+POKOK_TOKEN = re.compile(r"[RL]\d+F?-\d(?=$|[-/\s])|[RL]?\d+F?")
+
+
+def read_pokok(doc, first=1674, last=1824):
+    """'RANGKAIAN POKOK' tables of KRL / KRD sets (user: the trainset duties, KRL and KRD in their own sections):
+    one row per set with the chain of trains it works in the day ('1125-1126-1187-...', KA Dinas 'R1505-2' included)
+    and SF = cars per set. Rows may wrap over several lines above / below the row line (Basoetta).
+    Returns [dict(kind, page, row, trains, sf)]."""
+    out = []
+    for pno in range(first, last + 1):
+        page = doc[pno - 1]
+        text = " ".join(page.get_text().split())
+        m = re.search(r"RANGKAIAN POKOK (KRL|KRD|KA LOKAL)", text)
+        if not m:
+            continue
+        kind = {"KRL": "krl", "KRD": "krd", "KA LOKAL": "krl"}[m.group(1)]
+        words = page.get_text("words")
+        sf = [w for w in words if w[4] == "SF"]
+        nama = [w for w in words if w[4] == "NAMA"]
+        if not sf or not nama:
+            continue
+        sf_x = (sf[0][0] + sf[0][2]) / 2
+        head_y = max(sf[0][3], nama[0][3])
+        no_w = min((w for w in words if w[4] == "NO" and w[1] < head_y + 2), key=lambda w: w[0])
+        loop_w = [w for w in words if w[4] == "LOOP" and w[1] < head_y + 2]
+        skip_x = [no_w[0]] + [w[0] for w in loop_w]
+        x_chain0, x_chain1 = no_w[2] + 4, nama[0][0] - 3
+        # rows: a number in the NO column (header 'NO') with an SF figure on the same line
+        anchors = []
+        for w in words:
+            if w[1] > head_y and abs(w[0] - no_w[0]) < 10 and re.fullmatch(r"\d+", w[4]):
+                cy = (w[1] + w[3]) / 2
+                s = [v for v in words if abs((v[0] + v[2]) / 2 - sf_x) < 12 and re.fullmatch(r"\d+", v[4])
+                     and abs((v[1] + v[3]) / 2 - cy) < 4]
+                if s:
+                    anchors.append((cy, int(w[4]), int(s[0][4])))
+        if not anchors:
+            continue
+        toks = defaultdict(list)
+        for w in words:
+            cy = (w[1] + w[3]) / 2
+            if w[1] <= head_y or not (x_chain0 < w[0] < x_chain1) or not re.search(r"\d", w[4]):
+                continue
+            a = min(anchors, key=lambda r: abs(r[0] - cy))
+            if abs(a[0] - cy) > 14:
+                continue
+            if re.fullmatch(r"\d+", w[4]) and any(abs(w[0] - x) < 10 for x in skip_x):
+                continue                                         # the NO / LOOP numbers of the row
+            toks[a].append((round(cy), w[0], w[4]))
+        for a in anchors:
+            parts = [t[2] for t in sorted(toks[a])]
+            chain = "".join(p if p.startswith(("-", "/")) or (i and parts[i - 1].endswith(("-", "/"))) else
+                            (" " + p if i else p) for i, p in enumerate(parts))
+            trains = POKOK_TOKEN.findall(chain)
+            # drop the loop number if it slipped in first (it sits just left of the chain on some pages)
+            out.append(dict(kind=kind, page=pno, row=a[1], trains=trains, sf=a[2]))
+    # the KRL sets are listed twice (by depot, pages 1787-1790, and by line, 1791-1795): keep each chain once
+    seen, uniq = set(), []
+    for r in out:
+        k = tuple(r["trains"])
+        if k and k not in seen:
+            seen.add(k)
+            uniq.append(r)
+    return uniq

@@ -312,9 +312,20 @@ Read this first. It records decisions and findings from earlier sessions so they
   R334-1 Jatinegara); the others look like a missing move or a reading problem (KRL loops skipping a trip, e.g. 1517
   ends Jakarta Kota -> 1523 starts Nambo; locomotive rows mixing two units, e.g. 2708F / L2724F-1 / 2710F around
   Solo - Cirebon; units 202 / 667 typed krl). connects = NULL (464): one of the trains has no stops (not timed).
-- Train length for the fit checks: consists from the stamformasi tables only (cars x 21 m + 16 m locomotive):
-  intercity 287 / 345, commuter 126 / 280, freight 2 / 126, KRL 0 / 1342, KA Dinas 0; trains without a consist are
-  not checked.
+- KA Dinas numbering (user): a KA Dinas carries the CORE number of the regular trip it belongs to: 333 ends at
+  Pasarsenen -> the set moves as R333, or R333-2 when it changes direction (L = locomotive, R = trainset).
+- Buku Dukungan Sarana (Lampiran III, PDF pages 1674-1824; user: all rosters can be checked there, KRL / KRD in
+  their own sections): 'RANGKAIAN POKOK' tables = one row per set with its day's train chain ('1125-1126-1187-...')
+  and SF (cars per set): KRD 1705-1706 (13 sets), KRL Jabodetabek 1787-1790 (86 sets; 1791-1795 repeat them by line),
+  Basoetta 1816 (5), Yogyakarta area 1821 (8); freight sets 1758-1766 (wagon counts, not read yet).
+  rosters.read_pokok() -> gapeka.db rangkaian_pokok (set_id, kind, page, row, seq, train_no, cars, connects): 1469 of
+  1473 consecutive trains connect (old KRL time-bar reading: 34 breaks, e.g. it skipped 1516 between 1243 and 1517).
+  Use rangkaian_pokok for KRL / KRD duties; roster_duties stays for locomotives. SF also fills consists for every KRL
+  / KRD train (locomotive NULL): consists now intercity 313 / 345, commuter 272 / 280, KRL 1342 / 1342, freight
+  2 / 126. layout_checks with KRL: waits 0.7 % longer than the longest Roman track (same 6 cases, all follow the
+  crossing rule); the fit formula still adds 16 m of locomotive to KRL (conservative).
+- Train length for the fit checks: consists (cars x 21 m + 16 m locomotive): stamformasi tables + rangkaian pokok
+  (see above); trains without a consist (most freight, KA Dinas) are not checked.
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

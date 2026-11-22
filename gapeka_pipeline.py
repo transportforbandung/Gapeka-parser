@@ -1260,6 +1260,25 @@ def add_rosters(db, pdfs):
                           page INTEGER);""")
     db.executemany("INSERT INTO consists VALUES(?,?,?,?,?,?)",
                    [(n, c["cars"], c["sets"], c["total_cars"], c["locomotive"], c["page"]) for n, c in cons.items()])
+    # rangkaian pokok (Buku Dukungan Sarana): the day's train chain of every KRL / KRD set and its cars (SF). Cleaner
+    # than the time-bar loops for KRL / KRD (1469 of 1473 consecutive trains connect); also gives every KRL / KRD
+    # train its set length (consists rows with locomotive NULL)
+    db.executescript("""DROP TABLE IF EXISTS rangkaian_pokok;
+    CREATE TABLE rangkaian_pokok(set_id INTEGER, kind TEXT, page INTEGER, row INTEGER, seq INTEGER, train_no TEXT,
+                                 cars INTEGER, connects INTEGER, PRIMARY KEY(set_id, seq));""")
+    sid = 0
+    for path in pdfs:
+        for r in ro.read_pokok(pymupdf.open(path)):
+            sid += 1
+            prev = None
+            for k, no in enumerate(r["trains"], 1):
+                con = int(last[prev] == first[no]) if prev in last and no in first else None
+                db.execute("INSERT INTO rangkaian_pokok VALUES(?,?,?,?,?,?,?,?)",
+                           (sid, r["kind"], r["page"], r["row"], k, no, r["sf"], con))
+                if no in trains and no not in cons:
+                    cons[no] = None
+                    db.execute("INSERT INTO consists VALUES(?,?,?,?,?,?)", (no, r["sf"], 1, r["sf"], None, r["page"]))
+                prev = no
     return len(rows), ok, tot
 
 
