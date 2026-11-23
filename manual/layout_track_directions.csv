@@ -1,0 +1,10 @@
+page,station,track,usable,main,note
+13,CKR,VI,R,1,"Cikarang: VI is the eastbound main (pass-through track), eastbound only (user)"
+13,CKR,VII,L,1,"Cikarang: VII is the westbound main (user)"
+13,CKR,VIII,L,0,"Cikarang: westbound only (user, confirms the reader)"
+44,SDT,*,LR,0,"Sidotopo is a yard station with no routine through schedule: every Roman track usable both ways (user)"
+35,KRT,IV,L,0,"Kretek IV: loop on the westbound main III at both ends, westbound only (same pattern as Dawuan IV)"
+35,KRL,*,LR,0,"Karangtalun: single-track Cilacap branch; tracks entered by hand (labels unreadable), no switch geometry: both ways"
+19,BTT,*,LR,0,"Batutulis: one through track on single track (user: no siding), both ways"
+35,BMA,IV,LR,0,"Bumiayu IV: takes over the direction the reader derived for the misread V (same drawn track)"
+32,SMC,VII,LR,0,"Semarang Poncol VII: usable in both directions (user)"

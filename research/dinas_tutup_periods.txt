@@ -1,0 +1,142 @@
+
+Cipeuyeum  (arrow Ciranjang - Cipatat, page 28): 2 of 6 trains pass it closed
+   closed from 19:46-07:11 to 08:11-12:46  (2 closed passes, last open train before 355, first open after 354)
+
+Rajamandala  (arrow Ciranjang - Cipatat, page 28): 0 of 6 trains pass it closed
+
+Cireungas  (arrow Gandasoli - Cianjur, page 28): 3 of 6 trains pass it closed
+   closed from 15:49-17:08 to 05:38-09:44  (3 closed passes, last open train before 353, first open after 351)
+
+Lampegan  (arrow Gandasoli - Cianjur, page 28): 5 of 6 trains pass it closed
+   closed from 15:39-17:18 to 11:23-15:39  (5 closed passes, last open train before 353, first open after 353)
+
+Sindangresmi  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
+
+Cibeber  (arrow Gandasoli - Cianjur, page 28): 0 of 6 trains pass it closed
+
+Cilaku  (arrow Gandasoli - Cianjur, page 28): 1 of 6 trains pass it closed
+   closed from 20:32-06:26 to 06:26-08:57  (1 closed passes, last open train before 355, first open after 351)
+
+Karangkandri  (arrow Gumilir - Kasugihan, page 35): 8 of 26 trains pass it closed
+   closed from 21:23-23:03 to 04:19-05:54  (8 closed passes, last open train before 2751F, first open after 2711)
+
+Salem  (arrow Sumberlawang - Kalioso, page 38): 9 of 30 trains pass it closed
+   closed from 05:50-07:16 to 13:38-15:22  (9 closed passes, last open train before 233, first open after 287)
+
+Garum  (arrow Blitar - Wlingi, page 41): 8 of 32 trains pass it closed
+   closed from 20:42-21:14 to 04:40-05:41  (8 closed passes, last open train before 79F, first open after 451)
+
+Talun  (arrow Blitar - Wlingi, page 41): 8 of 32 trains pass it closed
+   closed from 20:35-21:21 to 04:48-05:29  (8 closed passes, last open train before 79F, first open after 451)
+
+Ngadiluwih  (arrow Kediri - Kras, page 41): 9 of 38 trains pass it closed
+   closed from 21:48-22:37 to 05:40-07:17  (9 closed passes, last open train before 79F, first open after 451)
+
+Ngujang  (arrow Kras - Tulungagung, page 41): 11 of 38 trains pass it closed
+   closed from 20:45-21:39 to 05:34-06:57  (11 closed passes, last open train before 189, first open after 451)
+
+Minggiran  (arrow Papar - Susuhan, page 41): 9 of 38 trains pass it closed
+   closed from 21:22-22:10 to 05:05-06:04  (9 closed passes, last open train before 444, first open after 449)
+
+Sumbergempol  (arrow Tulungagung - Ngunut, page 41): 10 of 38 trains pass it closed
+   closed from 21:25-22:15 to 05:45-06:39  (10 closed passes, last open train before 79F, first open after 451)
+
+Singosari  (arrow Blimbing - Lawang, page 47): 9 of 32 trains pass it closed
+   closed from 20:49-21:29 to 04:27-05:42  (9 closed passes, last open train before 440, first open after 336F)
+
+Pakisaji  (arrow Kepanjen - Malangkotalama, page 47): 6 of 32 trains pass it closed
+   closed from 20:43-21:53 to 04:02-05:24  (6 closed passes, last open train before 51, first open after 448)
+
+Sumberpucung  (arrow Pogajih - Kepanjen, page 47): 9 of 32 trains pass it closed
+   closed from 22:01-01:48 to 06:59-08:28  (9 closed passes, last open train before 88, first open after 453)
+
+Ngebruk  (arrow Pogajih - Kepanjen, page 47): 7 of 32 trains pass it closed
+   closed from 19:56-20:59 to 02:59-04:23  (7 closed passes, last open train before 79F, first open after 451)
+
+Kesamben  (arrow Wlingi - Pogajih, page 47): 8 of 32 trains pass it closed
+   closed from 19:27-20:17 to 02:37-04:23  (8 closed passes, last open train before 189, first open after 448)
+
+Rejoso  (arrow Grati - Pasuruan, page 50): 21 of 32 trains pass it closed
+   closed from 14:26-15:17 to 06:47-07:49  (21 closed passes, last open train before 313, first open after 43)
+
+Sempolan  (arrow Garahan - Kalisat, page 50): 16 of 26 trains pass it closed
+   closed from 13:46-14:48 to 05:44-06:43  (16 closed passes, last open train before 263, first open after 330)
+
+Ledokombo  (arrow Garahan - Kalisat, page 50): 17 of 26 trains pass it closed
+   closed from 14:40-16:41 to 07:12-08:22  (17 closed passes, last open train before 509, first open after 292)
+
+Mangli  (arrow Jember - Rambipuji, page 50): 17 of 28 trains pass it closed
+   closed from 13:23-15:57 to 05:52-06:34  (17 closed passes, last open train before 174, first open after 83)
+
+Mrawan  (arrow Kalibaru - Garahan, page 50): 18 of 26 trains pass it closed
+   closed from 16:17-17:14 to 08:36-10:25  (18 closed passes, last open train before 84, first open after 331)
+
+Ranuyoso  (arrow Klakah - Malasan, page 50): 18 of 28 trains pass it closed
+   closed from 19:14-20:11 to 11:09-12:03  (18 closed passes, last open train before 148, first open after 263)
+
+Kotok  (arrow Kalisat - Jember, page 50): 17 of 26 trains pass it closed
+   closed from 14:21-16:56 to 07:14-08:37  (17 closed passes, last open train before 509, first open after 292)
+
+Arjasa  (arrow Kalisat - Jember, page 50): 15 of 26 trains pass it closed
+   closed from 14:17-17:00 to 05:12-06:53  (15 closed passes, last open train before 509, first open after 83)
+
+Sumberwadung  (arrow Kalisetail - Kalibaru, page 50): 7 of 26 trains pass it closed
+   closed from 20:36-22:50 to 04:27-06:03  (7 closed passes, last open train before 222F, first open after 330)
+
+Glenmore  (arrow Kalisetail - Kalibaru, page 50): 7 of 26 trains pass it closed
+   closed from 20:42-22:45 to 04:22-06:08  (7 closed passes, last open train before 222F, first open after 330)
+
+Argopuro  (arrow Ketapang - Banyuwangi Kota, page 50): 18 of 26 trains pass it closed
+   closed from 05:23-06:38 to 21:11-22:13  (18 closed passes, last open train before 173, first open after 264)
+
+Leces  (arrow Malasan - Probolinggo, page 50): 18 of 28 trains pass it closed
+   closed from 17:12-18:29 to 09:27-10:28  (18 closed passes, last open train before 44, first open after 292)
+
+Bangsalsari  (arrow Rambipuji - Tanggul, page 50): 18 of 28 trains pass it closed
+   closed from 13:36-16:10 to 06:25-07:50  (18 closed passes, last open train before 174, first open after 330)
+
+Singojuruh  (arrow Rogojampi - Temuguruh, page 50): 18 of 26 trains pass it closed
+   closed from 11:36-14:19 to 05:38-07:07  (18 closed passes, last open train before 174, first open after 292)
+
+Jatiroto  (arrow Tanggul - Klakah, page 50): 7 of 28 trains pass it closed
+   closed from 20:42-21:34 to 03:47-06:00  (7 closed passes, last open train before 332, first open after 83)
+
+Randuagung  (arrow Tanggul - Klakah, page 50): 18 of 28 trains pass it closed
+   closed from 14:02-15:51 to 06:32-08:11  (18 closed passes, last open train before 174, first open after 331)
+
+rule 'both': crossings / overtakes at closable stations 76, inside a closed window 0
+
+Predicted closing hours (8 h shifts, 10 / 5 min steps)
+  Cipeuyeum      closed 02:30 - 10:30 (8 h, step 10 min; possible starts 00:20-04:30) 
+  Cireungas      closed 16:30 - 08:30 (16 h, step 10 min; possible starts 15:50-17:00) 
+  Lampegan       short working hours: open 11:30 - 17:10, closed 17:10 - 11:30 (18.3 h)
+  Cilaku         closed 23:40 - 07:40 (8 h, step 10 min; possible starts 22:30-00:40) 
+  Karangkandri   closed 21:40 - 05:40 (8 h, step 10 min; possible starts 21:30-21:40) 
+  Salem          closed 06:40 - 14:40 (8 h, step 10 min; possible starts 06:00-07:10) 
+  Garum          closed 21:00 - 05:00 (8 h, step 10 min; possible starts 20:50-21:10) 
+  Talun          closed 21:00 - 05:00 (8 h, step 10 min; possible starts 20:50-21:10) 
+  Ngadiluwih     closed 22:10 - 06:10 (8 h, step 10 min; possible starts 21:50-22:30) 
+  Ngujang        closed 21:35 - 05:35 (8 h, step 5 min; possible starts 21:35-21:35) 
+  Minggiran      closed 21:40 - 05:40 (8 h, step 10 min; possible starts 21:30-21:50) 
+  Sumbergempol   closed 22:00 - 06:00 (8 h, step 10 min; possible starts 21:50-22:10) 
+  Singosari      closed 21:10 - 05:10 (8 h, step 10 min; possible starts 20:50-21:20) 
+  Pakisaji       closed 21:00 - 05:00 (8 h, step 10 min; possible starts 20:50-21:10) 
+  Sumberpucung   closed 23:40 - 07:40 (8 h, step 10 min; possible starts 23:00-00:10) 
+  Ngebruk        closed 20:10 - 04:10 (8 h, step 10 min; possible starts 20:00-20:10) 
+  Kesamben       closed 19:50 - 03:50 (8 h, step 10 min; possible starts 19:30-20:10) 
+  Rejoso         closed 15:00 - 07:00 (16 h, step 10 min; possible starts 14:50-15:10) 
+  Sempolan       closed 14:10 - 06:10 (16 h, step 10 min; possible starts 13:50-14:30) 
+  Ledokombo      closed 15:50 - 07:50 (16 h, step 10 min; possible starts 15:20-16:10) 
+  Mangli         closed 14:10 - 06:10 (16 h, step 10 min; possible starts 14:00-14:20) 
+  Mrawan         closed 17:00 - 09:00 (16 h, step 10 min; possible starts 16:40-17:10) 
+  Ranuyoso       closed 19:40 - 11:40 (16 h, step 10 min; possible starts 19:20-19:50) 
+  Kotok          closed 15:50 - 07:50 (16 h, step 10 min; possible starts 15:20-16:20) 
+  Arjasa         closed 14:30 - 06:30 (16 h, step 10 min; possible starts 14:20-14:40) 
+  Sumberwadung   closed 21:20 - 05:20 (8 h, step 10 min; possible starts 20:40-21:50) 
+  Glenmore       closed 21:20 - 05:20 (8 h, step 10 min; possible starts 20:50-21:50) 
+  Argopuro       closed 05:50 - 21:50 (16 h, step 10 min; possible starts 05:30-06:00) 
+  Leces          closed 17:50 - 09:50 (16 h, step 10 min; possible starts 17:30-18:10) 
+  Bangsalsari    closed 15:10 - 07:10 (16 h, step 10 min; possible starts 14:30-15:40) 
+  Singojuruh     closed 14:00 - 06:00 (16 h, step 10 min; possible starts 13:40-14:10) 
+  Jatiroto       closed 21:10 - 05:10 (8 h, step 10 min; possible starts 20:50-21:30) 
+  Randuagung     closed 15:20 - 07:20 (16 h, step 10 min; possible starts 14:40-15:50) 

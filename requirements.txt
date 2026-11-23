@@ -1,0 +1,7 @@
+# gapeka_pipeline.py (and build_infra.py, build_rules.py, gapeka_model.py, rosters.py, train_index.py)
+pymupdf>=1.24
+numpy>=1.24
+scipy>=1.10
+# OCR for graph pages whose text is drawn as outlines (pages 19-24, 35-37 and single name / km cells)
+rapidocr-onnxruntime>=1.2
+# export_poster.py, export_headway.py, export_trains.py and sanity_check.py need only the Python standard library

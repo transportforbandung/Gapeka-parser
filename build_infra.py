@@ -35,6 +35,9 @@ from collections import Counter, defaultdict, deque
 import numpy as np
 import pymupdf
 
+import section_symbols
+import station_layouts
+
 KM = re.compile(r"^\d{1,3}\.\d{3}$")
 TAG = re.compile(r"^(hu|hi|Hu|Hi|HU|HI)([-/ ]?(hu|hi|Hu|Hi))?$")
 INT = re.compile(r"^\d{1,4}$")
@@ -55,6 +58,14 @@ CREATE TABLE restrictions(a TEXT, b TEXT, offset_from_km REAL, offset_to_km REAL
                           speed_kmh INTEGER, tracks TEXT, note TEXT, source TEXT, page INTEGER, variant TEXT DEFAULT '');
 CREATE TABLE block_signals(a TEXT, b TEXT, offset_km REAL, track TEXT, signal_no TEXT, km REAL, kind TEXT, page INTEGER,
                            variant TEXT DEFAULT '');
+CREATE TABLE section_systems(a TEXT, b TEXT, variant TEXT DEFAULT '', block_system TEXT, electrified INTEGER,
+                             symbols INTEGER, detail TEXT, page INTEGER, PRIMARY KEY(a, b, variant));
+CREATE TABLE joint_dispatch(station TEXT, dispatcher TEXT, position TEXT, triangle TEXT, page INTEGER,
+                            PRIMARY KEY(station, dispatcher));
+CREATE TABLE dinas_tutup(end_a TEXT, end_b TEXT, closed TEXT, page INTEGER, PRIMARY KEY(end_a, end_b));
+CREATE TABLE dinas_tutup_marks(end_a TEXT, end_b TEXT, row_above TEXT, row_below TEXT, frac REAL, time_s INTEGER,
+                               page INTEGER, x REAL, y REAL);
+CREATE TABLE sheet_pairs(page INTEGER, a TEXT, b TEXT, y_a REAL, y_b REAL, tbl INTEGER);
 CREATE TABLE double_track_header(line_id TEXT, page INTEGER, chain TEXT, codes TEXT, resolved INTEGER);
 CREATE TABLE qa(check_name TEXT, item TEXT, detail TEXT);
 CREATE VIEW section_lookup AS
@@ -98,7 +109,11 @@ class Names:
         if k in self.by_key:
             return self.by_key[k]
         m = difflib.get_close_matches(k, list(self.by_key), n=1, cutoff=0.86)
-        return self.by_key[m[0]] if m else "?" + k
+        if m:
+            return self.by_key[m[0]]
+        # OCR of a single name cell can clip letters at both ends ("rencen" for Krenceng): a name containing it
+        sub = {c for kk, c in self.by_key.items() if len(k) >= 5 and k in kk}
+        return sub.pop() if len(sub) == 1 else "?" + k
 
 
 # ------------------------------------------------------------------------------------------------ OCR (cached)
@@ -151,6 +166,34 @@ class OCR:
         return words, lines
 
 
+def make_filler(ocr):
+    def fill(page, y, name_x):
+        words, lines = ocr.read(page, pymupdf.Rect(name_x - 25, y - 10, name_x + 130, y + 8), tile=40, z=6,
+                                tag=f"row{int(y)}")
+        t = " ".join(l[4] for l in sorted(lines, key=lambda l: l[0]) if l[4].strip())
+        t = re.sub(r"B\s*[.\-]?\s*h[ui]\b", " ", t)        # automatic block-signal markers in the row
+        if re.search(r"\bkm\b", t, re.I):
+            return None                                       # a block signal with km ("B-2210 km 446.352"): no name
+        return t.strip() or None
+    return fill
+
+
+def make_km_filler(ocr):
+    """km value of a station row that has a name but no km token (italic km of halts, OCR pages: Karangtengah)"""
+    def fill(page, y, letak_x, taken=()):
+        words, lines = ocr.read(page, pymupdf.Rect(letak_x - 6, y - 15, letak_x + 40, y + 15), tile=60, z=6,
+                                tag=f"kmcol{int(y)}")
+        found = []
+        for l in lines:
+            m = re.search(r"\d{1,3}[.,]\d{3}", l[4])
+            if m:
+                v = float(m.group(0).replace(",", "."))
+                if all(abs(v - t) > 0.0005 for t in taken):     # not the km of a neighbouring row
+                    found.append((abs((l[1] + l[3]) / 2 - y), v))
+        return min(found)[1] if found else None
+    return fill
+
+
 def clean_ocr_name(t):
     """OCR adds marks from the dashed CTC boxes ("I Sumpiuh !", ": Karanganyar :") and full-width letters"""
     import unicodedata
@@ -158,6 +201,8 @@ def clean_ocr_name(t):
     if SIGNAL.match(t):
         return t.strip()
     t = re.sub(r"[^A-Za-z .()-]", " ", t)
+    if re.fullmatch(r"\s*([A-Za-z]\s+){2,}[A-Za-z]\s*", t):
+        t = t.replace(" ", "")                   # letters printed with wide spacing ("I j o")
     toks = t.split()
     while toks and len(toks[0]) <= 2 and len(toks) > 1:
         toks.pop(0)
@@ -167,7 +212,7 @@ def clean_ocr_name(t):
 
 
 # ------------------------------------------------------------------------------------------------ one graph page
-def page_profile(page, names, ocr=None):
+def page_profile(page, names, ocr=None, filler=None, km_filler=None):
     """Read the left margin of one graph page. Returns dict(rows=[station rows], pairs=[adjacent pairs]) or None."""
     ws = page.get_text("words")
     left = [w for w in ws if w[0] < 420]
@@ -190,6 +235,8 @@ def page_profile(page, names, ocr=None):
         for k in sorted(rowsw):
             wsr = sorted(rowsw[k], key=lambda w: w[0])
             t = " ".join(w[4] for w in wsr).replace("*", "").strip()
+            if re.fullmatch(r"([A-Za-z]\s+){2,}[A-Za-z]", t):
+                t = t.replace(" ", "")                   # letters printed with wide spacing ("S r o y o")
             kk = key_of(t)
             if len(kk) >= 3 and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t) and "berlaku" not in kk and not SIGNAL.match(t):
                 code, x0 = names.exact(t), wsr[0][0]
@@ -231,14 +278,54 @@ def page_profile(page, names, ocr=None):
     letak = [w for w in kms if abs(w[0] - letak_x) < 9]
     dist_col = [w for w in kms if 10 < letak_x - w[0] < 40]
     dx = statistics.median(w[0] for w in dist_col) if dist_col else letak_x - 22
-    rows = []
+    rows, kmless = [], []                 # kmless: station names without a km value beside them (Soka, page 36)
     for code, y, x, t in lines:
         if abs(x - name_x) > 15:
             continue
         c = [float(w[4]) for w in letak if -7 < cy(w) - y < 11]
+        if not c and km_filler is not None and not code.startswith("?"):
+            k = km_filler(page, y, letak_x, [float(w[4]) for w in letak])
+            c = [k] if k is not None else []
         if c:
             rows.append(dict(code=code, sheet_name=t, y=y, km=c))
+        elif not code.startswith("?"):
+            kmless.append((y, code, t))
+    # a km value in the Letak column without a station name beside it: the name is drawn as outlines (Tanjung on
+    # page 29, Cilaku on page 28) or OCR missed it (Karangtengah, Ijo): OCR that name cell alone, at high zoom
+    if filler is not None:
+        for w in sorted(letak, key=cy):
+            y = cy(w)
+            if any(-11 < y - r["y"] < 7 for r in rows):
+                continue
+            row_kms = [float(v[4]) for v in letak if abs(cy(v) - y) < 3]
+            txt = filler(page, y, name_x)
+            t2 = clean_ocr_name(txt) if txt else ""
+            ok = len(t2) >= 3 and not SIGNAL.match(t2) and re.match(r"^[A-Za-z][A-Za-z .()-]*$", t2)
+            code = names.fuzzy(t2) if ok else "?unnamed"
+            if not ok:
+                # a station name without km just above this km value (Soka: name, then its signals, then the km)
+                above = [k for k in kmless if 0 < y - k[0] < 32 and not any(r["code"] == k[1] for r in rows)]
+                if above:
+                    _, code, t2 = max(above)
+                    ok = True
+            near = [r for r in rows if r["code"] == code and abs(r["y"] - y) < 30]
+            if near and ok:
+                near[0]["km"] = sorted(set(near[0]["km"] + row_kms))     # second km of a junction (Krenceng): same station
+                continue
+            if ok and code.startswith("?") and not names.exact(t2):
+                code = f"?unnamed@{int(y)}"                           # unreadable: resolved from the timetable
+            rows.append(dict(code=code if ok else f"?unnamed@{int(y)}", sheet_name=t2 or "", y=y, km=row_kms, ocr_row=True))
+        rows.sort(key=lambda r: r["y"])
     rows.sort(key=lambda r: r["y"])
+    # a sheet-only row at the same km as the row above is a second name of the same place ("Ssp. Pusri" /
+    # "Kaligunting" at km 145.600): keep one row
+    merged_rows = []
+    for r in rows:
+        if merged_rows and r["code"].startswith("?") and merged_rows[-1]["code"].startswith("?") \
+                and set(r["km"]) == set(merged_rows[-1]["km"]) and r["y"] - merged_rows[-1]["y"] < 30:
+            continue
+        merged_rows.append(r)
+    rows = merged_rows
 
     # ---- restrictions: start/end km tokens, speed printed between them, hu/hi tags right of the start km
     tg = sorted([w for w in kms if w[0] < dx - 15], key=cy)
@@ -397,6 +484,19 @@ def page_profile(page, names, ocr=None):
             if y0 - 10 <= y <= y1 + 10:
                 return n
         return None
+    # ---- the first row of each line's table has a filled triangle pointing down beside its km, the last row one
+    #      pointing up (junctions mid-table can carry triangles too, so only the pair "up, then down" is used)
+    for d in page.get_drawings():
+        rr = d["rect"]
+        pts = [it[1] for it in d["items"] if it[0] == "l"]
+        if d.get("fill") is None or len(pts) != 3 or not (240 < rr.x0 < 300 and 4 < rr.width < 14 and 4 < rr.height < 14):
+            continue
+        ys = sorted(pt.y for pt in pts)
+        down = ys[2] - ys[1] > ys[1] - ys[0]
+        yc = (rr.y0 + rr.y1) / 2
+        near = [r for r in rows if abs(r["y"] - yc) < 12]
+        if near:
+            min(near, key=lambda r: abs(r["y"] - yc))["start" if down else "end"] = True
     # ---- adjacent pairs
     pairs = []
     for A, B in zip(rows, rows[1:]):
@@ -404,6 +504,8 @@ def page_profile(page, names, ocr=None):
             continue
         if segs and table_of(A["y"]) != table_of(B["y"]):
             continue
+        if A.get("end") and B.get("start"):
+            continue                                     # last row of one table, first row of the next
         # km candidates whose difference matches a distance-column value; the distance column skips halts, so it
         # only decides between two km values at a chainage change
         dd = [float(w[4]) for w in dist_col if A["y"] - 2 < cy(w) < B["y"] + 2]
@@ -414,7 +516,17 @@ def page_profile(page, names, ocr=None):
                 err = min((abs(L - x) for x in dd), default=0 if L < 30 else 99)
                 if 0.2 < L < 60 and (best is None or (err, L) < (best[0], abs(best[2] - best[1]))):
                     best = (err, ka, kb)
-        if best is None or (best[0] > 0.05 and (len(A["km"]) > 1 or len(B["km"]) > 1)):
+        if best is not None and best[0] > 0.05 and (len(A["km"]) > 1 or len(B["km"]) > 1):
+            # a row with two km values where one is 0.000 is a chainage restart (Kabat after Banyuwangi Kota):
+            # the line continues from km 0 on this side
+            zero = [(abs(kb - ka), ka, kb) for ka in A["km"] for kb in B["km"] if (kb == 0.0 or ka == 0.0) and 0.2 < abs(kb - ka) < 60]
+            best = (0.0, zero[0][1], zero[0][2]) if zero else None
+            if best is None and (A["code"].startswith("?") or B["code"].startswith("?")):
+                # the distance column skips sheet-only stops, so it cannot check this pair: nearest km values
+                kas = [A["km_in"]] if A.get("km_in") is not None else A["km"]   # keep the km from the previous pair
+                near = sorted((abs(kb - ka), ka, kb) for ka in kas for kb in B["km"] if 0.2 < abs(kb - ka) < 30)
+                best = (0.0, near[0][1], near[0][2]) if near else None
+        if best is None:
             continue
         _, ka, kb = best
         sg = 1 if kb > ka else -1
@@ -447,7 +559,7 @@ def page_profile(page, names, ocr=None):
         A["elev"], B["elev"] = elev_at(A["y"]), elev_at(B["y"])
         tno = table_of(A["y"]) if segs else None
         ctx = " ".join(r["code"] for r in rows if (table_of(r["y"]) if segs else None) == tno)
-        pairs.append(dict(table=tno, context=ctx, a=A["code"], b=B["code"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
+        pairs.append(dict(table=tno, context=ctx, a=A["code"], b=B["code"], y_a=A["y"], y_b=B["y"], km=round(Lp, 3), km_a=ka, km_b=kb, umum=umum_at((A["y"] + B["y"]) / 2),
                           restr=rs, h_a=A["elev"], h_b=B["elev"], blocks=bl, ruling=grad_at(A["y"], B["y"])))
     return dict(rows=rows, pairs=pairs)
 
@@ -554,20 +666,59 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     per_page, headers, ctc = {}, {}, {}
     for i in graph_pages:
         page = doc[i]
-        prof = page_profile(page, names)
+        filler, km_filler = make_filler(ocr), make_km_filler(ocr)
+        prof = page_profile(page, names, filler=filler, km_filler=km_filler)
         used_ocr = False
         if prof is None or len(prof["pairs"]) < 5:
-            prof = page_profile(page, names, ocr=ocr)
+            prof = page_profile(page, names, ocr=ocr, filler=filler, km_filler=km_filler)
             used_ocr = True
         prof = prof or dict(rows=[], pairs=[])
         prof["ocr"] = used_ocr
+        syms = section_symbols.read_page(page)
+        prof["boxes"] = section_symbols.control_boxes(page)
+        prof["dinas_tutup"] = section_symbols.dinas_tutup(page)
+        prof["hour_axis"] = section_symbols.hour_axis(page)
+        prof["grid_axes"] = section_symbols.grid_axes(page, i + 1)
+        prof["dt_marks"] = section_symbols.closed_pass_marks(page) if prof["dinas_tutup"] else []
+        for p in prof["pairs"]:
+            p["sym"] = section_symbols.for_section(syms, p["y_a"], p["y_b"])
         per_page[i + 1] = prof
         headers[i + 1] = header_info(page, ocr if used_ocr else None)
         if not used_ocr:
             for c, pg in find_ctc(page, names).items():
                 ctc.setdefault(c, pg)
+        else:
+            # outlined names (OCR pages 19-24, 35-37): dashed boxes matched to the OCR'd rows by position
+            for c, pg in section_symbols.ctc_rows(page, [(r["code"], r["y"]) for r in prof["rows"]]).items():
+                ctc.setdefault(c, pg)
         print(f"  page {i + 1:3d}: {len(prof['rows']):3d} station rows, {len(prof['pairs']):3d} pairs, "
               f"{sum(len(p['restr']) for p in prof['pairs']):3d} restrictions{'  (OCR)' if used_ocr else ''}")
+
+    # ---- rows whose name cannot be read (Ijo: spaced letters in a dashed box): the station the timetable has
+    #      between the neighbouring rows, if there is exactly one
+    tt_adj = defaultdict(set)
+    for (no,) in ttdb.execute("select no from trains"):
+        sts = [r[0] for r in ttdb.execute("select station from stops where train_no=? order by seq", (no,))]
+        for x, y in zip(sts, sts[1:]):
+            tt_adj[x].add(y)
+            tt_adj[y].add(x)
+    for pg, prof in per_page.items():
+        rows = prof["rows"]
+        for i, r in enumerate(rows):
+            if not r["code"].startswith("?unnamed"):
+                continue
+            a = rows[i - 1]["code"] if i > 0 else None
+            b = rows[i + 1]["code"] if i + 1 < len(rows) else None
+            cand = (tt_adj.get(a, set()) & tt_adj.get(b, set())) - {a, b}
+            new = next(iter(cand)) if len(cand) == 1 else "?" + (key_of(r["sheet_name"]) or f"row{int(r['y'])}")
+            if len(cand) == 1:
+                qa.append(("station name from timetable neighbours", new, f"page {pg}, between {a} and {b}, OCR '{r['sheet_name']}'"))
+            for p in prof["pairs"]:
+                if p["a"] == r["code"]:
+                    p["a"] = new
+                if p["b"] == r["code"]:
+                    p["b"] = new
+            r["code"], r["sheet_name"] = new, (names.names.get(new) or r["sheet_name"])
 
     # ---- names shared by several stations: take the code the timetable runs next to the neighbouring rows
     adjacent = defaultdict(set)
@@ -633,27 +784,44 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     continue
                 sections[k] = dict(p, line=ln["id"], page=pg, source="sheet", via=None)
 
-    # ---- join through stops that are on the sheet but not in the timetable (Bangsal, Kumendung, ...)
-    for (a, m), p1 in list(sections.items()):
-        if not m.startswith("?"):
-            continue
-        for (m2, b), p2 in list(sections.items()):
-            if m2 != m or b.startswith("?") or (a, b) in sections or (b, a) in sections:
-                continue
-            L1 = p1["km"]
-            rs = [dict(r) for r in p1["restr"]] + [dict(r, o0=round(r["o0"] + L1, 3), o1=round(r["o1"] + L1, 3)) for r in p2["restr"]]
-            u1, u2 = p1["umum"], p2["umum"]
-            umum = max(x for x in (u1, u2) if x) if (u1 or u2) else None
-            if u1 and umum and u1 < umum:
-                rs.append(dict(o0=0.0, o1=L1, v=u1, tags="", note="Umum of the first part"))
-            if u2 and umum and u2 < umum:
-                rs.append(dict(o0=L1, o1=L1 + p2["km"], v=u2, tags="", note="Umum of the second part"))
-            bl = [dict(b_) for b_ in p1["blocks"]] + [dict(b_, o=round(b_["o"] + L1, 3)) for b_ in p2["blocks"]]
-            r1, r2 = p1.get("ruling"), p2.get("ruling")
-            ruling = round((r1 * L1 + r2 * p2["km"]) / (L1 + p2["km"]), 1) if r1 is not None and r2 is not None else None
-            sections[(a, b)] = dict(a=a, b=b, km=round(L1 + p2["km"], 3), km_a=p1["km_a"], km_b=p2["km_b"], umum=umum,
-                                    restr=rs, h_a=p1["h_a"], h_b=p2["h_b"], blocks=bl, ruling=ruling,
-                                    line=p1["line"], page=p1["page"], source="sheet (joined)", via=m[1:])
+    # ---- join through stops that are on the sheet but not in the timetable (Bangsal, Kumendung, ...), also through
+    #      several in a row (Indro - Karangkering - Kalitangi - Rumah - Kandangan)
+    def joined(p1, p2, a, b, via):
+        L1 = p1["km"]
+        rs = [dict(r) for r in p1["restr"]] + [dict(r, o0=round(r["o0"] + L1, 3), o1=round(r["o1"] + L1, 3)) for r in p2["restr"]]
+        u1, u2 = p1["umum"], p2["umum"]
+        umum = max(x for x in (u1, u2) if x) if (u1 or u2) else None
+        if u1 and umum and u1 < umum:
+            rs.append(dict(o0=0.0, o1=L1, v=u1, tags="", note="Umum of the first part"))
+        if u2 and umum and u2 < umum:
+            rs.append(dict(o0=L1, o1=L1 + p2["km"], v=u2, tags="", note="Umum of the second part"))
+        bl = [dict(b_) for b_ in p1["blocks"]] + [dict(b_, o=round(b_["o"] + L1, 3)) for b_ in p2["blocks"]]
+        r1, r2 = p1.get("ruling"), p2.get("ruling")
+        ruling = round((r1 * L1 + r2 * p2["km"]) / (L1 + p2["km"]), 1) if r1 is not None and r2 is not None else None
+        sym = None
+        if p1.get("sym") and p2.get("sym"):
+            s1, s2 = p1["sym"], p2["sym"]
+            sym = dict(n=s1["n"] + s2["n"], electrified_n=s1["electrified_n"] + s2["electrified_n"],
+                       blocks=dict(Counter(s1["blocks"]) + Counter(s2["blocks"])))
+        return dict(a=a, b=b, km=round(L1 + p2["km"], 3), sym=sym, km_a=p1["km_a"], km_b=p2["km_b"], umum=umum, restr=rs,
+                    h_a=p1["h_a"], h_b=p2["h_b"], blocks=bl, ruling=ruling, line=p1["line"], page=p1["page"],
+                    source="sheet (joined)", via=via, table=p1.get("table"), context=p1.get("context"))
+    partial = {k: dict(p, via=p.get("via")) for k, p in sections.items() if k[1].startswith("?") and not k[0].startswith("?")}
+    for _ in range(6):
+        new = {}
+        for (a, m), p1 in partial.items():
+            for (m2, b), p2 in list(sections.items()):
+                if m2 != m or (a, b) in sections or (b, a) in sections or b == a:
+                    continue
+                via = " ".join(x for x in ((p1.get("via") or ""), m[1:]) if x)
+                j = joined(p1, p2, a, b, via)
+                if b.startswith("?"):
+                    new[(a, b)] = j
+                else:
+                    sections[(a, b)] = j
+        partial = new
+        if not partial:
+            break
 
     # ---- check lengths against the timetable; replace implausible ones by gapeka.db, else drop
     obs = timetable_runs(ttdb)
@@ -706,6 +874,10 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     if os.path.exists(pth):
         for r in csv.DictReader(open(pth)):
             a, b = r["from"], r["to"]
+            if r["km"].strip().lower() == "delete":                 # a false pair (stations not adjacent)
+                gone = sections.pop((a, b), None) or sections.pop((b, a), None)
+                qa.append(("section deleted (manual)", f"{a}-{b}", r["note"] if gone else "not found"))
+                continue
             old = sections.pop((a, b), None) or sections.pop((b, a), None)
             base = old or dict(umum=None, restr=[], h_a=None, h_b=None, blocks=[], ruling=None, line=None, page=None,
                                via=None, km_a=None, km_b=None)
@@ -735,7 +907,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
 
     pth = os.path.join(manual_dir, "section_overrides.csv")
     if os.path.exists(pth):
-        conv = dict(umum_kmh=("umum", int), ruling_gradient_permil=("ruling", float), km=("km", float))
+        conv = dict(umum_kmh=("umum", int), ruling_gradient_permil=("ruling", float), km=("km", float),
+                    double_track=("double_track_manual", int))
         for r in csv.DictReader(open(pth)):
             a, b = r["from"], r["to"]
             p = sections.get((a, b)) or sections.get((b, a))
@@ -836,6 +1009,11 @@ def build(pdf_path, tt_path, out_path, manual_dir):
                     [(ln["id"], ln["title"], " ".join(map(str, ln["pages"])), headers[ln["best"]][0]) for ln in lines])
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
+    sys_manual, sys_used = {}, set()
+    pth = os.path.join(manual_dir, "section_systems.csv")
+    if os.path.exists(pth):
+        for r in csv.DictReader(open(pth)):
+            sys_manual[(r["from"], r["to"])] = r
     allsec = [((a, b), p, "") for (a, b), p in sections.items()] + [((a, b), p, v) for (a, b, v), p in variants.items()]
     for (a, b), p, var in allsec:
         key = frozenset((a, b))
@@ -843,7 +1021,9 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         has_tags = any(t.startswith(("hu", "hi")) for t in tags)
         # the header lists are not complete (e.g. Jatinegara-Bekasi, quadruple track, is not listed): a section is
         # double track when the header lists it OR its restrictions / block signals are tagged hu / hi
-        if key in dbl:
+        if p.get("double_track_manual") is not None:
+            d, src = p["double_track_manual"], "manual (user)"
+        elif key in dbl:
             d, src = 1, dbl[key]
         elif has_tags:
             d, src = 1, "hu/hi tags on the sheet" + (" (not in the header list)" if p.get("page") in header_pages else "")
@@ -864,10 +1044,126 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             out.execute("insert into restrictions values(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (a, b, r["o0"], r["o1"], kf, kt, r["v"], tracks, r.get("note") or None,
                          r.get("source", p["source"]), p.get("page"), var))
+        bs, el, note = section_symbols.summary_fields(p.get("sym"))
+        ms = sys_manual.get((a, b)) or sys_manual.get((b, a))
+        if ms:
+            bs, el, note = ms["block_system"], int(ms["electrified"]), f"manual: {ms['source']}: {ms['note']}"
+            sys_used.add((ms["from"], ms["to"]))
+        elif p.get("sym"):
+            if note:
+                qa.append(("section symbols mixed (check)", f"{a}-{b}", note))
+        else:
+            # no symbol on the sheet = no block system between the stations, legacy communication (user: the
+            # Surabaya freight / yard branches); also the inactive Panarukan line
+            bs, el, note = "none", 0, "no symbol on the sheet: no block between stations (legacy communication)"
+        out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
+                    (a, b, var, bs, el, (p.get("sym") or {}).get("n", 0), note, p.get("page")))
         for b_ in p["blocks"]:
             out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
+    for k, r in sys_manual.items():
+        if k not in sys_used and (k[1], k[0]) not in sys_used and k == (r["from"], r["to"]):
+            qa.append(("section system override not applied", f"{k[0]}-{k[1]}", r["block_system"]))
+
+    # ---- joint dispatch (user): a box linking station rows in the symbol column; the circle with a triangle marks the
+    #      station of the one dispatcher (PPKA) for all stations in the box
+    jd = {}
+    for pg, prof in sorted(per_page.items()):
+        rows = prof["rows"]
+        for bx in prof.get("boxes", []):
+            def row_at(y):
+                r = min(rows, key=lambda r: abs(r["y"] - y), default=None)
+                return r if r is not None and abs(r["y"] - y) <= 12 else None
+            ends = [(row_at(m["y"]), m) for m in bx["members"]]
+            disp = [r for r, m in ends if m["triangle"] and r]
+            if len(disp) != 1 or any(r is None for r, _ in ends):
+                qa.append(("joint dispatch box not matched to station rows", f"page {pg} y {bx['y0']:.0f}", ""))
+                continue
+            tri = next(m["triangle"] for _, m in ends if m["triangle"])
+            lo, hi = min(r["y"] for r, _ in ends), max(r["y"] for r, _ in ends)
+            for r in rows:
+                if lo <= r["y"] <= hi and r["code"] != disp[0]["code"]:
+                    pos = "end" if any(r is e for e, _ in ends) else "inside"
+                    jd.setdefault((r["code"], disp[0]["code"]), (pos, tri, pg))
+    out.executemany("insert into joint_dispatch values(?,?,?,?,?)", [k + v for k, v in jd.items()])
+    # station rows of every page: adjacent pairs with their y positions (graph reading, e.g. KA Dinas lines)
+    out.executemany("insert into sheet_pairs values(?,?,?,?,?,?)",
+                    [(pg, p["a"], p["b"], round(p["y_a"], 1), round(p["y_b"], 1), p.get("table"))
+                     for pg, prof in sorted(per_page.items()) for p in prof["pairs"]])
+
+    # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
+    #      arrow) every station can be closed in a set period, the end stations then work the section together
+    dt, dt_marks = {}, []
+    for pg, prof in sorted(per_page.items()):
+        rows = prof["rows"]
+        for ar in prof.get("dinas_tutup", []):
+            idx = []
+            for y in ar["stops"]:
+                i = min(range(len(rows)), key=lambda i: abs(rows[i]["y"] - y), default=None)
+                if i is None or abs(rows[i]["y"] - y) > 10:
+                    qa.append(("dinas tutup arrow end not at a station row", f"page {pg} y {y:.0f}", ""))
+                    idx.append(None)
+                else:
+                    idx.append(i)
+            for i, j in zip(idx, idx[1:]):
+                if i is None or j is None or i == j:
+                    continue
+                a, b = rows[min(i, j)]["code"], rows[max(i, j)]["code"]
+                closed = " ".join(r["code"] for r in rows[min(i, j) + 1:max(i, j)])
+                if not closed:
+                    # an arrow piece between adjacent stations closes nothing: a leftover of an older GAPEKA
+                    # (Purwoasri had dinas tutup before; user): not valid
+                    qa.append(("dinas tutup piece without a station between (ignored)", f"{a}-{b}", f"page {pg}"))
+                    continue
+                dt.setdefault((a, b), (closed, pg))
+                # '=' marks on train lines inside this piece: trains passing during dinas tutup (user)
+                gax = prof.get("grid_axes") or []
+                lo, hi = rows[min(i, j)]["y"], rows[max(i, j)]["y"]
+                for mx, my in prof.get("dt_marks", []):
+                    if not (lo < my < hi) or not gax:
+                        continue
+                    k = max(n for n in range(min(i, j), max(i, j)) if rows[n]["y"] < my)
+                    # time from the hour grid (works on pages whose hour labels are outlines, e.g. 35-37)
+                    g = min(gax, key=lambda a: 0 if a["y0"] - 30 <= my <= a["y1"] + 30 else 1)
+                    t = round((g["h0"] + (mx - g["x0"]) / g["spacing"]) * 3600)
+                    frac = (my - rows[k]["y"]) / max(rows[k + 1]["y"] - rows[k]["y"], 1e-6)
+                    dt_marks.append((a, b, rows[k]["code"], rows[k + 1]["code"], round(frac, 3), t, pg, round(mx, 1),
+                                     round(my, 1)))
+    out.executemany("insert into dinas_tutup values(?,?,?,?)", [k + v for k, v in dt.items()])
+    out.executemany("insert into dinas_tutup_marks values(?,?,?,?,?,?,?,?,?)", dt_marks)
+
+    # ---- station track diagrams (right of the graph sheets), assigned to the station rows read above
+    rows_by_page = {pg: [(r["code"], r["y"]) for r in prof["rows"]] for pg, prof in per_page.items()}
+    diagrams, layout_refs = station_layouts.read_all(doc, out, rows_by_page, ocr)
+    station_layouts.write(out, diagrams, layout_refs)
+    # position-only diagrams (pointer arrow / nearest row): reviewed Nov 2026 -> flag only those whose end labels do
+    # not name stations within 3 rows of the assigned station on that page (halts / stations without a diagram are
+    # skipped by the labels); Sukabumi (Gds = Gandasoli, the Cianjur line on page 28) and Indro (Kandangan beyond the
+    # sheet-only stops) were checked by eye and are right
+    # no end labels read: checked by eye (diagram on the station's row, neighbours fit); Panarukan line = inactive
+    reviewed_ok = {("SI", 19), ("IDO", 44), ("RK", 7), ("JAKK", 19), ("CCR", 19), ("PRK", 19), ("CBD", 19), ("CSA", 19),
+                   ("KGD", 35), ("MGS", 35), ("SN", 47), ("?panarukan", 50), ("?situbondo", 50), ("?prajekan", 50),
+                   ("?bonosare", 50), ("?bondowoso", 50), ("?grujugan", 50), ("?tamanan", 50)}
+    for st, pg, y, how, le, rgt in out.execute(
+            "select station, page, y, evidence, left_ends, right_ends from station_layouts "
+            "where evidence like 'nearest row%' or evidence like 'pointer%'"):
+        codes = [r["code"] for r in per_page.get(pg, {}).get("rows", [])]
+        near = set()
+        for k, c in enumerate(codes):
+            if c == st:
+                near |= set(codes[max(0, k - 3):k + 4])
+        ends = set((le or "").split()) | set((rgt or "").split())
+        if (st, pg) not in reviewed_ok and (not ends or not ends <= near):
+            qa.append(("station diagram assigned by position only (check)", st, f"page {pg} y {y:.0f}, {how}"))
+    for u in station_layouts.unread_labels:
+        qa.append(("track label on no track line (check the diagram)", f"page {u['page']} y {u['y']}",
+                   u["label"] + (" (OCR)" if u["ocr"] else "")))
+    for d in diagrams:
+        if not d.get("station"):
+            qa.append(("station diagram without a station", f"page {d['page']} y {d['y0']:.0f}",
+                       " ".join(t["no"] for t in d["tracks"])))
+
 
     # ---- QA
     covered = {frozenset(k) for k in sections}
@@ -880,7 +1176,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     for (a, b), p in sections.items():
         g[a][b] = g[b][a] = p["km"]
 
-    def chain(x, y, max_hops=4):
+    def chain(x, y, max_hops=25):
         """shortest chain of sheet sections x..y with at most max_hops sections (stations the train does not
         list in between, e.g. Cakung-Rawabebek-Kranji); returns (hops, km) or None"""
         best, frontier = {x: 0.0}, [(x, 0.0)]
@@ -923,7 +1219,7 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         inf = any(t.startswith(("hu", "hi")) for t in tags)
         if frozenset((a, b)) in dbl and not inf:
             tagged["header double, no hu/hi tags"] += 1
-        if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages:
+        if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages and p.get("double_track_manual") is None:
             tagged["header single, has hu/hi tags"] += 1
             qa.append(("double track from hu/hi tags, not in the header list", f"{a}-{b}", f"page {p.get('page')}"))
     out.executemany("insert into qa values(?,?,?)", qa)
@@ -941,6 +1237,8 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     n_ch = sum(n for pr, n in tt_pairs.items() if pr in via_chain)
     print(f"  timetable legs covered: {n_cov / n_tt:.1%} by one section, {(n_cov + n_ch) / n_tt:.1%} incl. chains of sections; "
           f"{len(tt_pairs) - len([p for p in tt_pairs if p in covered or p in via_chain])} station pairs not covered")
+    nl, nt = out.execute("select count(*), sum(roman_tracks + yard_tracks) from station_layouts").fetchone()
+    print(f"  station diagrams: {nl} ({len({d['station'] for d in diagrams if d.get('station')})} stations), {nt} tracks")
     for k, v in Counter(q[0] for q in qa).most_common():
         print(f"  QA {k}: {v}")
     for k, v in tagged.items():

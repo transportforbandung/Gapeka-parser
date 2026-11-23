@@ -1,0 +1,15 @@
+page,station,track,length_m,note
+35,KRL,I,368,"Karangtalun inset diagram: labels too small / split to read (user + sheet)"
+35,KRL,II,656,Karangtalun
+35,KRL,III,628,Karangtalun
+35,KRL,IV,630,Karangtalun
+35,KRL,5,425,"Karangtalun yard track 5, cement loading (Pemuatan Semen)"
+35,KRL,6,375,"Karangtalun yard track 6, cement loading"
+19,BTT,I,,"Batutulis: single through track Bop - Msg, PPKA box, no siding (user)"
+35,KRT,IV,335,"Kretek: IV-335 label drawn as an outline (not text); loop off the westbound main III"
+35,KGD,I,334,"Karanggandul inset diagram: I-334 label on a tiny curved track the reader cannot follow"
+7,RK,8,253,"Rangkasbitung yard track 8, drawn in hairlines"
+7,RK,9,253,"Rangkasbitung yard track 9, drawn in hairlines"
+35,BMA,V,delete,"Bumiayu: OCR read the outlined IV-406 as V-406"
+35,BMA,IV,406,"Bumiayu IV-406 (outlined label; sheet check)"
+32,SMC,VII,218,"Semarang Poncol VII-218: label not attached by the reader (sheet check)"
