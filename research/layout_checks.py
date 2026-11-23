@@ -1,7 +1,7 @@
 """Station track diagrams (infra.db station_layouts / station_tracks) against the timetable.
 
 1. capacity: the most trains standing at a station at the same time (GAPEKA) vs its Roman (main + siding) tracks
-2. fit: trains that wait for a crossing / overtake vs the station's longest Roman track (consists: cars x 21 m (freight wagons 14 m) + 16 m
+2. fit: trains that wait for a crossing / overtake vs the station's longest Roman track (consists: cars x 21 m + 16 m; freight by wagon type /
    locomotive; gapeka.db consists, or research/stam.json)
 3. timetable stations (not halts) without a diagram (stations with a 'periksa lintas' note are drawn elsewhere)
 4. waits by trains that do not fit: user rules (crossing: the long train departs first, the other stops and fits;
@@ -74,25 +74,38 @@ def tracks_on_line(no, st):
             return roman_line[(st, ln)], ln
     return roman.get(st), None
 
+# train length (m). Passenger: cars x 21 m + 16 m locomotive. Freight (rangkaian pokok wagon type, locomotive class;
+# web figures, Nov 2026): GD 42T PPCW flat 14.6 m (frame; INKA gives 12.5), GT 30T 13.2 m over couplers, GK tank
+# not found (14 m placeholder); CC 201 / 203 15.2 m over couplers, CC 204 / 206 15.85 m
+WAGON_M = {"GD": 14.6, "GT": 13.2, "GK": 14.0}
+LOCO_M = {"CC 201": 15.2, "CC 203": 15.2, "CC 204": 15.85, "CC 206": 15.85}
 try:
-    # set length: passenger cars 21 m, freight wagons 14 m (placeholder: flat / tank wagons are ~12-15 m over
-    # couplers), + 16 m locomotive
-    cons = {n: c * (14 if t == "freight" else 21) for n, c, t in
-            g.execute("select c.train_no, c.cars, t.type from consists c join trains t on t.no = c.train_no")}
+    cons = {n: c * 21 + 16 for n, c in g.execute("select train_no, cars from consists")}
+    for n, c, w, lo in g.execute("select train_no, cars, wagon, locomotive from rangkaian_pokok where kind = 'freight'"):
+        cons[n] = c * WAGON_M.get((w or "GK")[:2], 14.0) + LOCO_M.get(lo, 16)
 except sqlite3.OperationalError:
-    cons = {n: v["cars"] * 21 for n, v in json.load(open(f"{R}/research/stam.json")).items()}
+    cons = {n: v["cars"] * 21 + 16 for n, v in json.load(open(f"{R}/research/stam.json")).items()}
 freight = {n for (n,) in g.execute("select no from trains where type = 'freight'")}
 m = defaultdict(list)
 bad = []
-for no, st, kind, note in g.execute("select train_no, station, kind, note from stops where kind = 'stop'"):
+def others_at(st, no, a, d):
+    """other trains standing at or passing the station while this train stands there (user: a train alone at the
+    station may stand on the main track, e.g. 338F at Telawa, so it need not fit a siding)"""
+    if a is None or d is None:
+        return 1
+    return g.execute("select count(*) from stops where station = ? and train_no != ? and kind in ('stop', 'pass') "
+                     "and coalesce(arr_s, dep_s) < ? and coalesce(dep_s, arr_s) > ?", (st, no, d, a)).fetchone()[0]
+for no, st, kind, note, a_s, d_s in g.execute("select train_no, station, kind, note, arr_s, dep_s from stops "
+                                              "where kind = 'stop'"):
     tr_here, ln = tracks_on_line(no, st) if no in cons else (None, None)
     if no in cons and tr_here:
-        L = cons[no] + 16
+        L = cons[no]
         longest = max((x[1] for x in tr_here if x[1] is not None), default=None)
         if longest is None:
             continue                                   # track length not printed (e.g. Batutulis)
         m["diagram of the train's line" if ln else "diagram of another line"].append(0)
-        k = ("waits (note)" if note and "ka " in note else "other stops") + \
+        k = ("waits (note)" if note and "ka " in note else
+             "other stops, others there" if others_at(st, no, a_s, d_s) else "stops alone") + \
             (", freight" if no in freight else ", passenger")
         m[k].append(longest - L)
         if k.startswith("waits") and longest < L:
@@ -101,7 +114,7 @@ for k in [k for k in m if k.startswith("diagram")]:
     print(f"2. fit uses the {k}: {len(m.pop(k))} stops")
 for k, v in m.items():
     v = np.array(v)
-    print(f"2. fit, {k:23s}: n {len(v)}, train longer than the longest Roman track {np.mean(v < 0):.1%}, "
+    print(f"2. fit, {k:36s}: n {len(v)}, train longer than the longest Roman track {np.mean(v < 0):.1%}, "
           f"margin p5 {np.percentile(v, 5):.0f} m")
 dbl = {}
 for a, b_, d in i.execute("select a, b, double_track from sections"):
@@ -149,7 +162,7 @@ for no, st, a, d, note in g.execute("select train_no, station, arr_s, dep_s, not
     tr_here, _ = tracks_on_line(no, st) if no in cons else (None, None)
     if not tr_here:
         continue
-    L, longest = cons[no] + 16, max((x[1] for x in tr_here if x[1] is not None), default=0)
+    L, longest = cons[no], max((x[1] for x in tr_here if x[1] is not None), default=0)
     if L <= longest:
         continue
     for other in dict.fromkeys(x.upper() for x in re.findall(r"ka (\d{1,4}[fF]?)", note)):
@@ -157,7 +170,7 @@ for no, st, a, d, note in g.execute("select train_no, station, arr_s, dep_s, not
         if not o:
             continue
         same = direction_same(no, other, st)
-        Lo = cons[other] + 16 if other in cons else None
+        Lo = cons[other] if other in cons else None
         od = o[2]
         print(f"     {st} {no} ({L} m > {longest:g} m) {'overtaken by' if same else 'crossed by'} {other} "
               f"({o[0]}, {Lo or '?'} m): long train departs {d // 3600:02d}:{d % 3600 // 60:02d}, "

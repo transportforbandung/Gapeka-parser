@@ -332,12 +332,19 @@ Read this first. It records decisions and findings from earlier sessions so they
   (column of the daily need: GD 42T containers, GK 30T / 40T tankers, GT 30T) and sets (Jumlah RANG). Freight
   connects 79 / 80. consists freight 118 / 126; without a consist: R951-R954 (Ejek Sidotopo) and the parcel trains (Barang Hantaran
   Parcel) 343 / 344 / 347 / 348 (345 / 346 have one from the stamformasi tables).
-- Train length for the fit checks: consists (cars x 21 m, freight wagons x 14 m placeholder, + 16 m locomotive):
-  stamformasi tables + rangkaian pokok; KA Dinas without a consist are not checked. Freight does NOT fit like
-  passenger trains: freight waits longer than the longest Roman track 9.5 % (passenger 0.7 %), other freight stops
-  19 %; fitting every freight wait would need 8-10 m wagons (unrealistic), e.g. Telawa (TW) 2713 30 wagons on 308 m,
-  Kalisetail (KSL) 2763F 20 wagons on 218 m. Open question for the user: real wagon lengths and how GAPEKA places freight
-  longer than the sidings (main track? fewer wagons than SF?).
+- Train length for the fit checks: passenger cars x 21 m + 16 m locomotive; freight from rangkaian pokok (verified
+  in the PDF, e.g. Bungtalun 2712-2713 / 2714-2711: SF 30 GD 42T, 2 sets, 60 wagons a day, 2520 t = 60 x 42) with
+  web lengths (the PDF has none): GD 42T PPCW 14.6 m (frame; INKA's page says 12.5 m), GT 30T 13.2 m over couplers,
+  GK tank not found (14 m placeholder), CC 201 / 203 15.2 m over couplers, CC 204 / 206 15.85 m. KA Dinas without a
+  consist are not checked. User rule: a train standing at a station while NO other train is there or passes need
+  not fit (it may stand on the main; e.g. 338F alone at Telawa 07:16-07:18): rules/priority.csv event stop;
+  layout_checks splits 'stops alone' / 'others there' / 'waits (note)'. Freight still does not fit like passenger
+  trains: waits with notes 12.5 % longer than the longest Roman track (passenger 0.7 %). Overtakes on Cikampek-
+  Cirebon double track (Losari, Tanjung, Cipunegara, Cikampek: 30-wagon container trains on 426-449 m tracks) fit
+  only if a GD wagon is <= 13.7 m (supports INKA's shorter figure over 14.6 m). Single-track crossings stay
+  impossible at any realistic length, e.g. Telawa (TW, I-212 / II-212 / III-308, checked on page 32) 2713 (30
+  wagons) waits 11:42-11:53 while 54 passes; Kalisetail (KSL) 2763F / 2764F (20 wagons, 218 m). User does not know
+  how KAI handles these (actual consist shorter than SF?): open.
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
