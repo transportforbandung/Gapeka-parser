@@ -3,7 +3,9 @@ station's entry, so the whole station counts as occupied: no other train may sta
 has departed; followers wait at the previous station and are released to arrive when it is projected to have left
 (release rule). Test against GAPEKA 2026: every stop by a train longer than the longest Roman track (train length as
 in layout_checks.py), and the other trains at / through the station during the stop.
-GD wagon length: argv[1] (default 14.6 m; INKA's page gives 12.5 m)."""
+GD wagon length: argv[1] (default as layout_checks.py, 12.5 m). --write: the exceptions that involve a freight train
+are written to rules/fit_exemptions.csv (user: tolerate the freight already scheduled in GAPEKA; the fit / blocked-
+station rules stay strict for new or changed trains)."""
 import io, contextlib, runpy, sys
 from collections import Counter
 R = "/home/user/Gapeka-parser"
@@ -11,7 +13,8 @@ buf = io.StringIO()
 with contextlib.redirect_stdout(buf):
     ns = runpy.run_path(f"{R}/research/layout_checks.py")
 g, tol, WAGON_M, LOCO_M = ns["g"], ns["tracks_on_line"], ns["WAGON_M"], ns["LOCO_M"]
-gd = float(sys.argv[1]) if len(sys.argv) > 1 else 14.6
+args = [a for a in sys.argv[1:] if not a.startswith("--")]
+gd = float(args[0]) if args else WAGON_M["GD"]
 WAGON_M["GD"] = gd
 cons = {n: c * 21 + 16 for n, c in g.execute("select train_no, cars from consists")}
 for n, c, w, lo in g.execute("select train_no, cars, wagon, locomotive from rangkaian_pokok where kind = 'freight'"):
@@ -60,3 +63,18 @@ print(f"  next train entering after the long train left: median {np.median(gp):.
 print("  by type:", Counter(b[2] for b in bad))
 for b in sorted(bad):
     print("  ", b[0], b[1], b[2], f"{b[3]} m > {b[4]:g} m", b[5], "-", b[6], b[7], "| others:", b[8])
+
+if "--write" in sys.argv:
+    import csv
+    with open(f"{R}/rules/fit_exemptions.csv", "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["station", "train_no", "others", "train_m", "longest_m", "arr", "dep", "source", "note"])
+        for b in sorted(bad):
+            others = [o[0] for o in b[8]]
+            if b[2] != "freight" and not any(typ.get(o) == "freight" for o in others):
+                continue
+            w.writerow([b[0], b[1], " ".join(others), b[3], f"{b[4]:g}", b[5], b[6],
+                        "GAPEKA 2026 (research/blocked_station.py)",
+                        "existing freight schedule tolerated (user): train longer than every Roman track while another "
+                        "train enters / passes"])
+    print("wrote rules/fit_exemptions.csv")

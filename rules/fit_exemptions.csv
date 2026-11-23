@@ -1,0 +1,16 @@
+station,train_no,others,train_m,longest_m,arr,dep,source,note
+GD,2713,2704F,391,389,11:04,11:19,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+GD,2714,219F,391,389,21:51,22:01,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+KBR,2763F,264,266,229,23:02,23:24,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+KEJ,2704F,337F,391,377,10:32,10:40,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+KSL,2763F,2764F,266,218.2,23:44,00:24,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+KSL,2764F,2763F,266,218.2,23:49,00:29,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+LW,2627,2648F,268,242,18:16,18:20,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+LW,2629,2634,268,242,20:16,20:19,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+LW,2634,2629,268,242,20:01,20:21,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+LW,2637,336F,296,242,05:44,05:57,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+SGS,2634,459,268,153,19:38,19:47,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+SGS,459,2634,163,153,19:43,19:45,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+SN,2636,461 2633,268,224,21:57,22:40,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+TGG,2714,341,391,350,20:54,21:02,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes
+TW,2713,54,391,308,11:42,11:53,GAPEKA 2026 (research/blocked_station.py),existing freight schedule tolerated (user): train longer than every Roman track while another train enters / passes

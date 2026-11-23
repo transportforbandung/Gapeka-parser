@@ -75,9 +75,10 @@ def tracks_on_line(no, st):
     return roman.get(st), None
 
 # train length (m). Passenger: cars x 21 m + 16 m locomotive. Freight (rangkaian pokok wagon type, locomotive class;
-# web figures, Nov 2026): GD 42T PPCW flat 14.6 m (frame; INKA gives 12.5), GT 30T 13.2 m over couplers, GK tank
-# not found (14 m placeholder); CC 201 / 203 15.2 m over couplers, CC 204 / 206 15.85 m
-WAGON_M = {"GD": 14.6, "GT": 13.2, "GK": 14.0}
+# web figures, Nov 2026): GD 42T PPCW flat 12.5 m (INKA; other sources 14.6 m, but GAPEKA's double-track container
+# overtakes fit only with <= 13.7 m), GT 30T 13.2 m over couplers, GK tank not found (14 m placeholder); CC 201 / 203
+# 15.2 m over couplers, CC 204 / 206 15.85 m
+WAGON_M = {"GD": 12.5, "GT": 13.2, "GK": 14.0}
 LOCO_M = {"CC 201": 15.2, "CC 203": 15.2, "CC 204": 15.85, "CC 206": 15.85}
 try:
     cons = {n: c * 21 + 16 for n, c in g.execute("select train_no, cars from consists")}
