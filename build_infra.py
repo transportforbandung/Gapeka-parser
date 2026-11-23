@@ -1222,6 +1222,54 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages and p.get("double_track_manual") is None:
             tagged["header single, has hu/hi tags"] += 1
             qa.append(("double track from hu/hi tags, not in the header list", f"{a}-{b}", f"page {p.get('page')}"))
+    # ---- 'JARAK ANTAR STASIUN' tables (pages 1875-1887): stored, and every consecutive pair of a table checked
+    #      against the shortest route over the sections (independent check of the sheet km)
+    import distances
+    import heapq
+    drows = distances.read(doc)
+    out.execute("CREATE TABLE station_distances(matrix TEXT, a TEXT, b TEXT, km REAL, adjacent INTEGER, page INTEGER)")
+    out.executemany("insert into station_distances values(?,?,?,?,?,?)",
+                    [(r["matrix"], r["a"], r["b"], r["km"], r["adjacent"], r["page"]) for r in drows])
+    gd = defaultdict(dict)
+    for (a, b), p in sections.items():
+        if p.get("km") is not None:
+            for x, y in ((a, b), (b, a)):
+                gd[x][y] = min(gd[x].get(y, 1e9), p["km"])
+
+    def shortest(a, b, limit):
+        dist, pq = {a: 0}, [(0, a)]
+        while pq:
+            d, x = heapq.heappop(pq)
+            if x == b:
+                return d
+            if d > dist.get(x, 1e9) or d > limit:
+                continue
+            for y, w in gd[x].items():
+                if d + w < dist.get(y, 1e9):
+                    dist[y] = d + w
+                    heapq.heappush(pq, (d + w, y))
+        return None
+    seen_d, n_ok = set(), 0
+    for r in drows:
+        if not r["adjacent"] or (r["a"], r["b"]) in seen_d:
+            continue
+        seen_d.add((r["a"], r["b"]))
+        direct = sections.get((r["a"], r["b"])) or sections.get((r["b"], r["a"]))
+        d = direct["km"] if direct and direct.get("km") is not None else shortest(r["a"], r["b"], r["km"] * 1.5 + 2)
+        if d is None:
+            qa.append(("distance table pair without a section route", f"{r['a']}-{r['b']}",
+                       f"table {r['km']:.3f} km, page {r['page']}"))
+        elif abs(d - r["km"]) > 0.01:
+            known = {frozenset(("WJ", "WT")): "the table swaps Wates / Kedundang (sheet and timetable: Wojo - Kedundang - "
+                                              "Wates - Sentolo; distances agree position by position)",
+                     frozenset(("KDG", "STL")): "the table swaps Wates / Kedundang (see WJ-WT)"}
+            qa.append(("distance table differs from sections", f"{r['a']}-{r['b']}",
+                       f"sections {d:.3f} km, table {r['km']:.3f} km, page {r['page']}"
+                       + (f"; known: {known[frozenset((r['a'], r['b']))]}" if frozenset((r['a'], r['b'])) in known else "")))
+        else:
+            n_ok += 1
+    print(f"distance tables: {len(drows)} pairs; consecutive pairs agreeing with the sections within 10 m: "
+          f"{n_ok} of {len(seen_d)}")
     out.executemany("insert into qa values(?,?,?)", qa)
     out.commit()
 

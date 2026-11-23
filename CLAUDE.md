@@ -359,6 +359,18 @@ Read this first. It records decisions and findings from earlier sessions so they
   flatcars); the PDF gives no daily loads and the freight timetable pages no length. User decision: tolerate the freight
   already scheduled in GAPEKA (research/blocked_station.py --write -> rules/fit_exemptions.csv, rules.db table
   fit_exemptions, 15 printed cases); the rules stay strict for new or changed trains (rules/priority.csv).
+- Distance tables (distances.py, 'JARAK ANTAR STASIUN' PDF pages 1875-1887: O/D matrices per line + small two-station
+  boxes; headers found from the row of column numbers, codes may be staggered, p1877 holds two Jakarta Kota - Cikampek
+  matrices: via Pasarsenen and via Manggarai) -> infra.db station_distances (4501 pairs, adjacent = consecutive in
+  the table, halts skipped). build_infra checks every consecutive pair against the direct section, else the
+  shortest section route: 359 / 364 within 10 m (independent of the sheet km). Fixed from the tables
+  (manual/pair_overrides.csv): Cirebon - Cirebon Prujakan 1.606 (sheet 3.199: Prujakan km 222.367 is another
+  chainage), Kesamben - Pogajih 7.580 (sheet 6.419, chainage break; timetable distance column also 7.58), new direct
+  section Surabaya Gubeng - Sidotopo 3.454 (7 trains each way skip Surabaya Kota). Left in qa: the table swaps
+  Wates / Kedundang (sheet and timetable: Wojo - Kedundang - Wates - Sentolo), and KEN-CGD / JAKG-KPB / GS-IDO
+  (Cigading, Jakarta Gudang, Gresik: no timetable stations). MGA in the tables = MAG (Magetan). Cikampek - Banjar
+  table: cells Rajapolah / Indihiang to KNP / BJR are 1.042 km off their own sums (PDF typo;
+  consecutive cells used). check.py unchanged (held-out > 1 min 3.3 %).
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

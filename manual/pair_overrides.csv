@@ -1,3 +1,6 @@
 from,to,km,source,note
 AK,KPB,4.102,manual (user),"Angke-Kampungbandan 4.102 km; Kampungbandan km 1.364 is on the Jakarta Kota-Cikampek line, 0.363 another chainage (junction near Jakarta Gudang)"
 KDO,PWS,delete,manual (user),"Kadipiro and Purwosari are not adjacent (Purwosari is after Solo Balapan); the sheet pair crossed from the Adi Soemarmo table to the Wonogiri table"
+CN,CNP,1.606,distance table (PDF page 1880),Cirebon - Cirebon Prujakan on the Tegal line 1.606 km (1.600 on the Purwokerto line table); the sheet km of Prujakan (222.367) is another chainage: 3.199 was wrong
+KSB,PGJ,7.580,distance table (PDF page 1886) + timetable distance column,Kesamben - Pogajih 7.580 km; the sheet Letak km give 6.419 (chainage break at the unnamed row between them)
+SGU,SDT,3.454,distance table (PDF page 1885),direct Surabaya Gubeng - Sidotopo link (7 trains each way run it without Surabaya Kota); not a sheet pair
