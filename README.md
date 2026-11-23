@@ -189,8 +189,13 @@ python export_poster.py 386-431 --odd  -o cl_bandung_odd.svg
 python export_poster.py 351-356 --odd  -o siliwangi_odd.svg
 ```
 
-Colours, cell sizes and fonts follow the TfB timetable design. Run the script without arguments to see every
-option: `--exclude`, `--stations`, `--bold`, `--highlight`, `--sort`, `--scale` and `--fit-width`.
+Colours, cell sizes and fonts follow the TfB timetable design. Every table uses the same header row height
+(22 pt), train-number cell width (27.8 pt) and time-cell height (11.6 pt); only time-cell widths vary. The
+Bandung tables are always 1450 pt wide (`--max-width`), and the Padalarang – Cicalengka block (`--core PDL,CCL`)
+sits at the same x position in both directions: the Purwakarta – Cilame and Nagreg – Garut sides get the same total
+width, so the Purwakarta side, which has more stations, has narrower cells. Run the script without arguments to
+see every option: `--exclude`, `--stations`, `--bold`, `--highlight`, `--sort`, `--max-width`, `--core`, `--scale`
+and `--fit-width`.
 
 Station headway bar (a time axis with one line per train, gaps coloured from green = short to red = long):
 

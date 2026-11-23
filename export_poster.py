@@ -9,16 +9,30 @@ Stations:          --exclude NAME,CODE,...   leave these columns out (default: C
                    --stations CODE,CODE,...   only these columns, in this order (default: every station the trains call at)
                    --bold CODE,CODE,...       stations with bold times (default: Purwakarta, Padalarang, Cimahi, Bandung,
                                               Kiaracondong, Cicalengka, Cibatu, Garut)
-Size (same for every table, taken from the FDTB PDF; 1 pt = 1 px in Illustrator at 72 ppi):
-                   time cell 49.84 x 11.6 pt, row gap 2.3 pt, train-number cell 27.8 x 11.6 pt, header row 22 pt high
-                   --scale 0.8   resizes the whole table uniformly (cell ratios stay the same)
-                   --max-width 1450   (default) a table wider than this gets narrower time cells so it is exactly
-                                      this wide; heights, number cells and fonts stay the same; --max-width 0 = off
-                   --fit-width 1450   scales the table so its total width is 1450 pt
-Colours (from the FDTB PDF): Commuter Line Garut = orange, Commuter Line Bandung Raya = blue (also the default), Siliwangi = yellow.
+Size (taken from the FDTB PDF; 1 pt = 1 px in Illustrator at 72 ppi). Fixed in every table: header row 22 pt high,
+                   train-number cells 27.8 x 11.6 pt, time cells 11.6 pt high, row gap 2.3 pt. Only time-cell WIDTHS vary:
+                   --max-width 1450   (default) total table width
+                   --core PDL,CCL     (default) the block between these two stations has the same x position in every
+                                      table that contains it, in both directions: the stations left and right of it
+                                      (Purwakarta - Cilame, Nagreg - Garut) get the same total width each, so the side
+                                      with more stations gets narrower cells. Such a table is always exactly --max-width
+                                      wide. Without both core stations (e.g. Siliwangi): natural width per time cell
+                                      (49.84 pt; Siliwangi-only tables 44.5 pt; --cell-width W sets it), narrowed evenly
+                                      only if the table would be wider than --max-width.
+                                      --core "" = no core block; --max-width 0 = natural widths
+                   Header names that do not fit their cell go on two lines (Purwa-karta); the font is reduced only if
+                   even two lines do not fit (reported). --wrap NAME,NAME   always on two lines (default: Leuwigoong)
+                   The corners above the train-number columns are left empty.
+                   --scale 0.8 / --fit-width 1450   resize the whole table uniformly (old behaviour; then the fixed
+                                      sizes above are scaled too)
+Colours (from the FDTB PDF): Commuter Line Garut = orange, Commuter Line Bandung Raya = blue (also the default), Siliwangi = yellow
+                   (dark headers and train-number cells #F89938, light headers and dark times #F5BE1C, light times #FEE569).
                    A train's row colour follows its service. A station header takes the colour of the service that calls there most
-                   (so Purwakarta-Cilame and Nagreg-Garut are orange even though one Bandung Raya train runs to Purwakarta).
-                   Header and body columns alternate dark / light, starting again with dark when the colour changes.
+                   (so Purwakarta-Cilame and Nagreg-Garut are orange even though one Bandung Raya train runs to Purwakarta);
+                   a tie goes to the service that is not Bandung Raya.
+                   Header and body columns alternate dark / light. With a core block (--core) the core starts dark and
+                   every column alternates counted from it (even table: Purwakarta light ... Cilame light, Padalarang
+                   dark); without one, each run of one colour starts dark.
 Other:             --highlight 348,350   force these rows orange
                    --sort time|number   rows ordered by time at the bold station most trains call at (default) or by train number
                    --weight 500 (regular times: 400 Regular, 500 Medium)   --font "IBM Plex Sans"   --hfont "IBM Plex Sans"   --no-right-numbers
@@ -37,25 +51,52 @@ def hms(s):
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}"
 
 
-def split_name(n, maxc):
-    if len(n) <= maxc:
+# advance widths (1/1000 em) of IBM Plex Sans SemiBold (600) and Bold (700), read from the font files once, so header
+# names can be fitted to their cell without needing the font installed. Other characters count as 600.
+_CH = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.()'"
+CHAR_W = {
+    "600": dict(zip(_CH, [559, 600, 513, 600, 558, 350, 545, 588, 275, 275, 562, 294, 888, 588, 563, 600, 600, 393, 499,
+                          374, 588, 524, 819, 544, 524, 502, 672, 663, 642, 689, 600, 577, 712, 719, 423, 545, 678, 521,
+                          817, 719, 712, 641, 712, 664, 611, 580, 689, 638, 949, 655, 632, 599, 600, 600, 600, 600, 600,
+                          600, 600, 600, 600, 600, 236, 402, 299, 337, 337, 260])),
+    "700": dict(zip(_CH, [569, 608, 517, 608, 562, 361, 552, 596, 286, 286, 577, 303, 894, 596, 564, 608, 608, 404, 504,
+                          383, 596, 538, 841, 560, 534, 518, 685, 667, 651, 697, 607, 585, 719, 724, 432, 559, 696, 530,
+                          819, 724, 714, 656, 714, 674, 624, 584, 694, 650, 973, 673, 649, 607, 600, 600, 600, 600, 600,
+                          600, 600, 600, 600, 600, 236, 403, 310, 338, 338, 268])),
+}
+CELL_W = {"Siliwangi": 44.5}   # natural time-cell width (pt) of a table that has only this service's trains
+HEAD_PAD = 0.5         # pt of the cell width kept free beside a header name (both sides together)
+VOWELS = set("aeiouAEIOU")
+
+
+def text_w(s, size, weight):
+    w = CHAR_W.get(weight, CHAR_W["600"])
+    return sum(w.get(c, 600) for c in s) * size / 1000
+
+
+def header_lines(n, room, size, weight):
+    """the name on one line if it fits in `room` pt, else two lines: split at a space, or hyphenated before a syllable
+    (Purwa-karta, Kiara-condong, Pasir-jengkol), choosing the split with the narrower widest line"""
+    if text_w(n, size, weight) <= room:
         return [n]
+    cands = []
     if " " in n:
         parts = n.split(" ")
-        best, cut = None, 0
-        for i in range(1, len(parts)):
-            a, b = " ".join(parts[:i]), " ".join(parts[i:])
-            if best is None or abs(len(a) - len(b)) < best:
-                best, cut = abs(len(a) - len(b)), i
-        return [" ".join(parts[:cut]), " ".join(parts[cut:])]
-    h = (len(n) + 1) // 2
-    return [n[:h] + "-", n[h:]]
+        cands = [[" ".join(parts[:i]), " ".join(parts[i:])] for i in range(1, len(parts))]
+    else:
+        # syllable starts: a consonant + vowel after a vowel (Purwa-karta) or after a consonant (Pasir-jengkol),
+        # never inside 'ng' / 'ny'
+        syl = [i for i in range(2, len(n) - 2) if n[i] not in VOWELS and n[i + 1] in VOWELS
+               and not (n[i - 1] == "n" and n[i] in "gy")]
+        cands = [[n[:i] + "-", n[i:]] for i in (syl or range(2, len(n) - 1))]
+    return min(cands, key=lambda c: max(text_w(x, size, weight) for x in c))
 
 
 def main(argv):
     opt = dict(out="poster.svg", db="gapeka.db", scale=1.0, font="IBM Plex Sans", hfont="IBM Plex Sans",
                weight="500", sort="time", parity=None, stations=None, bold=None,
-               highlight=set(), right=True, exclude=["Cisomang", "Lebakjero","Rajamandala","Selajambe","Tipar","Maleber","Cilaku","Sindangresmi","Ranji"], fit=None, maxw=1450.0)
+               highlight=set(), right=True, exclude=["Cisomang", "Lebakjero","Rajamandala","Selajambe","Tipar","Maleber","Cilaku","Sindangresmi","Ranji"], fit=None, maxw=1450.0, core=["PDL", "CCL"],
+               wrap={"Leuwigoong"}, cellw=None)
     args = []
     it = iter(argv[1:])
     for a in it:
@@ -65,8 +106,14 @@ def main(argv):
             opt["db"] = next(it)
         elif a == "--fit-width":
             opt["fit"] = float(next(it))
+        elif a == "--cell-width":
+            opt["cellw"] = float(next(it))
         elif a == "--max-width":
             opt["maxw"] = float(next(it))
+        elif a == "--wrap":
+            opt["wrap"] = {x.strip() for x in next(it).split(",") if x.strip()}
+        elif a == "--core":
+            opt["core"] = [x.strip() for x in next(it).split(",") if x.strip()]
         elif a == "--scale":
             opt["scale"] = float(next(it))
         elif a in ("--font", "--hfont", "--color", "--sort", "--weight"):
@@ -113,7 +160,7 @@ def main(argv):
     # palettes: (header dark, header light, cell dark, cell light, grey dark, grey light, number box)
     BLUE = ("#2bace2", "#47c4f1", "#6dcff6", "#b0e3fa", "#c0bfbf", "#cccccc", "#717171")
     ORANGE = ("#d54727", "#f26c50", "#f79779", "#fabba8", "#c0bfbf", "#cccccc", "#d54727")
-    YELLOW = ("#fecd03", "#fce669", "#fee36a", "#fdf2b0", "#c0bfbf", "#cccccc", "#717171")
+    YELLOW = ("#f89938", "#f5be1c", "#f5be1c", "#fee569", "#c0bfbf", "#cccccc", "#f89938")
     PAL = {"Commuter Line Bandung Raya": BLUE, "Commuter Line Garut": ORANGE, "Siliwangi": YELLOW}
     pal_of = lambda svc: PAL.get(svc, BLUE)
 
@@ -189,24 +236,54 @@ def main(argv):
         for no, rows in trains.items():
             if any(r[0] == st and r[1] != "pass" and (r[2] is not None or r[3] is not None) for r in rows):
                 cnt[service[no]] = cnt.get(service[no], 0) + 1
-        top = max(cnt.items(), key=lambda kv: (kv[1], kv[0] == "Commuter Line Bandung Raya"))[0] if cnt else ""
+        # a tie goes to the other service, not Bandung Raya (odd Purwakarta side: one Garut + one Bandung Raya train)
+        top = max(cnt.items(), key=lambda kv: (kv[1], kv[0] != "Commuter Line Bandung Raya"))[0] if cnt else ""
         hpal[st] = pal_of(top)
-    gidx, run = {}, 0                 # position inside a run of same-coloured stations: dark, light, dark, ...
-    for i, st in enumerate(order):
-        run = run + 1 if i and hpal[st] is hpal[order[i - 1]] else 0
-        gidx[st] = run
+    cidx = sorted(order.index(c) for c in opt["core"] if c in order)
+    gidx = {}                         # even = dark, odd = light
+    if len(cidx) == 2:
+        # shading anchored on the core block: its first column is dark, and every column alternates counted from
+        # there, so the wings continue from their neighbouring core column (even table: Cilame light, Padalarang dark)
+        for i, st in enumerate(order):
+            gidx[st] = abs(i - cidx[0])
+    else:
+        run = 0                       # position inside a run of same-coloured stations: dark, light, dark, ...
+        for i, st in enumerate(order):
+            run = run + 1 if i and hpal[st] is hpal[order[i - 1]] else 0
+            gidx[st] = run
     k = opt["scale"]
     if opt["fit"]:                   # scale so the whole table is this many pt wide (cell ratios stay the same)
         k = opt["fit"] / ((2 if opt["right"] else 1) * 27.8 + n * 49.84)
-    colw, cellh, gap, numw, headh = 49.84 * k, 11.6 * k, 2.3 * k, 27.8 * k, 22.0 * k
+    # natural time-cell width: --cell-width, else per service when every train is of that service, else 49.84
+    svcs = set(service.values())
+    base_w = opt["cellw"] or (CELL_W.get(next(iter(svcs))) if len(svcs) == 1 else None) or 49.84
+    colw, cellh, gap, numw, headh = base_w * k, 11.6 * k, 2.3 * k, 27.8 * k, 22.0 * k
     rowh = cellh + gap
     fs, fsb = 8.0 * k, 9.5 * k
     nnum = 2 if opt["right"] else 1
-    if opt["maxw"] and not opt["fit"] and nnum * numw + n * colw > opt["maxw"]:
-        colw = (opt["maxw"] - nnum * numw) / n    # narrower time cells only; heights, number cells and fonts unchanged
-    W = nnum * numw + n * colw
+    # column widths. Header row height, train-number width and cell height are fixed; only time-cell widths change.
+    ws, core_info = [colw] * n, ""
+    if opt["maxw"] and not opt["fit"]:
+        avail = opt["maxw"] - nnum * numw
+        idx = sorted(order.index(c) for c in opt["core"] if c in order)
+        nl, nc, nr = (idx[0], idx[1] - idx[0] + 1, n - idx[1] - 1) if len(idx) == 2 else (0, n, 0)
+        if len(idx) == 2:
+            # core block (e.g. Padalarang - Cicalengka) at the same x in every table of this core: both wings get the
+            # same total width: the wing with fewer stations (Nagreg - Garut) has cells as wide as the core, the wing
+            # with more stations (Purwakarta - Cilame) shares that width, so its cells are narrower
+            u = min(nl, nr) if nl and nr else 0
+            cw = avail / (nc + 2 * u) if u else avail / n
+            wing = u * cw
+            ws = ([wing / nl] * nl if u else [cw] * nl) + [cw] * nc + ([wing / nr] * nr if u else [cw] * nr)
+            x_core = numw + sum(ws[:nl])
+            core_info = (f"; core {name.get(order[idx[0]], order[idx[0]])} - {name.get(order[idx[1]], order[idx[1]])}: "
+                         f"{nc} cells of {cw:.2f} pt at x {x_core:.2f}-{x_core + nc * cw:.2f}"
+                         + (f", wings {wing:.2f} pt each ({nl} x {wing / nl:.2f} / {nr} x {wing / nr:.2f} pt)" if u else ""))
+        elif n * colw > avail:
+            ws = [avail / n] * n
+    xs = [numw + sum(ws[:i]) for i in range(n)]
+    W = nnum * numw + sum(ws)
     H = headh + gap + len(nos) * rowh - gap
-    x0 = numw
     font, hfont = opt["font"], opt["hfont"]
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W:.2f}" height="{H:.2f}" viewBox="0 0 {W:.2f} {H:.2f}">']
 
@@ -218,20 +295,24 @@ def main(argv):
         out.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" fill="{fill}"/>')
 
 
-    out.append('<g id="header">')
-    rect(0, 0, numw, headh, "#595a5a")
-    if opt["right"]:
-        rect(W - numw, 0, numw, headh, "#595a5a")
-    maxc = 11                      # names longer than this are split over two lines (Kiara-condong, Gado-bangkong)
+    out.append('<g id="header">')                  # the corners above the train-number columns stay empty
+    shrunk = []
     for i, st in enumerate(order):
-        x = x0 + i * colw
+        x, cw = xs[i], ws[i]
         P = hpal[st]
-        rect(x, 0, colw, headh, P[0] if gidx[st] % 2 == 0 else P[1])
-        lines = split_name(name.get(st, st), maxc)
+        rect(x, 0, cw, headh, P[0] if gidx[st] % 2 == 0 else P[1])
+        wt, size = ("700" if st in bold else "600"), 8.0 * k
+        nm = name.get(st, st)
+        lines = header_lines(nm, 0 if nm in opt["wrap"] else cw - HEAD_PAD * k, size, wt)
+        widest = max(text_w(ln, size, wt) for ln in lines)
+        if widest > cw - HEAD_PAD * k:              # even two lines do not fit: smaller font for this name only
+            size *= (cw - HEAD_PAD * k) / widest
+            shrunk.append(f"{name.get(st, st)} {size:.2f} pt")
         lh = 8.4 * k
         for j, ln in enumerate(lines):
-            text(x + colw / 2, headh / 2 + (j - (len(lines) - 1) / 2) * lh, ln, 8.0 * k,
-                 "700" if st in bold else "600", "#231f20" if P is YELLOW else "#ffffff", hfont)
+            # dark text on the light palettes (blue = same colour as the times, yellow), white on orange
+            text(x + cw / 2, headh / 2 + (j - (len(lines) - 1) / 2) * lh, ln, size,
+                 wt, "#231f20" if P is YELLOW else ("#1a1a1a" if P is BLUE else "#ffffff"), hfont)
     out.append("</g>")
 
     out.append('<g id="rows">')
@@ -240,17 +321,17 @@ def main(argv):
         P = ORANGE if no in opt["highlight"] else pal_of(service[no])
         out.append(f'<g id="train-{escape(no)}">')
         for i, st in enumerate(order):
-            x = x0 + i * colw
+            x, cw = xs[i], ws[i]
             v = cells[no].get(st)
             dark = gidx[st] % 2 == 0
             if not v:
                 fill = P[4] if dark else P[5]
             else:
                 fill = P[2] if dark else P[3]
-            rect(x, y, colw, cellh, fill)
+            rect(x, y, cw, cellh, fill)
             if v:
                 isb = st in bold
-                text(x + colw / 2, y + cellh / 2, v, fsb if isb else fs, "700" if isb else opt["weight"])
+                text(x + cw / 2, y + cellh / 2, v, fsb if isb else fs, "700" if isb else opt["weight"])
         out.append("</g>")
     out.append("</g>")
 
@@ -265,7 +346,9 @@ def main(argv):
     out.append("</svg>")
     with open(opt["out"], "w", encoding="utf-8") as f:
         f.write("\n".join(out))
-    print(f"wrote {opt['out']}: {len(nos)} trains x {n} stations, {W:.0f} x {H:.0f} pt")
+    print(f"wrote {opt['out']}: {len(nos)} trains x {n} stations, {W:.0f} x {H:.0f} pt{core_info}")
+    if shrunk:
+        print("  header names too wide even on two lines, font reduced:", ", ".join(shrunk))
 
 
 main(sys.argv)
