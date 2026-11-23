@@ -371,6 +371,20 @@ Read this first. It records decisions and findings from earlier sessions so they
   (Cigading, Jakarta Gudang, Gresik: no timetable stations). MGA in the tables = MAG (Magetan). Cikampek - Banjar
   table: cells Rajapolah / Indihiang to KNP / BJR are 1.042 km off their own sums (PDF typo;
   consecutive cells used). check.py unchanged (held-out > 1 min 3.3 %).
+- Line capacity (capacity.py, 'PROGRAM KA DAN KAPASITAS LINTAS' PDF pages 1866-1874, network diagrams per Daop): every
+  section block carries its section as hidden WHITE text ('KPB-AC', 'BKS-TB') just above its first row; rows
+  'CAT = reg/fac' down to 'K = n' ('=' may be glued to the name 'KOM=', 'PAR='; 'K 168' without '='; row spacing 6-12 pt;
+  some blocks print no category names (TPK-AC, AC-RJW): last row K, the one above P; a label can be printed twice).
+  User: KOM / EKO = long-distance or local passenger trains other than KRL; P = program (scheduled trains), K =
+  capacity (trains per day); a/b = regular / facultative. -> infra.db section_capacity (a, b, program_regular,
+  program_facultative, capacity, counts_add_up) + section_program (category rows): 141 blocks. Check
+  (research/capacity_check.py, gapeka.db trains over the section, path reduced to the diagram stations): P exact
+  (regular + facultative) 98 / 141, regular within 2 trains 131 / 141; the rest: KA Dinas counts (Surabaya yard,
+  Kroya - Gumilir - Cilacap), Andir - Bandung (P 140 counts both routes; gapeka.db splits via Ciroyom), Jatinegara -
+  Bekasi (414 vs 482: quadruple track), Tegal - Larangan printed 0/0 (blank template; gapeka.db 104/18). 15 blocks
+  whose categories do not add up to P as printed (qa). Busiest: Pasarsenen - Jatinegara 349 / 354, Klari - Cikampek
+  208 / 224; none over K. Simulator rule (user): warn when a section exceeds K; it still runs, with more hurdles
+  because scheduled trains keep priority (rules/priority.csv event capacity).
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

@@ -1270,6 +1270,29 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             n_ok += 1
     print(f"distance tables: {len(drows)} pairs; consecutive pairs agreeing with the sections within 10 m: "
           f"{n_ok} of {len(seen_d)}")
+    # ---- 'PROGRAM KA DAN KAPASITAS LINTAS' (pages 1866-1874): per section the scheduled trains per category
+    #      (regular / facultative), P = program (scheduled trains per day) and K = capacity (trains per day)
+    import capacity
+    cap = capacity.read(doc)
+    out.execute("CREATE TABLE section_capacity(a TEXT, b TEXT, page INTEGER, program_regular INTEGER, "
+                "program_facultative INTEGER, capacity INTEGER, counts_add_up INTEGER)")
+    out.execute("CREATE TABLE section_program(a TEXT, b TEXT, page INTEGER, category TEXT, regular INTEGER, "
+                "facultative INTEGER)")
+    for b in cap:
+        P = b["P"] or (None, None)
+        out.execute("insert into section_capacity values(?,?,?,?,?,?,?)",
+                    (b["a"], b["b"], b["page"], P[0], P[1], b["K"], int(b["sum_ok"])))
+        out.executemany("insert into section_program values(?,?,?,?,?,?)",
+                        [(b["a"], b["b"], b["page"], c, v[0], v[1]) for c, v in b["counts"].items()])
+        if b["P"] is None or b["K"] is None:
+            qa.append(("capacity block not read", b["label"], f"page {b['page']}"))
+        elif not b["sum_ok"]:
+            qa.append(("capacity block: categories do not add up to P (as printed)", b["label"],
+                       f"page {b['page']}: P {b['P'][0]}/{b['P'][1]}, categories "
+                       f"{sum(v[0] for v in b['counts'].values())}"))
+        elif b["P"] == (0, 0):
+            qa.append(("capacity block: P printed 0/0", b["label"], f"page {b['page']} (template not filled?)"))
+    print(f"capacity: {len(cap)} section blocks")
     out.executemany("insert into qa values(?,?,?)", qa)
     out.commit()
 
