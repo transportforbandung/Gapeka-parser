@@ -19,8 +19,8 @@ Time at the station: departure; arrival at the last stop; halt (Berh/Sb) = arriv
 Time axis:         --span 4-24        hours shown (default: whole hours around the first and last train of all bars);
                                       5-1 runs past midnight to 01:00
                    --day-start 3      times before 03:00 belong to the previous service day (drawn after 24:00)
-Colour:            green (short) to amber to red (long) (SCALE at the top of the script), only between the first and last train of the day; the rest of
-                   the bar stays grey.
+Colour:            green (short) to amber to red (long) (GREEN / AMBER / RED at the top of the script), only between the
+                   first and last train of the day; the rest of the bar stays grey.
                    --mode wait        (default) waiting time (waktu tunggu) for the next train at each moment: right
                                       after a train it is the whole gap (reddest), it turns greener as the next train
                                       gets closer and is green just before it; at each train line it starts again
@@ -28,7 +28,7 @@ Colour:            green (short) to amber to red (long) (SCALE at the top of the
                                       the train line between them
                    --blend 3          minutes of blending on each side of a train line (headway mode; a shorter gap
                                       blends from its middle; --blend 0 = hard edges)
-                   --green 10 --red 60   minutes that are fully green / fully red (default 10 and 60)
+                   --green 10 --yellow 30 --red 60   minutes that are fully green / amber / fully red (bars and legend)
                    --legend-marks 30     extra minute labels under the legend bar, at their place on the scale
                                          (default 30; several: 20,30,45; "" = none)
 Size:              --width 800 (bar width, pt)  --height 18 (bar height, pt)  --tick 0.5 (train line width, pt)  --tick-color "#8a8a8a" (muted grey)
@@ -51,6 +51,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 from xml.sax.saxutils import escape
 
 
@@ -67,23 +68,28 @@ TEXT = {
                wait="Waiting time", headway="Headway", min="min"),
 }
 
-# colour scale: green (short) -> amber -> red (long); saturated mid tones, blended in RGB between these stops
-SCALE = [(0.0, (0x22, 0xa4, 0x5d)), (0.5, (0xf5, 0xc2, 0x42)), (1.0, (0xe5, 0x39, 0x35))]
+# colour scale: green (short) -> amber -> red (long); saturated mid tones, blended in RGB between them.
+# Each colour sits at a number of minutes: --green (default 10), --yellow (30) and --red (60).
+GREEN, AMBER, RED = (0x22, 0xa4, 0x5d), (0xf5, 0xc2, 0x42), (0xe5, 0x39, 0x35)
 
 
-def headway_colour(minutes, green, red):
-    """colour for a wait / headway in minutes: SCALE from `green` minutes (fully green) to `red` (fully red)"""
-    f = min(max((minutes - green) / (red - green), 0.0), 1.0) if red > green else 0.0
-    for (fa, ca), (fb, cb) in zip(SCALE, SCALE[1:]):
-        if f <= fb:
-            u = (f - fa) / (fb - fa)
+def headway_colour(minutes, green, red, yellow=None):
+    """colour for a wait / headway in minutes: fully green up to `green`, amber at `yellow` (default: halfway),
+    fully red from `red`"""
+    yellow = (green + red) / 2 if yellow is None else yellow
+    pts = [(green, GREEN), (yellow, AMBER), (red, RED)]
+    if minutes <= green:
+        return "#" + "".join(f"{c:02x}" for c in GREEN)
+    for (ma, ca), (mb, cb) in zip(pts, pts[1:]):
+        if minutes <= mb and mb > ma:
+            u = (minutes - ma) / (mb - ma)
             return "#" + "".join(f"{round(a + (b - a) * u):02x}" for a, b in zip(ca, cb))
-    return "#" + "".join(f"{c:02x}" for c in SCALE[-1][1])
+    return "#" + "".join(f"{c:02x}" for c in RED)
 
 
 def main(argv):
     opt = dict(out="headway.svg", db="gapeka.db", parity=None, service=None, span=None, day_start=3.0,
-               green=10.0, red=60.0, width=800.0, height=18.0, tick=0.5, tick_color="#8a8a8a", blend=3.0, mode="wait", font="IBM Plex Sans",
+               green=10.0, yellow=30.0, red=60.0, width=800.0, height=18.0, tick=0.5, tick_color="#8a8a8a", blend=3.0, mode="wait", font="IBM Plex Sans",
                legend=True, labels=True, include_pass=False, mixed=False, lang="id", title=None, marks=[30.0],
                png=True, png_scale=3.0, browser=None)
     args = []
@@ -102,7 +108,7 @@ def main(argv):
         elif a == "--span":
             lo, hi = next(it).split("-")
             opt["span"] = (float(lo), float(hi))
-        elif a in ("--day-start", "--green", "--red", "--width", "--height", "--tick", "--blend"):
+        elif a in ("--day-start", "--green", "--yellow", "--red", "--width", "--height", "--tick", "--blend"):
             opt[a[2:].replace("-", "_")] = float(next(it))
         elif a == "--mode":
             opt["mode"] = next(it)
@@ -299,16 +305,16 @@ def main(argv):
                 # the next train line, where it jumps back to the next gap's full wait. Stops every 5 min of wait so
                 # the blend follows the same hue path as the legend.
                 for ta, tb, mins, na, nb in gaps:
-                    ws = sorted({mins, 0.0, opt["green"], opt["red"]} | {float(w) for w in range(0, int(mins), 5)},
-                                reverse=True)
+                    ws = sorted({mins, 0.0, opt["green"], opt["yellow"], opt["red"]}
+                                | {float(w) for w in range(0, int(mins), 5)}, reverse=True)
                     for w in [w for w in ws if w <= mins]:
                         out.append(f'<stop offset="{off(tb - w * 60):.4f}" '
-                                   f'stop-color="{headway_colour(w, opt["green"], opt["red"])}">'
+                                   f'stop-color="{headway_colour(w, opt["green"], opt["red"], opt["yellow"])}">'
                                    f'<title>{escape(na)}-{escape(nb)}: {w:.0f} min to {escape(nb)}</title></stop>')
                 gaps = []
             for ta, tb, mins, na, nb in gaps:
                 b = min(opt["blend"] * 60, (tb - ta) / 2)
-                col = headway_colour(mins, opt["green"], opt["red"])
+                col = headway_colour(mins, opt["green"], opt["red"], opt["yellow"])
                 for t in (ta + b, tb - b):      # flat between these two stops; the blend lies outside them
                     out.append(f'<stop offset="{off(t):.4f}" stop-color="{col}">'
                                f'<title>{escape(na)}-{escape(nb)} {mins:.0f} min</title></stop>')
@@ -329,11 +335,13 @@ def main(argv):
     if opt["legend"]:
         out.append('<g id="legend">')
         ly = axish + len(bars) * (bh + gap) - gap + 10
-        lx, lwid, steps = x0, 160.0, 11
+        lx, lwid = x0, 160.0
         out.append('<defs><linearGradient id="headway-legend" x1="0" y1="0" x2="1" y2="0">')
-        for k in range(steps):            # several stops so the blend follows the same hue path as the bars
-            m = opt["green"] + (opt["red"] - opt["green"]) * k / (steps - 1)
-            out.append(f'<stop offset="{k / (steps - 1):.2f}" stop-color="{headway_colour(m, opt["green"], opt["red"])}"/>')
+        for m in (opt["green"], opt["yellow"], opt["red"]):   # the three scale colours at their minutes
+            if opt["green"] <= m <= opt["red"]:
+                f = (m - opt["green"]) / (opt["red"] - opt["green"]) if opt["red"] > opt["green"] else 0.0
+                out.append(f'<stop offset="{f:.4f}" '
+                           f'stop-color="{headway_colour(m, opt["green"], opt["red"], opt["yellow"])}"/>')
         out.append("</linearGradient></defs>")
         rect(lx, ly, lwid, 7, "url(#headway-legend)")
         text(lx, ly + 13, f"≤{opt['green']:.0f} {T['min']}", 6.5, anchor="start", fill="#555555")
@@ -373,21 +381,57 @@ def svg_to_png(svg, w, h, png, scale, browser=None):
     if not exe:
         print("  no PNG: Edge / Chrome not found (give one with --browser PATH, or use --no-png)")
         return False
-    with tempfile.TemporaryDirectory() as tmp:
+    for attempt in (1, 2):
+        if _render(exe, svg, w, h, png, scale):
+            return True
+        if attempt == 1:
+            print("  PNG: browser did not finish, trying once more")
+    print("  no PNG: the browser did not produce a screenshot (the SVG is fine; try again or use --no-png)")
+    return False
+
+
+def _render(exe, svg, w, h, png, scale, timeout=60):
+    """one headless screenshot. The browser's output goes to DEVNULL (its helper processes would otherwise keep a
+    pipe open and hang the wait); as soon as the screenshot file is complete the whole process tree is ended."""
+    tmp = tempfile.mkdtemp(prefix="headway_png_")
+    try:
         page = os.path.join(tmp, "page.html")
         with open(page, "w", encoding="utf-8") as f:
             f.write('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}'
                     f'svg{{display:block}}</style></head><body>{svg}</body></html>')
         shot = os.path.join(tmp, "shot.png")
-        r = subprocess.run([exe, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={tmp}",
-                            f"--force-device-scale-factor={scale:g}", f"--window-size={math.ceil(w)},{math.ceil(h)}",
-                            f"--screenshot={shot}", pathlib.Path(page).as_uri()],
-                           capture_output=True, text=True, timeout=120)
-        if r.returncode != 0 or not os.path.exists(shot):
-            print("  no PNG: the browser failed:", (r.stderr or "").strip()[-300:])
-            return False
-        shutil.copyfile(shot, png)
-    return True
+        proc = subprocess.Popen(
+            [exe, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
+             "--no-default-browser-check", "--disable-extensions", "--disable-component-update",
+             "--disable-background-networking", f"--user-data-dir={os.path.join(tmp, 'profile')}",
+             f"--force-device-scale-factor={scale:g}", f"--window-size={math.ceil(w)},{math.ceil(h)}",
+             f"--screenshot={shot}", pathlib.Path(page).as_uri()],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        end, last, ok = time.time() + timeout, -1, False
+        while time.time() < end:
+            size = os.path.getsize(shot) if os.path.exists(shot) else -1
+            if size > 0 and size == last:            # written and no longer growing
+                ok = True
+                break
+            if proc.poll() is not None and size <= 0:
+                break                                # browser exited without a screenshot
+            last = size
+            time.sleep(0.5)
+        if proc.poll() is None:                      # end the browser and its helper processes
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                proc.kill()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
+        if ok:
+            shutil.copyfile(shot, png)
+        return ok
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)       # may fail while a helper still holds a file: left in %TEMP%
 
 
 main(sys.argv)
