@@ -371,6 +371,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   (Cigading, Jakarta Gudang, Gresik: no timetable stations). MGA in the tables = MAG (Magetan). Cikampek - Banjar
   table: cells Rajapolah / Indihiang to KNP / BJR are 1.042 km off their own sums (PDF typo;
   consecutive cells used). check.py unchanged (held-out > 1 min 3.3 %).
+- Secondary data policy (user, Nov 2026): the distance tables (pp 1875-1887) and the capacity diagrams (pp 1866-1874)
+  are SECONDARY: they check the primary data (timetable pages, graph sheets) and add what the primary data lacks
+  (capacity K), but never replace it on their own. A distance-table value replaces a sheet length only when a second
+  source agrees (the 3 pair overrides: timetable distance column / running times); other differences stay qa notes.
+  Capacity: the printed P is a reference only (blanks such as Tegal - Larangan 0/0, 15 blocks not adding up); the
+  load for the warning is counted from the timetable: section_capacity.timetable_regular / timetable_facultative
+  (trains over the section, path reduced to the diagram stations) and path = stations along the section (a block can
+  span several stations, e.g. CKP-HGL = CKP TJS PAB PRI PAS CKM PGB CRA HGL); CGD-KEN has no section route (Cigading).
 - Line capacity (capacity.py, 'PROGRAM KA DAN KAPASITAS LINTAS' PDF pages 1866-1874, network diagrams per Daop): every
   section block carries its section as hidden WHITE text ('KPB-AC', 'BKS-TB') just above its first row; rows
   'CAT = reg/fac' down to 'K = n' ('=' may be glued to the name 'KOM=', 'PAR='; 'K 168' without '='; row spacing 6-12 pt;

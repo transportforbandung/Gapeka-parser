@@ -1274,14 +1274,49 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     #      (regular / facultative), P = program (scheduled trains per day) and K = capacity (trains per day)
     import capacity
     cap = capacity.read(doc)
+    # secondary data (user): the printed P is a reference only; the load for the capacity warning is counted from the
+    # timetable (trains over the section, both directions, path reduced to the stations of the capacity diagrams)
+    cap_nodes = {c for b in cap for c in (b["a"], b["b"])}
+    fac_tt = dict(ttdb.execute("select no, coalesce(facultative, 0) from trains"))
+    tt_load = Counter()
+    for no in fac_tt:
+        path = [st for st, in ttdb.execute("select station from stops where train_no = ? order by seq", (no,))
+                if st in cap_nodes]
+        path = [st for k, st in enumerate(path) if k == 0 or st != path[k - 1]]
+        for x, y in set(zip(path, path[1:])):
+            tt_load[(frozenset((x, y)), bool(fac_tt[no]))] += 1
+
+    def route_path(a, b):
+        """stations along the shortest section route a -> b (a capacity section can span several stations)"""
+        dist, prev, pq = {a: 0}, {}, [(0, a)]
+        while pq:
+            d, x = heapq.heappop(pq)
+            if x == b:
+                out_p = [b]
+                while out_p[-1] != a:
+                    out_p.append(prev[out_p[-1]])
+                return out_p[::-1]
+            if d > dist.get(x, 1e9):
+                continue
+            for y, w in gd[x].items():
+                if d + w < dist.get(y, 1e9):
+                    dist[y], prev[y] = d + w, x
+                    heapq.heappush(pq, (d + w, y))
+        return None
     out.execute("CREATE TABLE section_capacity(a TEXT, b TEXT, page INTEGER, program_regular INTEGER, "
-                "program_facultative INTEGER, capacity INTEGER, counts_add_up INTEGER)")
+                "program_facultative INTEGER, capacity INTEGER, counts_add_up INTEGER, timetable_regular INTEGER, "
+                "timetable_facultative INTEGER, path TEXT)")
     out.execute("CREATE TABLE section_program(a TEXT, b TEXT, page INTEGER, category TEXT, regular INTEGER, "
                 "facultative INTEGER)")
     for b in cap:
         P = b["P"] or (None, None)
-        out.execute("insert into section_capacity values(?,?,?,?,?,?,?)",
-                    (b["a"], b["b"], b["page"], P[0], P[1], b["K"], int(b["sum_ok"])))
+        k_ = frozenset((b["a"], b["b"]))
+        rp = route_path(b["a"], b["b"])
+        out.execute("insert into section_capacity values(?,?,?,?,?,?,?,?,?,?)",
+                    (b["a"], b["b"], b["page"], P[0], P[1], b["K"], int(b["sum_ok"]), tt_load[(k_, False)],
+                     tt_load[(k_, True)], " ".join(rp) if rp else None))
+        if rp is None:
+            qa.append(("capacity section without a section route", b["label"], f"page {b['page']}"))
         out.executemany("insert into section_program values(?,?,?,?,?,?)",
                         [(b["a"], b["b"], b["page"], c, v[0], v[1]) for c, v in b["counts"].items()])
         if b["P"] is None or b["K"] is None:
