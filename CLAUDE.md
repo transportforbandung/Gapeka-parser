@@ -345,6 +345,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   impossible at any realistic length, e.g. Telawa (TW, I-212 / II-212 / III-308, checked on page 32) 2713 (30
   wagons) waits 11:42-11:53 while 54 passes; Kalisetail (KSL) 2763F / 2764F (20 wagons, 218 m). User does not know
   how KAI handles these (actual consist shorter than SF?): open.
+- Blocked station (user): a train standing at a station longer than every Roman track blocks the station entry, so
+  the whole station is occupied: no other train enters or passes until it has left; followers wait at the previous
+  station and are released to arrive when it is projected to have departed (like the release rule). Trains already
+  standing there in a track they fit may stay and leave after it (= the crossing rule: the long train departs first).
+  rules/priority.csv event stop. research/blocked_station.py [GD wagon m]: GD 12.5 m -> 106 such stops, 91 follow it
+  (86 %), every passenger case follows it, the 15 exceptions all involve freight (Telawa 2713 / 54 passing, Gundih
+  2713 / 2714, Kedungjati (KEJ) 2704F, Tanggung (TGG) 2714, Kalibaru / Kalisetail 2763F / 2764F, Lawang / Singosari / Sengon (SN)
+  tankers); GD 14.6 m -> 28 exceptions (adds the Cikampek-Cirebon container overtakes). Supports the shorter GD figure;
+  the rest suggests actual freight consists are often shorter than SF.
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).
