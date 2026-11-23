@@ -31,7 +31,8 @@ EXPORTS = [  # (file name, command)
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),
     ("siliwangi_odd.svg", ["export_poster.py", "351-356", "--odd"]),
     ("siliwangi_even.svg", ["export_poster.py", "351-356", "--even"]),
-    ("headway_bd.svg", ["export_headway.py", "BD", "--service", "Commuter Line Bandung Raya,Commuter Line Garut"]),
+    ("headway_bd.svg", ["export_headway.py", "BD", "--service", "Commuter Line Bandung Raya,Commuter Line Garut",
+                        "--no-png"]),
     ("trains_bandung.csv", ["export_trains.py", "386-431"]),
 ]
 failed = []

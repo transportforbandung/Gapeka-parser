@@ -197,11 +197,21 @@ width, so the Purwakarta side, which has more stations, has narrower cells. Run 
 see every option: `--exclude`, `--stations`, `--bold`, `--highlight`, `--sort`, `--max-width`, `--core`, `--scale`
 and `--fit-width`.
 
-Station headway bar (a time axis with one line per train, gaps coloured from green = short to red = long):
+Station wait-time bar: a time axis with one grey line per train. The colour shows the waiting time (waktu
+tunggu) for the next train at each moment. It is red right after a train when the next one is far off, turns
+green as the next train gets closer, and starts again at every train line. By default each station gets one bar
+per direction: even trains (to Cicalengka) on top, odd trains (to Padalarang) below. `--even` / `--odd` draw one
+direction only, `--mixed` puts both directions in one bar, and `--mode headway` colours each gap by its headway
+instead. The texts are in Indonesian by default: the title is "Waktu Tunggu Kereta di Stasiun Bandung", the bars
+are labelled "Menuju Cicalengka" / "Menuju Padalarang", and the legend reads "Waktu tunggu" with ≤10 / 30 / ≥60
+menit. Use `--lang en` for English and `--title` / `--no-title` to change the title. A PNG with the same name is
+written next to each SVG (rendered with a headless Edge / Chrome, 3× scale; `--png-scale`, `--no-png`).
 
 ```
-python export_headway.py BD --service "Commuter Line Bandung Raya,Commuter Line Garut"
-python export_headway.py BD,KAC,CCL 386-431 --even -o headway_even.svg
+python export_headway.py BD 386-431 -o bd_both.svg
+python export_headway.py BD 386-431 --even -o bd_even.svg
+python export_headway.py BD 386-431 --odd  -o bd_odd.svg
+python export_headway.py BD,KAC,CCL 386-431 --even -o wait_even.svg
 ```
 
 CSV matrix and a list of suspicious times:

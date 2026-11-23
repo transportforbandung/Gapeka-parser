@@ -1,141 +1,341 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="896.00" height="70.00" viewBox="0 0 896.00 70.00">
-<g id="axis">
-<line x1="90.00" y1="12.00" x2="90.00" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="90.00" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">04:00</text>
-<line x1="132.11" y1="12.00" x2="132.11" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="132.11" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">05:00</text>
-<line x1="174.21" y1="12.00" x2="174.21" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="174.21" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">06:00</text>
-<line x1="216.32" y1="12.00" x2="216.32" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="216.32" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">07:00</text>
-<line x1="258.42" y1="12.00" x2="258.42" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="258.42" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">08:00</text>
-<line x1="300.53" y1="12.00" x2="300.53" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="300.53" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">09:00</text>
-<line x1="342.63" y1="12.00" x2="342.63" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="342.63" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">10:00</text>
-<line x1="384.74" y1="12.00" x2="384.74" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="384.74" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">11:00</text>
-<line x1="426.84" y1="12.00" x2="426.84" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="426.84" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">12:00</text>
-<line x1="468.95" y1="12.00" x2="468.95" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="468.95" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">13:00</text>
-<line x1="511.05" y1="12.00" x2="511.05" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="511.05" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">14:00</text>
-<line x1="553.16" y1="12.00" x2="553.16" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="553.16" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">15:00</text>
-<line x1="595.26" y1="12.00" x2="595.26" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="595.26" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">16:00</text>
-<line x1="637.37" y1="12.00" x2="637.37" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="637.37" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">17:00</text>
-<line x1="679.47" y1="12.00" x2="679.47" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="679.47" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">18:00</text>
-<line x1="721.58" y1="12.00" x2="721.58" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="721.58" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">19:00</text>
-<line x1="763.68" y1="12.00" x2="763.68" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="763.68" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">20:00</text>
-<line x1="805.79" y1="12.00" x2="805.79" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="805.79" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">21:00</text>
-<line x1="847.89" y1="12.00" x2="847.89" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="847.89" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">22:00</text>
-<line x1="890.00" y1="12.00" x2="890.00" y2="34.00" stroke="#9a9a9a" stroke-width="0.4"/>
-<text x="890.00" y="9.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">23:00</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="906.00" height="92.00" viewBox="0 0 906.00 92.00">
+<g id="title">
+<text x="90.00" y="11.85" font-family="IBM Plex Sans" font-size="11.00" font-weight="700" fill="#1a1a1a" text-anchor="start">Waktu Tunggu Kereta di Stasiun Bandung</text>
 </g>
-<g id="bar-BD">
-<text x="84.00" y="27.98" font-family="IBM Plex Sans" font-size="8.50" font-weight="600" fill="#1a1a1a" text-anchor="end">Bandung</text>
-<rect x="90.00" y="16.00" width="800.00" height="18.00" fill="#e6e6e6"/>
+<g id="axis">
+<line x1="90.00" y1="34.00" x2="90.00" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="90.00" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">04:00</text>
+<line x1="132.11" y1="34.00" x2="132.11" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="132.11" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">05:00</text>
+<line x1="174.21" y1="34.00" x2="174.21" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="174.21" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">06:00</text>
+<line x1="216.32" y1="34.00" x2="216.32" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="216.32" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">07:00</text>
+<line x1="258.42" y1="34.00" x2="258.42" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="258.42" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">08:00</text>
+<line x1="300.53" y1="34.00" x2="300.53" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="300.53" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">09:00</text>
+<line x1="342.63" y1="34.00" x2="342.63" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="342.63" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">10:00</text>
+<line x1="384.74" y1="34.00" x2="384.74" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="384.74" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">11:00</text>
+<line x1="426.84" y1="34.00" x2="426.84" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="426.84" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">12:00</text>
+<line x1="468.95" y1="34.00" x2="468.95" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="468.95" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">13:00</text>
+<line x1="511.05" y1="34.00" x2="511.05" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="511.05" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">14:00</text>
+<line x1="553.16" y1="34.00" x2="553.16" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="553.16" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">15:00</text>
+<line x1="595.26" y1="34.00" x2="595.26" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="595.26" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">16:00</text>
+<line x1="637.37" y1="34.00" x2="637.37" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="637.37" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">17:00</text>
+<line x1="679.47" y1="34.00" x2="679.47" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="679.47" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">18:00</text>
+<line x1="721.58" y1="34.00" x2="721.58" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="721.58" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">19:00</text>
+<line x1="763.68" y1="34.00" x2="763.68" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="763.68" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">20:00</text>
+<line x1="805.79" y1="34.00" x2="805.79" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="805.79" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">21:00</text>
+<line x1="847.89" y1="34.00" x2="847.89" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="847.89" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">22:00</text>
+<line x1="890.00" y1="34.00" x2="890.00" y2="56.00" stroke="#9a9a9a" stroke-width="0.4"/>
+<text x="890.00" y="31.45" font-family="IBM Plex Sans" font-size="7.00" font-weight="500" fill="#555555" text-anchor="middle">23:00</text>
+</g>
+<g id="bar-BD-even">
+<text x="84.00" y="45.38" font-family="IBM Plex Sans" font-size="8.50" font-weight="600" fill="#1a1a1a" text-anchor="end">Menuju</text>
+<text x="84.00" y="54.58" font-family="IBM Plex Sans" font-size="8.50" font-weight="600" fill="#1a1a1a" text-anchor="end">Cicalengka</text>
+<rect x="90.00" y="38.00" width="800.00" height="18.00" fill="#e6e6e6"/>
 <g id="headway">
-<rect x="113.86" y="16.00" width="32.28" height="18.00" fill="#f0d0a8" data-headway="46 min" data-trains="414-396"/>
-<rect x="146.14" y="16.00" width="73.68" height="18.00" fill="#f0a8a8" data-headway="105 min" data-trains="396-386"/>
-<rect x="219.82" y="16.00" width="14.74" height="18.00" fill="#c8f0a8" data-headway="21 min" data-trains="386-406"/>
-<rect x="234.56" y="16.00" width="41.40" height="18.00" fill="#f0aba8" data-headway="59 min" data-trains="406-416"/>
-<rect x="275.96" y="16.00" width="26.67" height="18.00" fill="#f0e7a8" data-headway="38 min" data-trains="416-424"/>
-<rect x="302.63" y="16.00" width="25.26" height="18.00" fill="#f0eda8" data-headway="36 min" data-trains="424-398"/>
-<rect x="327.89" y="16.00" width="37.89" height="18.00" fill="#f0b9a8" data-headway="54 min" data-trains="398-390"/>
-<rect x="365.79" y="16.00" width="40.00" height="18.00" fill="#f0b1a8" data-headway="57 min" data-trains="390-408"/>
-<rect x="405.79" y="16.00" width="45.61" height="18.00" fill="#f0a8a8" data-headway="65 min" data-trains="408-418"/>
-<rect x="451.40" y="16.00" width="20.35" height="18.00" fill="#dff0a8" data-headway="29 min" data-trains="418-426"/>
-<rect x="471.75" y="16.00" width="40.70" height="18.00" fill="#f0aea8" data-headway="58 min" data-trains="426-400"/>
-<rect x="512.46" y="16.00" width="38.60" height="18.00" fill="#f0b7a8" data-headway="55 min" data-trains="400-392"/>
-<rect x="551.05" y="16.00" width="21.05" height="18.00" fill="#e1f0a8" data-headway="30 min" data-trains="392-410"/>
-<rect x="572.11" y="16.00" width="68.77" height="18.00" fill="#f0a8a8" data-headway="98 min" data-trains="410-420"/>
-<rect x="640.88" y="16.00" width="19.65" height="18.00" fill="#dcf0a8" data-headway="28 min" data-trains="420-428"/>
-<rect x="660.53" y="16.00" width="21.05" height="18.00" fill="#e1f0a8" data-headway="30 min" data-trains="428-402"/>
-<rect x="681.58" y="16.00" width="24.56" height="18.00" fill="#f0f0a8" data-headway="35 min" data-trains="402-388"/>
-<rect x="706.14" y="16.00" width="22.46" height="18.00" fill="#e7f0a8" data-headway="32 min" data-trains="388-394"/>
-<rect x="728.60" y="16.00" width="64.56" height="18.00" fill="#f0a8a8" data-headway="92 min" data-trains="394-412"/>
-<rect x="793.16" y="16.00" width="30.18" height="18.00" fill="#f0d9a8" data-headway="43 min" data-trains="412-422"/>
-<rect x="823.33" y="16.00" width="28.07" height="18.00" fill="#f0e1a8" data-headway="40 min" data-trains="422-430"/>
+<defs><linearGradient id="headway-BD-even" gradientUnits="userSpaceOnUse" x1="113.86" y1="0" x2="851.40" y2="0">
+<stop offset="0.0000" stop-color="#ee863c"><title>414-396: 46 min to 396</title></stop>
+<stop offset="0.0010" stop-color="#ef8b3d"><title>414-396: 45 min to 396</title></stop>
+<stop offset="0.0057" stop-color="#f2a73f"><title>414-396: 40 min to 396</title></stop>
+<stop offset="0.0105" stop-color="#f5c242"><title>414-396: 35 min to 396</title></stop>
+<stop offset="0.0152" stop-color="#cbbc47"><title>414-396: 30 min to 396</title></stop>
+<stop offset="0.0200" stop-color="#a1b64d"><title>414-396: 25 min to 396</title></stop>
+<stop offset="0.0247" stop-color="#76b052"><title>414-396: 20 min to 396</title></stop>
+<stop offset="0.0295" stop-color="#4caa58"><title>414-396: 15 min to 396</title></stop>
+<stop offset="0.0343" stop-color="#22a45d"><title>414-396: 10 min to 396</title></stop>
+<stop offset="0.0390" stop-color="#22a45d"><title>414-396: 5 min to 396</title></stop>
+<stop offset="0.0438" stop-color="#22a45d"><title>414-396: 0 min to 396</title></stop>
+<stop offset="0.0438" stop-color="#e53935"><title>396-386: 105 min to 386</title></stop>
+<stop offset="0.0485" stop-color="#e53935"><title>396-386: 100 min to 386</title></stop>
+<stop offset="0.0533" stop-color="#e53935"><title>396-386: 95 min to 386</title></stop>
+<stop offset="0.0580" stop-color="#e53935"><title>396-386: 90 min to 386</title></stop>
+<stop offset="0.0628" stop-color="#e53935"><title>396-386: 85 min to 386</title></stop>
+<stop offset="0.0676" stop-color="#e53935"><title>396-386: 80 min to 386</title></stop>
+<stop offset="0.0723" stop-color="#e53935"><title>396-386: 75 min to 386</title></stop>
+<stop offset="0.0771" stop-color="#e53935"><title>396-386: 70 min to 386</title></stop>
+<stop offset="0.0818" stop-color="#e53935"><title>396-386: 65 min to 386</title></stop>
+<stop offset="0.0866" stop-color="#e53935"><title>396-386: 60 min to 386</title></stop>
+<stop offset="0.0913" stop-color="#e85438"><title>396-386: 55 min to 386</title></stop>
+<stop offset="0.0961" stop-color="#eb703a"><title>396-386: 50 min to 386</title></stop>
+<stop offset="0.1009" stop-color="#ef8b3d"><title>396-386: 45 min to 386</title></stop>
+<stop offset="0.1056" stop-color="#f2a73f"><title>396-386: 40 min to 386</title></stop>
+<stop offset="0.1104" stop-color="#f5c242"><title>396-386: 35 min to 386</title></stop>
+<stop offset="0.1151" stop-color="#cbbc47"><title>396-386: 30 min to 386</title></stop>
+<stop offset="0.1199" stop-color="#a1b64d"><title>396-386: 25 min to 386</title></stop>
+<stop offset="0.1246" stop-color="#76b052"><title>396-386: 20 min to 386</title></stop>
+<stop offset="0.1294" stop-color="#4caa58"><title>396-386: 15 min to 386</title></stop>
+<stop offset="0.1342" stop-color="#22a45d"><title>396-386: 10 min to 386</title></stop>
+<stop offset="0.1389" stop-color="#22a45d"><title>396-386: 5 min to 386</title></stop>
+<stop offset="0.1437" stop-color="#22a45d"><title>396-386: 0 min to 386</title></stop>
+<stop offset="0.1437" stop-color="#7fb151"><title>386-406: 21 min to 406</title></stop>
+<stop offset="0.1446" stop-color="#76b052"><title>386-406: 20 min to 406</title></stop>
+<stop offset="0.1494" stop-color="#4caa58"><title>386-406: 15 min to 406</title></stop>
+<stop offset="0.1541" stop-color="#22a45d"><title>386-406: 10 min to 406</title></stop>
+<stop offset="0.1589" stop-color="#22a45d"><title>386-406: 5 min to 406</title></stop>
+<stop offset="0.1637" stop-color="#22a45d"><title>386-406: 0 min to 406</title></stop>
+<stop offset="0.1637" stop-color="#e63e36"><title>406-416: 59 min to 416</title></stop>
+<stop offset="0.1675" stop-color="#e85438"><title>406-416: 55 min to 416</title></stop>
+<stop offset="0.1722" stop-color="#eb703a"><title>406-416: 50 min to 416</title></stop>
+<stop offset="0.1770" stop-color="#ef8b3d"><title>406-416: 45 min to 416</title></stop>
+<stop offset="0.1817" stop-color="#f2a73f"><title>406-416: 40 min to 416</title></stop>
+<stop offset="0.1865" stop-color="#f5c242"><title>406-416: 35 min to 416</title></stop>
+<stop offset="0.1912" stop-color="#cbbc47"><title>406-416: 30 min to 416</title></stop>
+<stop offset="0.1960" stop-color="#a1b64d"><title>406-416: 25 min to 416</title></stop>
+<stop offset="0.2008" stop-color="#76b052"><title>406-416: 20 min to 416</title></stop>
+<stop offset="0.2055" stop-color="#4caa58"><title>406-416: 15 min to 416</title></stop>
+<stop offset="0.2103" stop-color="#22a45d"><title>406-416: 10 min to 416</title></stop>
+<stop offset="0.2150" stop-color="#22a45d"><title>406-416: 5 min to 416</title></stop>
+<stop offset="0.2198" stop-color="#22a45d"><title>406-416: 0 min to 416</title></stop>
+<stop offset="0.2198" stop-color="#f3b240"><title>416-424: 38 min to 424</title></stop>
+<stop offset="0.2226" stop-color="#f5c242"><title>416-424: 35 min to 424</title></stop>
+<stop offset="0.2274" stop-color="#cbbc47"><title>416-424: 30 min to 424</title></stop>
+<stop offset="0.2322" stop-color="#a1b64d"><title>416-424: 25 min to 424</title></stop>
+<stop offset="0.2369" stop-color="#76b052"><title>416-424: 20 min to 424</title></stop>
+<stop offset="0.2417" stop-color="#4caa58"><title>416-424: 15 min to 424</title></stop>
+<stop offset="0.2464" stop-color="#22a45d"><title>416-424: 10 min to 424</title></stop>
+<stop offset="0.2512" stop-color="#22a45d"><title>416-424: 5 min to 424</title></stop>
+<stop offset="0.2559" stop-color="#22a45d"><title>416-424: 0 min to 424</title></stop>
+<stop offset="0.2559" stop-color="#f4bd41"><title>424-398: 36 min to 398</title></stop>
+<stop offset="0.2569" stop-color="#f5c242"><title>424-398: 35 min to 398</title></stop>
+<stop offset="0.2617" stop-color="#cbbc47"><title>424-398: 30 min to 398</title></stop>
+<stop offset="0.2664" stop-color="#a1b64d"><title>424-398: 25 min to 398</title></stop>
+<stop offset="0.2712" stop-color="#76b052"><title>424-398: 20 min to 398</title></stop>
+<stop offset="0.2759" stop-color="#4caa58"><title>424-398: 15 min to 398</title></stop>
+<stop offset="0.2807" stop-color="#22a45d"><title>424-398: 10 min to 398</title></stop>
+<stop offset="0.2854" stop-color="#22a45d"><title>424-398: 5 min to 398</title></stop>
+<stop offset="0.2902" stop-color="#22a45d"><title>424-398: 0 min to 398</title></stop>
+<stop offset="0.2902" stop-color="#e95a38"><title>398-390: 54 min to 390</title></stop>
+<stop offset="0.2940" stop-color="#eb703a"><title>398-390: 50 min to 390</title></stop>
+<stop offset="0.2988" stop-color="#ef8b3d"><title>398-390: 45 min to 390</title></stop>
+<stop offset="0.3035" stop-color="#f2a73f"><title>398-390: 40 min to 390</title></stop>
+<stop offset="0.3083" stop-color="#f5c242"><title>398-390: 35 min to 390</title></stop>
+<stop offset="0.3130" stop-color="#cbbc47"><title>398-390: 30 min to 390</title></stop>
+<stop offset="0.3178" stop-color="#a1b64d"><title>398-390: 25 min to 390</title></stop>
+<stop offset="0.3225" stop-color="#76b052"><title>398-390: 20 min to 390</title></stop>
+<stop offset="0.3273" stop-color="#4caa58"><title>398-390: 15 min to 390</title></stop>
+<stop offset="0.3321" stop-color="#22a45d"><title>398-390: 10 min to 390</title></stop>
+<stop offset="0.3368" stop-color="#22a45d"><title>398-390: 5 min to 390</title></stop>
+<stop offset="0.3416" stop-color="#22a45d"><title>398-390: 0 min to 390</title></stop>
+<stop offset="0.3416" stop-color="#e74937"><title>390-408: 57 min to 408</title></stop>
+<stop offset="0.3435" stop-color="#e85438"><title>390-408: 55 min to 408</title></stop>
+<stop offset="0.3482" stop-color="#eb703a"><title>390-408: 50 min to 408</title></stop>
+<stop offset="0.3530" stop-color="#ef8b3d"><title>390-408: 45 min to 408</title></stop>
+<stop offset="0.3578" stop-color="#f2a73f"><title>390-408: 40 min to 408</title></stop>
+<stop offset="0.3625" stop-color="#f5c242"><title>390-408: 35 min to 408</title></stop>
+<stop offset="0.3673" stop-color="#cbbc47"><title>390-408: 30 min to 408</title></stop>
+<stop offset="0.3720" stop-color="#a1b64d"><title>390-408: 25 min to 408</title></stop>
+<stop offset="0.3768" stop-color="#76b052"><title>390-408: 20 min to 408</title></stop>
+<stop offset="0.3815" stop-color="#4caa58"><title>390-408: 15 min to 408</title></stop>
+<stop offset="0.3863" stop-color="#22a45d"><title>390-408: 10 min to 408</title></stop>
+<stop offset="0.3911" stop-color="#22a45d"><title>390-408: 5 min to 408</title></stop>
+<stop offset="0.3958" stop-color="#22a45d"><title>390-408: 0 min to 408</title></stop>
+<stop offset="0.3958" stop-color="#e53935"><title>408-418: 65 min to 418</title></stop>
+<stop offset="0.4006" stop-color="#e53935"><title>408-418: 60 min to 418</title></stop>
+<stop offset="0.4053" stop-color="#e85438"><title>408-418: 55 min to 418</title></stop>
+<stop offset="0.4101" stop-color="#eb703a"><title>408-418: 50 min to 418</title></stop>
+<stop offset="0.4148" stop-color="#ef8b3d"><title>408-418: 45 min to 418</title></stop>
+<stop offset="0.4196" stop-color="#f2a73f"><title>408-418: 40 min to 418</title></stop>
+<stop offset="0.4244" stop-color="#f5c242"><title>408-418: 35 min to 418</title></stop>
+<stop offset="0.4291" stop-color="#cbbc47"><title>408-418: 30 min to 418</title></stop>
+<stop offset="0.4339" stop-color="#a1b64d"><title>408-418: 25 min to 418</title></stop>
+<stop offset="0.4386" stop-color="#76b052"><title>408-418: 20 min to 418</title></stop>
+<stop offset="0.4434" stop-color="#4caa58"><title>408-418: 15 min to 418</title></stop>
+<stop offset="0.4481" stop-color="#22a45d"><title>408-418: 10 min to 418</title></stop>
+<stop offset="0.4529" stop-color="#22a45d"><title>408-418: 5 min to 418</title></stop>
+<stop offset="0.4577" stop-color="#22a45d"><title>408-418: 0 min to 418</title></stop>
+<stop offset="0.4577" stop-color="#c2bb48"><title>418-426: 29 min to 426</title></stop>
+<stop offset="0.4615" stop-color="#a1b64d"><title>418-426: 25 min to 426</title></stop>
+<stop offset="0.4662" stop-color="#76b052"><title>418-426: 20 min to 426</title></stop>
+<stop offset="0.4710" stop-color="#4caa58"><title>418-426: 15 min to 426</title></stop>
+<stop offset="0.4757" stop-color="#22a45d"><title>418-426: 10 min to 426</title></stop>
+<stop offset="0.4805" stop-color="#22a45d"><title>418-426: 5 min to 426</title></stop>
+<stop offset="0.4853" stop-color="#22a45d"><title>418-426: 0 min to 426</title></stop>
+<stop offset="0.4853" stop-color="#e64436"><title>426-400: 58 min to 400</title></stop>
+<stop offset="0.4881" stop-color="#e85438"><title>426-400: 55 min to 400</title></stop>
+<stop offset="0.4929" stop-color="#eb703a"><title>426-400: 50 min to 400</title></stop>
+<stop offset="0.4976" stop-color="#ef8b3d"><title>426-400: 45 min to 400</title></stop>
+<stop offset="0.5024" stop-color="#f2a73f"><title>426-400: 40 min to 400</title></stop>
+<stop offset="0.5071" stop-color="#f5c242"><title>426-400: 35 min to 400</title></stop>
+<stop offset="0.5119" stop-color="#cbbc47"><title>426-400: 30 min to 400</title></stop>
+<stop offset="0.5167" stop-color="#a1b64d"><title>426-400: 25 min to 400</title></stop>
+<stop offset="0.5214" stop-color="#76b052"><title>426-400: 20 min to 400</title></stop>
+<stop offset="0.5262" stop-color="#4caa58"><title>426-400: 15 min to 400</title></stop>
+<stop offset="0.5309" stop-color="#22a45d"><title>426-400: 10 min to 400</title></stop>
+<stop offset="0.5357" stop-color="#22a45d"><title>426-400: 5 min to 400</title></stop>
+<stop offset="0.5404" stop-color="#22a45d"><title>426-400: 0 min to 400</title></stop>
+<stop offset="0.5404" stop-color="#e85438"><title>400-392: 55 min to 392</title></stop>
+<stop offset="0.5452" stop-color="#eb703a"><title>400-392: 50 min to 392</title></stop>
+<stop offset="0.5500" stop-color="#ef8b3d"><title>400-392: 45 min to 392</title></stop>
+<stop offset="0.5547" stop-color="#f2a73f"><title>400-392: 40 min to 392</title></stop>
+<stop offset="0.5595" stop-color="#f5c242"><title>400-392: 35 min to 392</title></stop>
+<stop offset="0.5642" stop-color="#cbbc47"><title>400-392: 30 min to 392</title></stop>
+<stop offset="0.5690" stop-color="#a1b64d"><title>400-392: 25 min to 392</title></stop>
+<stop offset="0.5737" stop-color="#76b052"><title>400-392: 20 min to 392</title></stop>
+<stop offset="0.5785" stop-color="#4caa58"><title>400-392: 15 min to 392</title></stop>
+<stop offset="0.5833" stop-color="#22a45d"><title>400-392: 10 min to 392</title></stop>
+<stop offset="0.5880" stop-color="#22a45d"><title>400-392: 5 min to 392</title></stop>
+<stop offset="0.5928" stop-color="#22a45d"><title>400-392: 0 min to 392</title></stop>
+<stop offset="0.5928" stop-color="#cbbc47"><title>392-410: 30 min to 410</title></stop>
+<stop offset="0.5975" stop-color="#a1b64d"><title>392-410: 25 min to 410</title></stop>
+<stop offset="0.6023" stop-color="#76b052"><title>392-410: 20 min to 410</title></stop>
+<stop offset="0.6070" stop-color="#4caa58"><title>392-410: 15 min to 410</title></stop>
+<stop offset="0.6118" stop-color="#22a45d"><title>392-410: 10 min to 410</title></stop>
+<stop offset="0.6166" stop-color="#22a45d"><title>392-410: 5 min to 410</title></stop>
+<stop offset="0.6213" stop-color="#22a45d"><title>392-410: 0 min to 410</title></stop>
+<stop offset="0.6213" stop-color="#e53935"><title>410-420: 98 min to 420</title></stop>
+<stop offset="0.6242" stop-color="#e53935"><title>410-420: 95 min to 420</title></stop>
+<stop offset="0.6289" stop-color="#e53935"><title>410-420: 90 min to 420</title></stop>
+<stop offset="0.6337" stop-color="#e53935"><title>410-420: 85 min to 420</title></stop>
+<stop offset="0.6384" stop-color="#e53935"><title>410-420: 80 min to 420</title></stop>
+<stop offset="0.6432" stop-color="#e53935"><title>410-420: 75 min to 420</title></stop>
+<stop offset="0.6480" stop-color="#e53935"><title>410-420: 70 min to 420</title></stop>
+<stop offset="0.6527" stop-color="#e53935"><title>410-420: 65 min to 420</title></stop>
+<stop offset="0.6575" stop-color="#e53935"><title>410-420: 60 min to 420</title></stop>
+<stop offset="0.6622" stop-color="#e85438"><title>410-420: 55 min to 420</title></stop>
+<stop offset="0.6670" stop-color="#eb703a"><title>410-420: 50 min to 420</title></stop>
+<stop offset="0.6717" stop-color="#ef8b3d"><title>410-420: 45 min to 420</title></stop>
+<stop offset="0.6765" stop-color="#f2a73f"><title>410-420: 40 min to 420</title></stop>
+<stop offset="0.6813" stop-color="#f5c242"><title>410-420: 35 min to 420</title></stop>
+<stop offset="0.6860" stop-color="#cbbc47"><title>410-420: 30 min to 420</title></stop>
+<stop offset="0.6908" stop-color="#a1b64d"><title>410-420: 25 min to 420</title></stop>
+<stop offset="0.6955" stop-color="#76b052"><title>410-420: 20 min to 420</title></stop>
+<stop offset="0.7003" stop-color="#4caa58"><title>410-420: 15 min to 420</title></stop>
+<stop offset="0.7050" stop-color="#22a45d"><title>410-420: 10 min to 420</title></stop>
+<stop offset="0.7098" stop-color="#22a45d"><title>410-420: 5 min to 420</title></stop>
+<stop offset="0.7146" stop-color="#22a45d"><title>410-420: 0 min to 420</title></stop>
+<stop offset="0.7146" stop-color="#baba4a"><title>420-428: 28 min to 428</title></stop>
+<stop offset="0.7174" stop-color="#a1b64d"><title>420-428: 25 min to 428</title></stop>
+<stop offset="0.7222" stop-color="#76b052"><title>420-428: 20 min to 428</title></stop>
+<stop offset="0.7269" stop-color="#4caa58"><title>420-428: 15 min to 428</title></stop>
+<stop offset="0.7317" stop-color="#22a45d"><title>420-428: 10 min to 428</title></stop>
+<stop offset="0.7364" stop-color="#22a45d"><title>420-428: 5 min to 428</title></stop>
+<stop offset="0.7412" stop-color="#22a45d"><title>420-428: 0 min to 428</title></stop>
+<stop offset="0.7412" stop-color="#cbbc47"><title>428-402: 30 min to 402</title></stop>
+<stop offset="0.7460" stop-color="#a1b64d"><title>428-402: 25 min to 402</title></stop>
+<stop offset="0.7507" stop-color="#76b052"><title>428-402: 20 min to 402</title></stop>
+<stop offset="0.7555" stop-color="#4caa58"><title>428-402: 15 min to 402</title></stop>
+<stop offset="0.7602" stop-color="#22a45d"><title>428-402: 10 min to 402</title></stop>
+<stop offset="0.7650" stop-color="#22a45d"><title>428-402: 5 min to 402</title></stop>
+<stop offset="0.7697" stop-color="#22a45d"><title>428-402: 0 min to 402</title></stop>
+<stop offset="0.7697" stop-color="#f5c242"><title>402-388: 35 min to 388</title></stop>
+<stop offset="0.7745" stop-color="#cbbc47"><title>402-388: 30 min to 388</title></stop>
+<stop offset="0.7793" stop-color="#a1b64d"><title>402-388: 25 min to 388</title></stop>
+<stop offset="0.7840" stop-color="#76b052"><title>402-388: 20 min to 388</title></stop>
+<stop offset="0.7888" stop-color="#4caa58"><title>402-388: 15 min to 388</title></stop>
+<stop offset="0.7935" stop-color="#22a45d"><title>402-388: 10 min to 388</title></stop>
+<stop offset="0.7983" stop-color="#22a45d"><title>402-388: 5 min to 388</title></stop>
+<stop offset="0.8030" stop-color="#22a45d"><title>402-388: 0 min to 388</title></stop>
+<stop offset="0.8030" stop-color="#dcbe45"><title>388-394: 32 min to 394</title></stop>
+<stop offset="0.8049" stop-color="#cbbc47"><title>388-394: 30 min to 394</title></stop>
+<stop offset="0.8097" stop-color="#a1b64d"><title>388-394: 25 min to 394</title></stop>
+<stop offset="0.8145" stop-color="#76b052"><title>388-394: 20 min to 394</title></stop>
+<stop offset="0.8192" stop-color="#4caa58"><title>388-394: 15 min to 394</title></stop>
+<stop offset="0.8240" stop-color="#22a45d"><title>388-394: 10 min to 394</title></stop>
+<stop offset="0.8287" stop-color="#22a45d"><title>388-394: 5 min to 394</title></stop>
+<stop offset="0.8335" stop-color="#22a45d"><title>388-394: 0 min to 394</title></stop>
+<stop offset="0.8335" stop-color="#e53935"><title>394-412: 92 min to 412</title></stop>
+<stop offset="0.8354" stop-color="#e53935"><title>394-412: 90 min to 412</title></stop>
+<stop offset="0.8402" stop-color="#e53935"><title>394-412: 85 min to 412</title></stop>
+<stop offset="0.8449" stop-color="#e53935"><title>394-412: 80 min to 412</title></stop>
+<stop offset="0.8497" stop-color="#e53935"><title>394-412: 75 min to 412</title></stop>
+<stop offset="0.8544" stop-color="#e53935"><title>394-412: 70 min to 412</title></stop>
+<stop offset="0.8592" stop-color="#e53935"><title>394-412: 65 min to 412</title></stop>
+<stop offset="0.8639" stop-color="#e53935"><title>394-412: 60 min to 412</title></stop>
+<stop offset="0.8687" stop-color="#e85438"><title>394-412: 55 min to 412</title></stop>
+<stop offset="0.8735" stop-color="#eb703a"><title>394-412: 50 min to 412</title></stop>
+<stop offset="0.8782" stop-color="#ef8b3d"><title>394-412: 45 min to 412</title></stop>
+<stop offset="0.8830" stop-color="#f2a73f"><title>394-412: 40 min to 412</title></stop>
+<stop offset="0.8877" stop-color="#f5c242"><title>394-412: 35 min to 412</title></stop>
+<stop offset="0.8925" stop-color="#cbbc47"><title>394-412: 30 min to 412</title></stop>
+<stop offset="0.8972" stop-color="#a1b64d"><title>394-412: 25 min to 412</title></stop>
+<stop offset="0.9020" stop-color="#76b052"><title>394-412: 20 min to 412</title></stop>
+<stop offset="0.9068" stop-color="#4caa58"><title>394-412: 15 min to 412</title></stop>
+<stop offset="0.9115" stop-color="#22a45d"><title>394-412: 10 min to 412</title></stop>
+<stop offset="0.9163" stop-color="#22a45d"><title>394-412: 5 min to 412</title></stop>
+<stop offset="0.9210" stop-color="#22a45d"><title>394-412: 0 min to 412</title></stop>
+<stop offset="0.9210" stop-color="#f0963e"><title>412-422: 43 min to 422</title></stop>
+<stop offset="0.9239" stop-color="#f2a73f"><title>412-422: 40 min to 422</title></stop>
+<stop offset="0.9286" stop-color="#f5c242"><title>412-422: 35 min to 422</title></stop>
+<stop offset="0.9334" stop-color="#cbbc47"><title>412-422: 30 min to 422</title></stop>
+<stop offset="0.9382" stop-color="#a1b64d"><title>412-422: 25 min to 422</title></stop>
+<stop offset="0.9429" stop-color="#76b052"><title>412-422: 20 min to 422</title></stop>
+<stop offset="0.9477" stop-color="#4caa58"><title>412-422: 15 min to 422</title></stop>
+<stop offset="0.9524" stop-color="#22a45d"><title>412-422: 10 min to 422</title></stop>
+<stop offset="0.9572" stop-color="#22a45d"><title>412-422: 5 min to 422</title></stop>
+<stop offset="0.9619" stop-color="#22a45d"><title>412-422: 0 min to 422</title></stop>
+<stop offset="0.9619" stop-color="#f2a73f"><title>422-430: 40 min to 430</title></stop>
+<stop offset="0.9667" stop-color="#f5c242"><title>422-430: 35 min to 430</title></stop>
+<stop offset="0.9715" stop-color="#cbbc47"><title>422-430: 30 min to 430</title></stop>
+<stop offset="0.9762" stop-color="#a1b64d"><title>422-430: 25 min to 430</title></stop>
+<stop offset="0.9810" stop-color="#76b052"><title>422-430: 20 min to 430</title></stop>
+<stop offset="0.9857" stop-color="#4caa58"><title>422-430: 15 min to 430</title></stop>
+<stop offset="0.9905" stop-color="#22a45d"><title>422-430: 10 min to 430</title></stop>
+<stop offset="0.9952" stop-color="#22a45d"><title>422-430: 5 min to 430</title></stop>
+<stop offset="1.0000" stop-color="#22a45d"><title>422-430: 0 min to 430</title></stop>
+</linearGradient></defs>
+<rect x="113.86" y="38.00" width="737.54" height="18.00" fill="url(#headway-BD-even)"/>
 </g>
 <g id="trains">
-<line id="train-414" x1="113.86" y1="16.00" x2="113.86" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>414 04:34</title></line>
-<line id="train-396" x1="146.14" y1="16.00" x2="146.14" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>396 05:20</title></line>
-<line id="train-386" x1="219.82" y1="16.00" x2="219.82" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>386 07:05</title></line>
-<line id="train-406" x1="234.56" y1="16.00" x2="234.56" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>406 07:26</title></line>
-<line id="train-416" x1="275.96" y1="16.00" x2="275.96" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>416 08:25</title></line>
-<line id="train-424" x1="302.63" y1="16.00" x2="302.63" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>424 09:03</title></line>
-<line id="train-398" x1="327.89" y1="16.00" x2="327.89" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>398 09:39</title></line>
-<line id="train-390" x1="365.79" y1="16.00" x2="365.79" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>390 10:33</title></line>
-<line id="train-408" x1="405.79" y1="16.00" x2="405.79" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>408 11:30</title></line>
-<line id="train-418" x1="451.40" y1="16.00" x2="451.40" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>418 12:35</title></line>
-<line id="train-426" x1="471.75" y1="16.00" x2="471.75" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>426 13:04</title></line>
-<line id="train-400" x1="512.46" y1="16.00" x2="512.46" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>400 14:02</title></line>
-<line id="train-392" x1="551.05" y1="16.00" x2="551.05" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>392 14:57</title></line>
-<line id="train-410" x1="572.11" y1="16.00" x2="572.11" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>410 15:27</title></line>
-<line id="train-420" x1="640.88" y1="16.00" x2="640.88" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>420 17:05</title></line>
-<line id="train-428" x1="660.53" y1="16.00" x2="660.53" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>428 17:33</title></line>
-<line id="train-402" x1="681.58" y1="16.00" x2="681.58" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>402 18:03</title></line>
-<line id="train-388" x1="706.14" y1="16.00" x2="706.14" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>388 18:38</title></line>
-<line id="train-394" x1="728.60" y1="16.00" x2="728.60" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>394 19:10</title></line>
-<line id="train-412" x1="793.16" y1="16.00" x2="793.16" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>412 20:42</title></line>
-<line id="train-422" x1="823.33" y1="16.00" x2="823.33" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>422 21:25</title></line>
-<line id="train-430" x1="851.40" y1="16.00" x2="851.40" y2="34.00" stroke="#1a1a1a" stroke-width="1.20"><title>430 22:05</title></line>
+<line id="train-414" x1="113.86" y1="38.00" x2="113.86" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>414 04:34</title></line>
+<line id="train-396" x1="146.14" y1="38.00" x2="146.14" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>396 05:20</title></line>
+<line id="train-386" x1="219.82" y1="38.00" x2="219.82" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>386 07:05</title></line>
+<line id="train-406" x1="234.56" y1="38.00" x2="234.56" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>406 07:26</title></line>
+<line id="train-416" x1="275.96" y1="38.00" x2="275.96" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>416 08:25</title></line>
+<line id="train-424" x1="302.63" y1="38.00" x2="302.63" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>424 09:03</title></line>
+<line id="train-398" x1="327.89" y1="38.00" x2="327.89" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>398 09:39</title></line>
+<line id="train-390" x1="365.79" y1="38.00" x2="365.79" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>390 10:33</title></line>
+<line id="train-408" x1="405.79" y1="38.00" x2="405.79" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>408 11:30</title></line>
+<line id="train-418" x1="451.40" y1="38.00" x2="451.40" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>418 12:35</title></line>
+<line id="train-426" x1="471.75" y1="38.00" x2="471.75" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>426 13:04</title></line>
+<line id="train-400" x1="512.46" y1="38.00" x2="512.46" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>400 14:02</title></line>
+<line id="train-392" x1="551.05" y1="38.00" x2="551.05" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>392 14:57</title></line>
+<line id="train-410" x1="572.11" y1="38.00" x2="572.11" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>410 15:27</title></line>
+<line id="train-420" x1="640.88" y1="38.00" x2="640.88" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>420 17:05</title></line>
+<line id="train-428" x1="660.53" y1="38.00" x2="660.53" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>428 17:33</title></line>
+<line id="train-402" x1="681.58" y1="38.00" x2="681.58" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>402 18:03</title></line>
+<line id="train-388" x1="706.14" y1="38.00" x2="706.14" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>388 18:38</title></line>
+<line id="train-394" x1="728.60" y1="38.00" x2="728.60" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>394 19:10</title></line>
+<line id="train-412" x1="793.16" y1="38.00" x2="793.16" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>412 20:42</title></line>
+<line id="train-422" x1="823.33" y1="38.00" x2="823.33" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>422 21:25</title></line>
+<line id="train-430" x1="851.40" y1="38.00" x2="851.40" y2="56.00" stroke="#8a8a8a" stroke-width="0.50"><title>430 22:05</title></line>
 </g>
-<rect x="90.00" y="16.00" width="800.00" height="18.00" fill="none" stroke="#595a5a" stroke-width="0.6"/>
+<rect x="90.00" y="38.00" width="800.00" height="18.00" fill="none" stroke="#595a5a" stroke-width="0.6"/>
 </g>
 <g id="legend">
-<rect x="90.00" y="44.00" width="4.05" height="7.00" fill="#a8f0a8"/>
-<rect x="94.00" y="44.00" width="4.05" height="7.00" fill="#acf0a8"/>
-<rect x="98.00" y="44.00" width="4.05" height="7.00" fill="#b0f0a8"/>
-<rect x="102.00" y="44.00" width="4.05" height="7.00" fill="#b3f0a8"/>
-<rect x="106.00" y="44.00" width="4.05" height="7.00" fill="#b7f0a8"/>
-<rect x="110.00" y="44.00" width="4.05" height="7.00" fill="#bbf0a8"/>
-<rect x="114.00" y="44.00" width="4.05" height="7.00" fill="#bef0a8"/>
-<rect x="118.00" y="44.00" width="4.05" height="7.00" fill="#c2f0a8"/>
-<rect x="122.00" y="44.00" width="4.05" height="7.00" fill="#c6f0a8"/>
-<rect x="126.00" y="44.00" width="4.05" height="7.00" fill="#c9f0a8"/>
-<rect x="130.00" y="44.00" width="4.05" height="7.00" fill="#cdf0a8"/>
-<rect x="134.00" y="44.00" width="4.05" height="7.00" fill="#d1f0a8"/>
-<rect x="138.00" y="44.00" width="4.05" height="7.00" fill="#d4f0a8"/>
-<rect x="142.00" y="44.00" width="4.05" height="7.00" fill="#d8f0a8"/>
-<rect x="146.00" y="44.00" width="4.05" height="7.00" fill="#dcf0a8"/>
-<rect x="150.00" y="44.00" width="4.05" height="7.00" fill="#dff0a8"/>
-<rect x="154.00" y="44.00" width="4.05" height="7.00" fill="#e3f0a8"/>
-<rect x="158.00" y="44.00" width="4.05" height="7.00" fill="#e7f0a8"/>
-<rect x="162.00" y="44.00" width="4.05" height="7.00" fill="#eaf0a8"/>
-<rect x="166.00" y="44.00" width="4.05" height="7.00" fill="#eef0a8"/>
-<rect x="170.00" y="44.00" width="4.05" height="7.00" fill="#f0eea8"/>
-<rect x="174.00" y="44.00" width="4.05" height="7.00" fill="#f0eaa8"/>
-<rect x="178.00" y="44.00" width="4.05" height="7.00" fill="#f0e7a8"/>
-<rect x="182.00" y="44.00" width="4.05" height="7.00" fill="#f0e3a8"/>
-<rect x="186.00" y="44.00" width="4.05" height="7.00" fill="#f0dfa8"/>
-<rect x="190.00" y="44.00" width="4.05" height="7.00" fill="#f0dca8"/>
-<rect x="194.00" y="44.00" width="4.05" height="7.00" fill="#f0d8a8"/>
-<rect x="198.00" y="44.00" width="4.05" height="7.00" fill="#f0d4a8"/>
-<rect x="202.00" y="44.00" width="4.05" height="7.00" fill="#f0d1a8"/>
-<rect x="206.00" y="44.00" width="4.05" height="7.00" fill="#f0cda8"/>
-<rect x="210.00" y="44.00" width="4.05" height="7.00" fill="#f0c9a8"/>
-<rect x="214.00" y="44.00" width="4.05" height="7.00" fill="#f0c6a8"/>
-<rect x="218.00" y="44.00" width="4.05" height="7.00" fill="#f0c2a8"/>
-<rect x="222.00" y="44.00" width="4.05" height="7.00" fill="#f0bea8"/>
-<rect x="226.00" y="44.00" width="4.05" height="7.00" fill="#f0bba8"/>
-<rect x="230.00" y="44.00" width="4.05" height="7.00" fill="#f0b7a8"/>
-<rect x="234.00" y="44.00" width="4.05" height="7.00" fill="#f0b3a8"/>
-<rect x="238.00" y="44.00" width="4.05" height="7.00" fill="#f0b0a8"/>
-<rect x="242.00" y="44.00" width="4.05" height="7.00" fill="#f0aca8"/>
-<rect x="246.00" y="44.00" width="4.05" height="7.00" fill="#f0a8a8"/>
-<text x="90.00" y="59.27" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">≤10 min</text>
-<text x="250.00" y="59.27" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="end">≥60 min</text>
-<text x="258.00" y="49.77" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">headway</text>
+<defs><linearGradient id="headway-legend" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0.00" stop-color="#22a45d"/>
+<stop offset="0.10" stop-color="#4caa58"/>
+<stop offset="0.20" stop-color="#76b052"/>
+<stop offset="0.30" stop-color="#a1b64d"/>
+<stop offset="0.40" stop-color="#cbbc47"/>
+<stop offset="0.50" stop-color="#f5c242"/>
+<stop offset="0.60" stop-color="#f2a73f"/>
+<stop offset="0.70" stop-color="#ef8b3d"/>
+<stop offset="0.80" stop-color="#eb703a"/>
+<stop offset="0.90" stop-color="#e85438"/>
+<stop offset="1.00" stop-color="#e53935"/>
+</linearGradient></defs>
+<rect x="90.00" y="66.00" width="160.00" height="7.00" fill="url(#headway-legend)"/>
+<text x="90.00" y="81.28" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">≤10 menit</text>
+<text x="250.00" y="81.28" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="end">≥60 menit</text>
+<line x1="154.00" y1="66.00" x2="154.00" y2="73.00" stroke="#555555" stroke-width="0.6"/>
+<text x="154.00" y="81.28" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="middle">30 menit</text>
+<text x="258.00" y="71.78" font-family="IBM Plex Sans" font-size="6.50" font-weight="400" fill="#555555" text-anchor="start">Waktu tunggu</text>
 </g>
 </svg>
