@@ -12,6 +12,8 @@ Stations:          --exclude NAME,CODE,...   leave these columns out (default: C
 Size (same for every table, taken from the FDTB PDF; 1 pt = 1 px in Illustrator at 72 ppi):
                    time cell 49.84 x 11.6 pt, row gap 2.3 pt, train-number cell 27.8 x 11.6 pt, header row 22 pt high
                    --scale 0.8   resizes the whole table uniformly (cell ratios stay the same)
+                   --max-width 1450   (default) a table wider than this gets narrower time cells so it is exactly
+                                      this wide; heights, number cells and fonts stay the same; --max-width 0 = off
                    --fit-width 1450   scales the table so its total width is 1450 pt
 Colours (from the FDTB PDF): Commuter Line Garut = orange, Commuter Line Bandung Raya = blue (also the default), Siliwangi = yellow.
                    A train's row colour follows its service. A station header takes the colour of the service that calls there most
@@ -53,7 +55,7 @@ def split_name(n, maxc):
 def main(argv):
     opt = dict(out="poster.svg", db="gapeka.db", scale=1.0, font="IBM Plex Sans", hfont="IBM Plex Sans",
                weight="500", sort="time", parity=None, stations=None, bold=None,
-               highlight=set(), right=True, exclude=["Cisomang", "Lebakjero","Rajamandala","Selajambe","Tipar","Maleber","Cilaku","Sindangresmi","Ranji"], fit=None)
+               highlight=set(), right=True, exclude=["Cisomang", "Lebakjero","Rajamandala","Selajambe","Tipar","Maleber","Cilaku","Sindangresmi","Ranji"], fit=None, maxw=1450.0)
     args = []
     it = iter(argv[1:])
     for a in it:
@@ -63,6 +65,8 @@ def main(argv):
             opt["db"] = next(it)
         elif a == "--fit-width":
             opt["fit"] = float(next(it))
+        elif a == "--max-width":
+            opt["maxw"] = float(next(it))
         elif a == "--scale":
             opt["scale"] = float(next(it))
         elif a in ("--font", "--hfont", "--color", "--sort", "--weight"):
@@ -198,6 +202,8 @@ def main(argv):
     rowh = cellh + gap
     fs, fsb = 8.0 * k, 9.5 * k
     nnum = 2 if opt["right"] else 1
+    if opt["maxw"] and not opt["fit"] and nnum * numw + n * colw > opt["maxw"]:
+        colw = (opt["maxw"] - nnum * numw) / n    # narrower time cells only; heights, number cells and fonts unchanged
     W = nnum * numw + n * colw
     H = headh + gap + len(nos) * rowh - gap
     x0 = numw
