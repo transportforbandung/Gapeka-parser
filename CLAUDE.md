@@ -102,8 +102,12 @@ Read this first. It records decisions and findings from earlier sessions so they
   replaces + 10 min; freight re-planning mean 88 -> 15 min), long-train rule in the planner (Planner.forced: a train
   fitting no track holds the other train that fits, any number), own set successors never held, chain tail keeps the
   long-train rule; held trains re-timed from where they are held (plan_from). 7 +15 -> 35 min late. Sample of the 30
-  lowest-numbered intercity +15 min (research/delay_sample.py): end late median 36, p90 255 min: next = dispatching
-  re-plan (affected trains together, in priority order). Physics is
+  lowest-numbered intercity +15 min (research/delay_sample.py): end late median 36, p90 255 min. DISPATCHING RE-PLAN
+  (user, done): planner.dispatch = plan_edit (affected trains together in priority order, holds decided per conflict by
+  worth_holding, downstream check forbids holds whose held train ends much later than the gain, max 3 passes;
+  Timeline.drop / put incremental) + RECOVERY (late trains run at max(technical minimum = raw physics + 20 s / halt,
+  printed - lateness)). Sample: ends late median 1 / p90 23 / max 100 min; others' total delay median 25 min; Bima +15
+  -> 1 min late. Re-planning test: same station 85 / 78 / 73 %, freight end within 2 min 80 %. Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
 

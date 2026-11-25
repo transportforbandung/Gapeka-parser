@@ -346,3 +346,27 @@ departure, lose 2-4 h each) -> plain plan 6.7 h late.
   median 36 min (43), p90 255 min (300), max 335 (402); 11 within 30 min. Still too late in the tail (realistic:
   ~15-25 min): next step = a dispatching re-plan (the affected trains in a time window re-planned together in priority
   order), instead of one train at a time against a frozen timetable.
+
+## Dispatching re-plan (25 Nov 2026, user: "build the dispatching re-plan")
+
+planner.dispatch (planner.plan_edit calls it; the old one-train chain is plan_edit_chain):
+- the affected trains are re-planned TOGETHER, highest priority first, each against the fixed timetable plus the members
+  already placed; rounds repeat until no train joins (max 80 trains, 8 rounds)
+- holds decided per conflict (Planner.worth_holding, the user's cost rule locally): a train that would wait for a lower
+  one holds it if the hold <= 3 x its avoided wait (clearly outranked) or <= 1 x (equal); at stations it passes, and at
+  its own stops for trains it clearly outranks; the long-train rule; a unit's next trip joins when it would be late
+- downstream check (the cost rule on the final result): a hold whose held train ends up later than the gain that
+  justified it (weighted) is forbidden and the dispatch runs again (max 3 passes)
+- held trains re-timed from where they are held; Timeline.drop / put update the index incrementally (3-4x faster)
+- RECOVERY (Planner.recover, replay.Engine.minimum): a late train runs at max(technical minimum = raw physics without
+  GAPEKA's supplement + 20 s per halt, printed run - lateness), never ahead of its printed times. Bima: printed running
+  589 min, technical minimum 521 (68 min to recover). This was the biggest missing piece.
+Sample (research/delay_sample.py, the 30 lowest-numbered intercity trains each +15 min), ends late median / p90 / max,
+other trains' total delay median / max:
+  dispatch (3 passes)  1 / 23 / 100 min, 25 / 1513 min, 1-16 s  <- default
+  dispatch (1 pass)    1 /  1 /  25 min, 165 / 904 min
+  one-train chain      1 / 37 / 104 min, 26 / 922 min
+  (before recovery: dispatch 73 / 119 / 208; chain 36 / 255 / 335)
+research/delay_cases.py: 7 +15 -> 1 min late (others 1 min); 7 +30 -> 0 (others 216 min); 54 +15 -> 1 (9); 8 +20 -> 1
+(328); 121 +15 -> 0 (1); KRL 1008 +15 -> 26 (694: KRL have little slack, the set's day ripples).
+Re-planning test with recovery: same station 85 / 78 / 73 %, end within 2 min 92 / 93 / 98 %; freight 80 % (mean 5.8 min).

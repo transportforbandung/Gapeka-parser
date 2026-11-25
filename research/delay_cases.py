@@ -1,6 +1,5 @@
-"""Delayed-train cases for the simulator (planner.plan_edit): a scheduled train starts N minutes late; prints whether
-holding other trains was accepted, gain / weighted cost (min), how late it ends, how many trains were held and the
-worst delays among them. Bima (7) was ~10 h late at +15 min before the Nov 2026 fixes.
+"""Delayed-train cases for the simulator (planner.plan_edit): a scheduled train starts N minutes late; prints how late it
+ends, how many trains were re-planned / held, the other trains' total delay and the worst delays among them. Bima (7) was ~10 h late at +15 min before the Nov 2026 fixes.
 Run: python research/delay_cases.py [train:minutes ...]"""
 import gzip, json, sys, time
 sys.path.insert(0, "/home/user/Gapeka-parser")
@@ -17,6 +16,7 @@ for no, dl in cases:
     out, info = planner.plan_edit(pkg, tl, P, t, t["stops"][0][3] + int(dl) * 60, printed_from=t)
     late = sorted((round((r[-1][2] - T[n]["stops"][-1][2]) / 60), n) for n, (r, w) in out.items()
                   if n != no and r[-1][2] and T[n]["stops"][-1][2])
-    print(f"{no} +{dl} min: holding accepted {info['accepted']}, gain {round(info['gain_s'] / 60)} min, weighted cost "
-          f"{round(info['cost_s'] / 60)} min, ends {round((out[no][0][-1][2] - t['stops'][-1][2]) / 60)} min late, "
-          f"held {len(info['displaced'])}, worst others {late[-3:]} ({time.time() - t0:.0f} s)")
+    print(f"{no} +{dl} min: ends {round((out[no][0][-1][2] - t['stops'][-1][2]) / 60)} min late; trains re-planned "
+          f"{len(out) - 1} (held {len(info['displaced'])}), other trains' total delay "
+          f"{round(info['delay_others_s'] / 60)} min, holds forbidden by the downstream check "
+          f"{len(info.get('forbidden_holds', []))}; worst others {late[-3:]} ({time.time() - t0:.0f} s)")

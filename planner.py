@@ -1210,7 +1210,12 @@ def _dispatch_once(pkg, tl, P, train, dep0, printed_times=True, printed_from=Non
     return out, info
 
 
-def plan_edit(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=20):
+def plan_edit(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=80):
+    """the simulator's entry point for one edited scheduled train: the dispatching re-plan (dispatch)"""
+    return dispatch(pkg, tl, P, train, dep0, printed_times, printed_from, max_trains)
+
+
+def plan_edit_chain(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=20):
     """the simulator's entry point for one edited / new train: plan_priority (priority + cost limit), then the
     rolling-stock consequences: when a planned train arrives too late for its unit's next train (arrival + fitted
     turnaround), that train is re-planned from the time its unit is ready (Planner.ready_time), and so on along the
