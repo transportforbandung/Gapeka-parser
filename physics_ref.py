@@ -17,6 +17,8 @@ Algorithm (one leg between two points where the train is timed):
      train is at rest (leg start / end if it stops there, each halt)
   4. forward: v(j+1) = min(node(j+1), sqrt(max(v(j)^2 + 2 * 50 * min(a0, power / max(v(j), 1)), (8 / 3.6)^2)))
      backward: v(j) = min(v(j), sqrt(v(j+1)^2 + 2 * 50 * brake))
+     (squares as v * v, never v ** 2: pow() differs from v * v in the last bit for ~0.1 % of values, and the browser
+     engine must give the same doubles; numpy's v ** 2 in gapeka_model is v * v too)
   5. time = sum over cells of 2 * 50 / max(v(j) + v(j+1), 0.001)
 """
 import math
@@ -124,9 +126,9 @@ def simulate(cap_kmh, start_rest, end_rest, halts, a0, power, brake):
     v[0] = node[0]
     for j in range(n):
         acc = min(a0, power / max(v[j], 1.0))
-        v[j + 1] = min(node[j + 1], math.sqrt(max(v[j] ** 2 + 2 * DX * acc, V_MIN ** 2)))
+        v[j + 1] = min(node[j + 1], math.sqrt(max(v[j] * v[j] + 2 * DX * acc, V_MIN * V_MIN)))
     for j in range(n - 1, -1, -1):
-        v[j] = min(v[j], math.sqrt(v[j + 1] ** 2 + 2 * DX * brake))
+        v[j] = min(v[j], math.sqrt(v[j + 1] * v[j + 1] + 2 * DX * brake))
     return sum(2 * DX / max(v[j] + v[j + 1], 1e-3) for j in range(n))
 
 
