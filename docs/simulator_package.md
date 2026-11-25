@@ -98,15 +98,17 @@ website can say which rule moved a train.
 |---|---|---|
 | 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
 | 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
-| 3 | rule parameter tables (section 3), Python reference planner, re-planning test | BASELINE 25 Nov 2026 (see phase 3 notes); tuning continues |
+| 3 | rule parameter tables (section 3), Python reference planner, re-planning test | DONE 25 Nov 2026 (all written rules in the planner; see "Phase 3 completion") |
 | 4 | user-facing texts (id / en), origins on every value, disclaimer | reviewed by the user |
 | 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
 
 ## 7. Open questions
 
-- Where the browser engine lives (this repo or a new one) and its language (TypeScript or Rust / WASM).
-- Licence / disclaimer text for public use of the GAPEKA data and of the estimated times.
-- Which train attributes a public user may edit in v1 (times and stops only, or also type, speed and length).
+- (decided 25 Nov 2026, user) The browser engine lives in THIS repository, in TypeScript (Web Worker).
+- (decided 25 Nov 2026, user) Disclaimer: published by Transport for Bandung, full text in Indonesian and English
+  (draft in phase 4, reviewed by the user).
+- (decided 25 Nov 2026, user) v1 edits: departure time, stops and dwell, vmax, train type (KRL / locomotive-hauled /
+  freight) and length (cars); not routes.
 - (decided 25 Nov 2026, user) Scheduled trains may be edited by the user (their GAPEKA times are the starting point
   and the planner re-plans them); they are never moved to make room for a train created outside the schedule.
 
@@ -270,3 +272,29 @@ planner plans ONE train against all others, which keep their times (rules/engine
   model. The weak physics re-planning (intercity 51 % end within 2 min) is symmetric (late > 2 min 26 %, early 23 %,
   median 0) and comes from waits (27 min per intercity train on average): +-1 min per leg breaks GAPEKA's minute-tight
   spacing and cascades. GAPEKA trains keep their printed running times; physics for new trains / changed patterns.
+
+## Phase 3 completion (25 Nov 2026)
+
+User: finish phase 3 before phase 4. Every rule written in rules/priority.csv is now in the planner:
+- Station tracks (can_wait / station_free): every moment another train is at the station, all trains present plus the
+  planned one need a Roman track each, usable in their own direction (usable_towards; unknown = both ways) and, if they
+  STAND there, long enough (greedy matching); a train running through needs a free track of any length; alone at the
+  station a train need not fit (stop alone); 59 s tolerance (whole minutes). Train length: locomotive-hauled cars x 21 m
+  + 16 m; multiple units (KRL, KRD, EMU-like) cars x 20 m (12-car KRL 240 m fits Bojonggede II-251); freight wagons.
+  GAPEKA's printed calls break it 43 times of 36839 (misfit crossings: Wonogiri-type single-track loops, Rogojampi,
+  Malang Kotalama, Telawa, ...): tolerated as printed (headways.station_exemptions, fitted per edition; user decision
+  for existing schedules), new / edited trains stay strict.
+- Release (event release): a train never arrives at a station without a free track for it; it leaves the previous
+  station so it arrives when one frees (blocking train's departure - running time + dispatcher gap), by default 1 min
+  before the train ahead leaves when it continues the same way (release_margin). Entry-signal marks need no code: the
+  planner never holds a train at an entry signal.
+- Rolling stock (duties): a train cannot leave before its unit's previous trip arrived + turnaround (fitted per duty
+  kind and type, headways.turnaround_min: KRL 1, KRD 5, loco intercity 4, loco commuter 20 min, ...; a printed tighter
+  turnaround is kept for that link). plan_edit (the simulator's entry point) re-plans the unit's next trips when an
+  edit makes them late (e.g. KRL 1008 +40 min -> 1217, 1218, ... along the set's day). Printed trains held: 0.
+- Window time: Planner.windows (a, b, start, end, optional direction 'X->Y'): no train in a block while a window closes
+  a sheet section on its route.
+- Capacity warning: capacity_warnings() lists sections whose load (timeline as planned) exceeds K; GAPEKA printed: none.
+- Re-planning test (printed running times; block rule + 2 min gap before -> now): GAPEKA waits at the same station
+  intercity 74 -> 79 %, commuter 56 -> 73 %, KRL 67 -> 71 %; end within 2 min 94 -> 92 / 94 -> 93 / 98 -> 98 %.
+- check.py: station exemptions <= 60, no printed train held by its turnaround, no section over K.

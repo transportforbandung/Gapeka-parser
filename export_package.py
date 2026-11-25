@@ -310,7 +310,10 @@ def build(tt_path, infra_path, rules_path):
     added, sqa = signal_infer.infer(pkg)
     signal_infer.write_infra(infra_path, added, sqa)
     import planner
-    pkg["rules"]["headways"] = planner.fit_headways(planner.Timeline(pkg), {t["no"]: t["type"] for t in trains})
+    tl = planner.Timeline(pkg)
+    pkg["rules"]["headways"] = planner.fit_headways(tl, {t["no"]: t["type"] for t in trains})
+    pkg["rules"]["headways"]["turnaround_min"] = planner.fit_turnaround(pkg)
+    pkg["rules"]["headways"]["station_exemptions"] = planner.station_exemptions(pkg, tl)
     return pkg
 
 

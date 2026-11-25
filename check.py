@@ -28,15 +28,18 @@ LIMITS = {"model_over_1min": 0.05,
           "halts": {"bandung": (0.75, 0.98), "jabodetabek (held-out trains)": (0.85, 0.98), "surabaya": (0.80, 0.98)},
           "package_bytes": 1_500_000,
           # re-planning test (25 Nov 2026, margin 5 min: intercity 90 / 96 / 69 %, commuter 89 / 100 / 50 %, krl 98 / 99 / 63 %)
+          # + station tracks by direction / length, release rule, turnaround (25 Nov 2026): intercity 79 / 96 / 92 %,
+          # commuter 73 / 100 / 93 %, KRL 71 / 98 / 98 %
           # block-point rule (25 Nov 2026): intercity 68 / 98 / 94 %, commuter 48 / 100 / 92 %, KRL 55 / 98 / 98 %
           # (same station / clean / end); KRL same station dropped from 63 % (old fixed gaps): GAPEKA keeps more
           # distance than the signals require at e.g. Tambun (research/block_clear.py)
           # + 2 min dispatcher gap on double track (user): intercity 74 / 98 / 94 %, commuter 56 / 100 / 94 %,
           # KRL 67 / 98 / 98 %
           "block_rule_broken": 5,         # GAPEKA pairs breaking the double-track block rule (3 single pairs, Nov 2026)
-          "replan": {"intercity": dict(end_within_2min=0.91, no_wait_trains_clean=0.95, same_station=0.71),
-                     "commuter": dict(end_within_2min=0.91, no_wait_trains_clean=0.97, same_station=0.53),
-                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.64)}}
+          "replan": {"intercity": dict(end_within_2min=0.89, no_wait_trains_clean=0.93, same_station=0.76),
+                     "commuter": dict(end_within_2min=0.90, no_wait_trains_clean=0.97, same_station=0.70),
+                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.68)},
+          "station_exemptions": 60}       # printed calls breaking the station check (43, Nov 2026)
 EXPORTS = [  # (file name, command)
     ("cl_bandung_even.svg", ["export_poster.py", "386-431", "--even"]),
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),
@@ -158,6 +161,14 @@ def main():
         result(sum(broken.values()) <= LIMITS["block_rule_broken"],
                f"double-track block rule: GAPEKA pairs breaking it {sum(broken.values())} (limit "
                f"{LIMITS['block_rule_broken']}) {sorted(broken.items())[:5]}; inferred signals in infra.db {n_inf}")
+        P_ = planner.Planner(pkg, tl)
+        n_ex = len(pkg["rules"]["headways"].get("station_exemptions", []))
+        pushed = sum(1 for t in pkg["trains"] if t["no"] in tl.trains and t["stops"][0][3] is not None
+                     and P_.ready_time(t["no"], t["stops"][0][3]) > t["stops"][0][3] + 1)
+        warn = planner.capacity_warnings(pkg, tl)
+        result(n_ex <= LIMITS["station_exemptions"] and pushed == 0 and not warn,
+               f"station check: printed calls tolerated {n_ex} (limit {LIMITS['station_exemptions']}); printed trains "
+               f"held by their unit's turnaround {pushed}; sections over capacity K {len(warn)}")
         gpath = os.path.join(pfolder, "replay.json.gz")
         same = os.path.exists(gpath) and json.load(gzip.open(gpath))["trains"] == json.loads(json.dumps(trains_out))
         result(same, "golden replay.json.gz matches a fresh replay of the package")

@@ -216,6 +216,25 @@ class Timeline:
         return bool(p and p["double"])
 
 
+WAGON_M = {"GD": 12.5, "GT": 13.2, "GK": 14.0}        # research/layout_checks.py (web lengths; GD = INKA 12.5 m)
+LOCO_M = {"CC 201": 15.2, "CC 203": 15.2, "CC 204": 15.85, "CC 206": 15.85}
+
+
+def train_length(t):
+    """train length (m) from the package consist: locomotive-hauled passenger cars x 21 m + 16 m locomotive; multiple
+    units (KRL, KRD, EMU-like commuters) cars x 20 m (a 12-car KRL = 240 m fits Bojonggede II-251; x 21 + 16 did not and
+    made 53 GAPEKA KRL calls there 'impossible'); freight wagons x wagon length + locomotive; None without a consist"""
+    c = t.get("consist") or {}
+    if not c.get("cars"):
+        return None
+    if c.get("wagon"):
+        return c["cars"] * WAGON_M.get(c["wagon"][:2], 14.0) + LOCO_M.get(c.get("locomotive"), 16.0)
+    if t.get("type") == "krl" or t.get("run_class") == "commuter-emu" or (not c.get("locomotive") and
+                                                                          t.get("type") == "commuter"):
+        return c["cars"] * 20.0           # multiple units (KRL, KRD, Ka Feeder): ~20 m cars, no locomotive
+    return c["cars"] * 21.0 + 16.0
+
+
 def knot_time(knots, f, run, clear):
     """time (relative to the block entry) at fraction f: when the train reaches it (clear=False: arrival) or has
     passed it (clear=True: departure from a halt there); knots None = even speed over run"""
@@ -229,6 +248,61 @@ def knot_time(knots, f, run, clear):
                 return d0 if clear else a0
             return d0 + (a1 - d0) * (f - f0) / ((f1 - f0) or 1.0)
     return knots[-1][2] if clear else knots[-1][1]
+
+
+def _ends(t):
+    a, b = t["stops"][0], t["stops"][-1]
+    return (a[0], a[3] if a[3] is not None else a[2]), (b[0], b[2] if b[2] is not None else b[3])
+
+
+def duty_links(pkg):
+    """consecutive trains of one rolling-stock unit (duties: rangkaian pokok sets, locomotive rosters) that connect
+    at the same station: [(previous train, next train, duty kind)]"""
+    T = {t["no"]: t for t in pkg["trains"]}
+    out = []
+    for d in pkg["duties"]:
+        tr = [n for n in d["trains"] if n in T]
+        for a, b in zip(tr, tr[1:]):
+            (sa, _), (ea_st, ea) = _ends(T[a])
+            (sb, db), _ = _ends(T[b])
+            if ea_st == sb and ea is not None and db is not None:
+                out.append((a, b, d["kind"]))
+    return out
+
+
+def fit_turnaround(pkg):
+    """fitted per edition: the tightest turnaround GAPEKA uses (1st percentile, whole minutes, >= 1) per duty kind and
+    the next train's type: next departure - previous arrival at the same station"""
+    T = {t["no"]: t for t in pkg["trains"]}
+    g = defaultdict(list)
+    for a, b, kind in duty_links(pkg):
+        ea = _ends(T[a])[1][1]
+        db = _ends(T[b])[0][1]
+        g[f"{kind}:{T[b]['type']}"].append(((db - ea) % 86400) / 60)
+    out = {}
+    for k, v in g.items():
+        v.sort()
+        out[k] = max(1.0, float(round(v[int(0.01 * (len(v) - 1))])))
+    return dict(sorted(out.items()))
+
+
+def station_exemptions(pkg, tl=None):
+    """fitted per edition: [train, station] where the PRINTED timetable already breaks the station check (all
+    trains there could not get a usable track that fits). The user tolerates existing scheduled cases (freight
+    misfits, crossings with a train longer than the loop); new or edited trains stay strict."""
+    tl = tl or Timeline(pkg)
+    P = Planner(pkg, tl)
+    out = []
+    for no, rows in tl.trains.items():
+        if P.type.get(no) == "dinas":
+            continue
+        P.skip = no
+        st_rows = [r for r in rows if P.kind.get(r[0]) != "halt"]
+        for k, r in enumerate(st_rows):
+            nxt = st_rows[k + 1][0] if k + 1 < len(st_rows) else None
+            if P.station_free(r[0], r[2], r[3], P.length.get(no), nxt):
+                out.append([no, r[0]])
+    return sorted(out)
 
 
 def fit_headways(tl, ttype):
@@ -288,6 +362,9 @@ class Planner:
         gaps = {(w["event"], w["track"]): float(w["gap_min"]) * 60 for w in pkg["rules"]["wait_gaps"] if w["line"] == "*"}
         mw = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "min_wait"]
         self.min_wait = (mw[0] if mw else 1) * 60
+        _ep = {x["param"]: x["value"] for x in pkg["rules"].get("engine_params", [])}
+        self.dispatcher_gap = float(_ep.get("dispatcher_gap", 2)) * 60
+        self.release_margin = float(_ep.get("release_margin", 1)) * 60
         ab = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "approach_blocks"]
         self.approach_blocks = int(ab[0]) if ab else 1
         dg = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "double_follow_gap"]
@@ -300,6 +377,7 @@ class Planner:
         self.type = {t["no"]: t["type"] for t in pkg["trains"]}
         self.facultative = {t["no"]: bool(t.get("facultative")) for t in pkg["trains"]}
         self.scheduled = {t["no"] for t in pkg["trains"]}   # GAPEKA trains (a user-created train is not in here)
+        self.windows = []                       # track work (window time): dict(a, b, start, end, direction=None)
         self.ignore = set()                     # trains being displaced by the planned train (priority)
         self.displaced = set()
         self.displace = False
@@ -307,13 +385,42 @@ class Planner:
         self.prio_gap = int(float(ep.get("priority_number_gap", 50)))
         self.displace_ratio = float(ep.get("displace_cost_ratio", 3))
         # station tracks: Roman tracks in service and the longest usable one, over all diagrams of the station
-        self.roman, self.longest = defaultdict(int), defaultdict(float)
+        # station tracks (Roman, in service), merged over the station's diagrams (one per line) by name + n-th
+        # occurrence: the longest length, the union of the neighbours each is usable towards; a track whose direction
+        # the reader could not derive (usable '') counts as usable both ways (unknown, not forbidden)
+        merged = defaultdict(dict)
         for L in pkg["layouts"]:
+            seen = defaultdict(int)
             for tr in L["tracks"]:
                 name, kind, length, usable, towards, enter, through, oos = tr[:8]
-                if kind == "roman" and not oos and (usable or through):
-                    self.roman[L["station"]] += 1
-                    self.longest[L["station"]] = max(self.longest[L["station"]], length or 0)
+                if kind != "roman" or oos:
+                    continue
+                seen[name] += 1
+                key = (name, seen[name])
+                m = merged[L["station"]].setdefault(key, dict(name=name, length=0.0, towards=set(), unknown=False))
+                m["length"] = max(m["length"], length or 0.0)
+                m["towards"] |= set((towards or "").split())
+                if not usable and not through:
+                    m["unknown"] = True
+        self.tracks = {st: list(v.values()) for st, v in merged.items()}
+        self.roman = {st: len(v) for st, v in self.tracks.items()}
+        self.longest = {st: max((x["length"] for x in v), default=0.0) for st, v in self.tracks.items()}
+        self.length = {t["no"]: train_length(t) for t in pkg["trains"]}
+        # rolling stock (duties): a train cannot leave before its unit's previous train has arrived + turnaround
+        turn = pkg["rules"].get("headways", {}).get("turnaround_min", {})
+        self.duty_prev, self.duty_next = {}, defaultdict(list)
+        self.link_gap = {}                            # (prev, next) -> (printed gap s, printed arrival, printed dep)
+        T = {t["no"]: t for t in pkg["trains"]}
+        for a, b, kind in duty_links(pkg):
+            m = turn.get(f"{kind}:{self.type.get(b)}", 1.0) * 60
+            printed = (_ends(T[b])[0][1] - _ends(T[a])[1][1]) % 86400
+            m = min(m, printed)                       # a printed turnaround tighter than the fitted one is kept
+            self.duty_prev.setdefault(b, []).append((a, m))
+            self.link_gap[(a, b)] = (printed, _ends(T[a])[1][1], _ends(T[b])[0][1])
+            self.duty_next[a].append((b, m))
+        self.exempt = {(x["train_no"], x["station"]) for x in pkg["rules"].get("fit_exemptions", [])}
+        # printed GAPEKA calls that break the station check (misfit crossings KAI accepts): tolerated as printed
+        self.exempt |= {tuple(x) for x in pkg["rules"].get("headways", {}).get("station_exemptions", [])}
         # dinas tutup: station -> list of (from_s, to_s) closed windows (predicted hours)
         self.closed = defaultdict(list)
         for d in pkg["dinas_tutup"]:
@@ -348,6 +455,41 @@ class Planner:
         return (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip
                 and not self.outranks(other, self.skip))
 
+    def window_conflict(self, a, b, d, arr):
+        """window time (track work, PTDI: re-plan that day only): T may not be in block a -> b while a window closes a
+        sheet section on its route (both tracks, or only the direction given as 'X->Y'); T enters after the window.
+        Returns (earliest new departure, None, 'window') or None"""
+        if not self.windows:
+            return None
+        route = self.tl.sheet_route(a, b, 60) or [a, b]
+        legs = set(zip(route, route[1:]))
+        for w in self.windows:
+            hit = (w["a"], w["b"]) in legs or (w["b"], w["a"]) in legs
+            if not hit:
+                continue
+            if w.get("direction"):
+                x, y = w["direction"].split("->")
+                if (x, y) not in legs:
+                    continue
+            for sh in (-86400, 0, 86400):
+                s0, s1 = w["start"] + sh, w["end"] + sh
+                if d < s1 and arr > s0:
+                    return (s1, None, "window")
+        return None
+
+    def ready_time(self, no, near):
+        """earliest departure of train no from its unit's previous train(s): their arrival (as planned now, in the
+        timeline) + the fitted turnaround; times taken on the day nearest `near`"""
+        ready = None
+        for prev, m in self.duty_prev.get(no, []):
+            rows = self.tl.trains.get(prev)
+            if not rows:
+                continue
+            gap, a_old, d_old = self.link_gap[(prev, no)]
+            delta = (rows[-1][2] - a_old + 43200) % 86400 - 43200      # how late the previous trip is now
+            ready = max(ready or 0, d_old - gap + delta + m)            # on the printed departure's day
+        return ready if ready is not None else near
+
     def is_closed(self, st, t):
         for a, b in self.closed.get(st, []):
             x = t % 86400
@@ -355,16 +497,75 @@ class Planner:
                 return True
         return False
 
-    def can_wait(self, st, t0, t1, length):
-        """T may stand at st from t0 to t1 while other trains enter / pass: a station (not a halt, not closed), with a
-        Roman track; it must fit the longest one; the trains standing there at the same time must leave a track"""
+    def can_wait(self, st, t0, t1, length, towards=None):
+        """T may stand at st from t0 to t1 (user rules, rules/priority.csv): only at a station (not a halt, not closed)
+        with Roman tracks. Every moment another train is there (standing or passing), all trains present plus T need
+        a track each: usable in their own direction (towards their next station) and long enough (matching). T alone
+        at the station need not fit (stop alone: it may stand on the main). A T longer than every usable track while
+        others come would block the station entry: not allowed (blocked station; tolerated for printed freight in
+        fit_exemptions)."""
         if self.kind.get(st) == "halt" or not self.roman.get(st) or self.is_closed(st, t0):
             return False
-        if length and self.longest.get(st) and length > self.longest[st]:
-            return False
-        standing = sum(1 for a, d, no, *_ in self.tl.point.get(st, []) if a < t1 and d > t0 and d - a >= 60
-                       and no != self.skip and no not in self.ignore)
-        return standing + 1 < self.roman[st] + (1 if self.roman[st] == 1 else 0) or standing == 0
+        return self.station_free(st, t0, t1, length, towards) is None
+
+    def station_free(self, st, t0, t1, length, towards=None):
+        """None if T can be at st from t0 to t1 next to the other trains there (see can_wait); else the trains present
+        at the first moment it cannot (list of (arr, dep, train, next station))"""
+        if self.kind.get(st) == "halt" or not self.roman.get(st):
+            return None
+        # whole-minute times (time_tolerance): a train leaving in the minute T arrives no longer counts
+        # only a train that STANDS needs to fit its track (a train running through needs a free track, any length)
+        others = [(a, d - self.tol, no, nxt, d - a >= 60) for a, d, no, prv, nxt in self.tl.point.get(st, [])
+                  if a <= t1 and d - self.tol >= t0 and no != self.skip and no not in self.ignore]
+        if not others:
+            return None                                  # stop alone
+        tracks = self.tracks[st]
+
+        def fits(tr, ln, tw):
+            if ln and tr["length"] and ln > tr["length"]:
+                return False
+            return tr["unknown"] or not tw or not tr["towards"] or tw in tr["towards"] or \
+                not any(tw in x["towards"] for x in tracks)      # direction not on this diagram: any track
+        exempt = (self.skip, st) in self.exempt
+        moments = sorted({max(a, t0) for a, d, no, nxt, sd in others})
+        for x in moments:
+            present = [(self.length.get(no) if sd else None, nxt) for a, d, no, nxt, sd in others if a <= x <= d]
+            need = present + [(None if exempt or t1 - t0 < 60 else length, towards)]
+            # greedy matching: most constrained train first, shortest suitable track
+            need.sort(key=lambda q: sum(fits(tr, q[0], q[1]) for tr in tracks))
+            free = list(tracks)
+            for ln, tw in need:
+                ok = sorted((tr for tr in free if fits(tr, ln, tw)), key=lambda tr: tr["length"])
+                if not ok:
+                    return [o[:4] for o in others if o[0] <= x <= o[1]]
+                free.remove(ok[0])
+        return None
+
+    def release(self, rows, i, j, d, run, stay, length, nxt_after):
+        """user (release rule, rules/priority.csv): T must not arrive at a station without a free track for it. If
+        station rows[j] is full when T would arrive, T leaves rows[i] so that it ARRIVES when a track frees: earliest
+        departure = the time the blocking train leaves - running time + dispatcher gap; by default 1 min before the train
+        ahead leaves (GAPEKA practice, release_margin: it protects T's path beyond), no such margin when T ends there or
+        goes another way than the train ahead. Returns (new departure, blocking train) or None."""
+        st = rows[j][0]
+        if self.is_closed(st, d + run):
+            return None
+        arr = d + run
+        for _ in range(30):
+            busy = self.station_free(st, arr, arr + stay, length, nxt_after)
+            if not busy:
+                break
+            arr = min(dep for a, dep, no, nx in busy) + 1    # the first train to leave frees a track
+        else:
+            return None
+        if arr <= d + run + 1:
+            return None
+        lead = min(busy_first := self.station_free(st, d + run, d + run + stay, length, nxt_after) or [],
+                   key=lambda o: o[1], default=None)
+        new = arr - run + self.dispatcher_gap - 1
+        if lead and nxt_after is not None and lead[3] == nxt_after:
+            new = max(new, lead[1] - self.release_margin)
+        return (max(new, d + 1), lead[2] if lead else None)
 
     def run_time(self, train, rows, p, q):
         if self.printed is not None:
@@ -390,7 +591,7 @@ class Planner:
         (a train that passes a while T stands there overtakes T: T leaves after the dispatcher gap)"""
         at = d if at is None else at
         # tknots: T's times at the halts inside the block, relative to its departure (Timeline.block_knots)
-        worst = None
+        worst = self.window_conflict(a, b, d, arr)
         for x, y in mid:
             dbl = self.tl.block_double.get((x, y), self.tl.block_double.get((y, x), False))
             for e1, x1, no, stood in self.tl.block.get((x, y), []):   # same direction
@@ -489,7 +690,8 @@ class Planner:
             here = r[3] if r[3] is not None else r[2]
             if here is not None:                       # the overtaker's copy on T's day (times may pass 86400)
                 ref += min((-86400, 0, 86400), key=lambda sh: abs(o_rows[q][2] + sh - here))
-            if ref <= (r[3] or 0) or not self.can_wait(r[0], r[2] or r[3], ref, length):
+            nx = next((x[0] for x in rows[n + 1:] if self.kind.get(x[0]) != "halt"), None)
+            if ref <= (r[3] or 0) or not self.can_wait(r[0], r[2] or r[3], ref, length, nx):
                 return False
             hold[n] = ref
             hold_why[n] = why
@@ -510,6 +712,9 @@ class Planner:
         """printed_times: keep the running times between the train's printed timed points (taken from printed_from,
         the unedited train, or the train itself)"""
         self.skip = train["no"]                 # the planned train never conflicts with its own old times
+        if length is None:
+            length = self.length.get(train["no"])     # consist length (m); None = unknown (no fit check)
+        dep0 = max(dep0, self.ready_time(train["no"], dep0))
         self.printed = None
         self.added = set()
         if printed_times:
@@ -550,11 +755,16 @@ class Planner:
                 why = hold_why.get(i) if d > t + 1 else None
                 at = rows[i][2] if rows[i][2] is not None else t
                 tknots = self.t_knots(tr, rows, i, j, run)
+                stay = dwell.get(j, 0) if rows[j][1] == "stop" else 0
+                nxt_after = next((rows[n][0] for n in idx[m + 1:]), None)
                 for _ in range(200):
                     c = self.block_conflict(rows[i][0], rows[j][0], d, d + run, mid, train["type"], True, at, tknots)
                     if c is None:
-                        break
-                    if base[i][1] == "pass" and i not in extra_stop and self.can_displace(c[1]):
+                        rl = self.release(rows, i, j, d, run, stay, length, nxt_after)
+                        if rl is None:
+                            break
+                        c = (rl[0], rl[1], "release")
+                    elif base[i][1] == "pass" and i not in extra_stop and self.can_displace(c[1]):
                         self.ignore.add(c[1])                   # T keeps running; the other is re-planned later
                         self.displaced.add(c[1])
                         continue
@@ -563,17 +773,17 @@ class Planner:
                 if d > t + 1:                                   # T has to wait at rows[i]
                     st = rows[i][0]
                     arr_i = rows[i][2] if rows[i][2] is not None else t
-                    if i == 0 or (rows[i][1] in ("stop", "terminal") or i in extra_stop) and self.can_wait(st, arr_i, d, length):
+                    if i == 0 or (rows[i][1] in ("stop", "terminal") or i in extra_stop) and self.can_wait(st, arr_i, d, length, rows[j][0]):
                         if rows[i][1] == "pass":
                             pass
                         waits.append((st, why[1], why[2], d - t))
-                        notes[st] = {"cross": "x", "overtake": "=", "follow": "="}[why[2]]
+                        notes[st] = {"cross": "x", "overtake": "=", "follow": "=", "release": "=", "window": "="}[why[2]]
                     elif self.prefer_stop and rows[i][1] == "pass" and why[2] in ("overtake", "follow") and \
                             self.tl.block_double.get((rows[i][0], rows[j][0]), False) and \
                             self.hold_at_stop(rows, idx, k, why[1], hold, hold_why, why, length):
                         restart = True                          # held at the last planned stop instead
                         break
-                    elif rows[i][1] == "pass" and i not in forbid and self.can_wait(st, arr_i, d, length):
+                    elif rows[i][1] == "pass" and i not in forbid and self.can_wait(st, arr_i, d, length, rows[j][0]):
                         # the train stops here to wait: arrival later by the braking loss, departure from rest
                         prev_i = [n for n in idx[:k]][-1] if k else None
                         loss_in = 0.0
@@ -587,7 +797,7 @@ class Planner:
                             rows[i][1] = "stop"
                             self.added.add(i)
                             extra_stop.add(i)
-                        notes[st] = {"cross": "x", "overtake": "=", "follow": "="}[why[2]]
+                        notes[st] = {"cross": "x", "overtake": "=", "follow": "=", "release": "=", "window": "="}[why[2]]
                         arr_i = t + loss_in
                         rows[i][2] = round(arr_i)
                         run = self.run_time(tr, rows, i, j)
@@ -607,7 +817,7 @@ class Planner:
                             waits.append((st, why[1], why[2] + " (no place to wait)", d - t))
                         else:
                             extra_stop.add(prev[-1])
-                            notes[rows[prev[-1]][0]] = {"cross": "x", "overtake": "=", "follow": "="}[why[2]]
+                            notes[rows[prev[-1]][0]] = {"cross": "x", "overtake": "=", "follow": "=", "release": "=", "window": "="}[why[2]]
                             restart = True
                             break
                 # fill times along the block (halts / passes in between by the run share)
@@ -697,6 +907,73 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
     if not info["accepted"]:
         return {me: plain}, info
     return out, info
+
+
+def plan_edit(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=20):
+    """the simulator's entry point for one edited / new train: plan_priority (priority + cost limit), then the
+    rolling-stock consequences: when a planned train arrives too late for its unit's next train (arrival + fitted
+    turnaround), that train is re-planned from the time its unit is ready (Planner.ready_time), and so on along the
+    unit's day. Returns ({train: (rows, waits)}, info)."""
+    byno = {t["no"]: t for t in pkg["trains"]}
+    out, info = plan_priority(pkg, tl, P, train, dep0, printed_times, printed_from)
+    saved = {}
+    try:
+        queue = list(out)
+        while queue and len(out) < max_trains:
+            no = queue.pop(0)
+            rows = out[no][0]
+            if no not in saved:
+                saved[no] = tl.trains.get(no)
+            old = saved[no]
+            old_end = old[-1][2] if old else None             # the unit's day is read against the old arrival
+            tl.set_rows(no, rows)
+            tl.index()
+            for nxt, m in P.duty_next.get(no, []):
+                rn = tl.trains.get(nxt)
+                end = _end(rows)
+                if nxt in out or not rn or end is None:
+                    continue
+                start, ref = rn[0][3], old_end if old_end is not None else end
+                while start < ref:
+                    start += 86400
+                while start - 86400 >= ref:
+                    start -= 86400
+                if start >= end + m:
+                    continue
+                o = byno[nxt]
+                P.displace, P.ignore, P.displaced = False, set(), set()
+                out[nxt] = P.plan(o, o["stops"][0][3], printed_times=printed_times, printed_from=o)
+                info.setdefault("turnaround", []).append(nxt)
+                queue.append(nxt)
+    finally:
+        for no, rows in saved.items():
+            if rows is None:
+                tl.trains.pop(no, None)
+            else:
+                tl.trains[no] = rows
+        tl.index()
+    return out, info
+
+
+def capacity_warnings(pkg, tl):
+    """user (rules/priority.csv event capacity): warn when a section's daily load (trains over its path, counted from
+    the timeline as planned now) exceeds its capacity K (PDF pages 1866-1874); the trains still run. Returns
+    [(a, b, load, capacity)] for sections over K."""
+    out = []
+    seqs = {no: [r[0] for r in rows] for no, rows in tl.trains.items()}
+    for c in pkg["capacity"]:
+        path = c.get("path") or [c["a"], c["b"]]
+        if len(path) < 2 or not c.get("capacity"):
+            continue
+        a, b = path[0], path[-1]
+        n = 0
+        for no, seq in seqs.items():
+            pos = {st: i for i, st in enumerate(seq)}
+            if a in pos and b in pos and abs(pos[a] - pos[b]) >= 1:
+                n += 1
+        if n > c["capacity"]:
+            out.append((a, b, n, c["capacity"]))
+    return out
 
 
 def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, examples=0):

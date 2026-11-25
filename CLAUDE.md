@@ -88,6 +88,13 @@ Read this first. It records decisions and findings from earlier sessions so they
   min, like single track: engine_params double_follow_gap 2 min (tested 0 / 1 / 2: same station intercity 68 / 71 /
   74 %, commuter 48 / 53 / 56, KRL 55 / 61 / 67; end within 2 min unchanged); GAPEKA keeps < 2 min in 2.8 % of
   consecutive pairs. Fixed: hold_at_stop read the overtaker's times without the day shift (98 held 24 h). Physics is
+  PHASE 3 DONE (user: finish it before phase 4): station tracks by direction + length (matching; stop alone; standing
+  trains only need to fit; MU length cars x 20 m), release rule (never arrive at a full station; 1 min before the train
+  ahead leaves), GAPEKA's 43 printed station-check breaks tolerated (headways.station_exemptions), rolling-stock links
+  (headways.turnaround_min fitted; planner.plan_edit re-plans the unit's next trips), window time (Planner.windows),
+  capacity_warnings(). Re-planning: same station intercity 79 %, commuter 73 %, KRL 71 %; end within 2 min 92 / 93 / 98 %.
+  Decided (user): v1 edits = times, stops, dwell, vmax, type, length (no routes); engine in THIS repo, TypeScript;
+  disclaimer by Transport for Bandung, id + en. Next: phase 4 (texts id / en, value origins, disclaimer). Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
 
