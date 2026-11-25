@@ -141,35 +141,74 @@ class Timeline:
         train)]; point entries: station -> sorted [(arr, dep, train, prev station, next station)]"""
         self.block = defaultdict(list)
         self.point = defaultdict(list)
-        self.block_double = {}
-        self.bpts = {}                               # (a, b) -> block points as fractions of the block (0 .. 1)
+        self.block_double = getattr(self, "block_double", {}) or {}
+        self.bpts = getattr(self, "bpts", {}) or {}  # (a, b) -> block points as fractions of the block (0 .. 1)
         self.block_base = defaultdict(list)          # without the day copies (statistics)
         self.knots = {}                              # (a, b, train) -> times at the halts inside the block
-        for no, rows in self.trains.items():
-            ctx = {r[0] for r in rows}
-            idx = [i for i, r in enumerate(rows) if self.kind.get(r[0]) != "halt"]
-            st = [rows[i] for i in idx]
-            for (i, x), (j, y) in zip(zip(idx, st), zip(idx[1:], st[1:])):
-                stood = (x[3] - x[2]) >= 60          # the train stood at the entry station before entering
-                self.block_base[(x[0], y[0])].append((x[3], y[2], no))
-                for shift in (-86400, 0, 86400):     # copies a day earlier / later: comparisons across midnight
-                    self.block[(x[0], y[0])].append((x[3] + shift, y[2] + shift, no, stood))
-                if (x[0], y[0]) not in self.bpts:
-                    self.bpts[(x[0], y[0])] = self.block_points(rows, i, j, ctx)
-                if j > i + 1:
-                    self.knots[(x[0], y[0], no)] = self.block_knots(rows, i, j, ctx, x[3])
-                if (x[0], y[0]) not in self.block_double:
-                    self.block_double[(x[0], y[0])] = all(self.double(rows[k][0], rows[k + 1][0], ctx)
-                                                          for k in range(i, j))
-            for i, r in enumerate(st):
-                for shift in (-86400, 0, 86400):
-                    self.point[r[0]].append((r[2] + shift, r[3] + shift, no, st[i - 1][0] if i else None,
-                                             st[i + 1][0] if i + 1 < len(st) else None))
+        self.keys_of = {}                            # train -> the index keys it occupies (incremental updates)
+        for no in self.trains:
+            self._add(no, sort=False)
         for v in self.block.values():
             v.sort()
         for v in self.point.values():
             v.sort()
         self.fit_block_spacing()
+
+    def _add(self, no, sort=True):
+        import bisect
+        rows = self.trains[no]
+        ctx = {r[0] for r in rows}
+        idx = [i for i, r in enumerate(rows) if self.kind.get(r[0]) != "halt"]
+        st = [rows[i] for i in idx]
+        bk, pk, kk = [], [], []
+        ins = bisect.insort if sort else (lambda lst, item: lst.append(item))
+        for (i, x), (j, y) in zip(zip(idx, st), zip(idx[1:], st[1:])):
+            key = (x[0], y[0])
+            stood = (x[3] - x[2]) >= 60              # the train stood at the entry station before entering
+            self.block_base[key].append((x[3], y[2], no))
+            for shift in (-86400, 0, 86400):         # copies a day earlier / later: comparisons across midnight
+                ins(self.block[key], (x[3] + shift, y[2] + shift, no, stood))
+            bk.append(key)
+            if key not in self.bpts:
+                self.bpts[key] = self.block_points(rows, i, j, ctx)
+            if j > i + 1:
+                self.knots[(x[0], y[0], no)] = self.block_knots(rows, i, j, ctx, x[3])
+                kk.append((x[0], y[0], no))
+            if key not in self.block_double:
+                self.block_double[key] = all(self.double(rows[k][0], rows[k + 1][0], ctx) for k in range(i, j))
+        for i, r in enumerate(st):
+            for shift in (-86400, 0, 86400):
+                ins(self.point[r[0]], (r[2] + shift, r[3] + shift, no, st[i - 1][0] if i else None,
+                                       st[i + 1][0] if i + 1 < len(st) else None))
+            pk.append(r[0])
+        self.keys_of[no] = (bk, pk, kk)
+
+    def _remove(self, no):
+        bk, pk, kk = self.keys_of.pop(no, ((), (), ()))
+        for key in set(bk):
+            self.block[key] = [e for e in self.block[key] if e[2] != no]
+            self.block_base[key] = [e for e in self.block_base[key] if e[2] != no]
+        for st in set(pk):
+            self.point[st] = [e for e in self.point[st] if e[2] != no]
+        for k in kk:
+            self.knots.pop(k, None)
+
+    def drop(self, no):
+        """take a train out of the timeline (incremental, no full index)"""
+        if no in self.trains:
+            self._remove(no)
+            del self.trains[no]
+
+    def put(self, no, rows, planned=True):
+        """put a train into the timeline: planned rows ([station, kind, arr, dep, ...], via set_rows) or timeline
+        rows (planned=False)"""
+        if no in self.trains:
+            self._remove(no)
+        if planned:
+            self.set_rows(no, rows)
+        else:
+            self.trains[no] = rows
+        self._add(no)
 
     def fit_block_spacing(self):
         """per double-track block: the tightest spacing GAPEKA keeps between consecutive trains at the block points
@@ -385,6 +424,9 @@ class Planner:
         self.forced = set()                     # trains held by the long-train rule (any priority)
         self.displaced_blk = {}                 # displaced train -> the block (a, b) of the train it gave way to
         self.tail = False                       # plan_priority past its cap
+        self.local = False                      # dispatch(): decide each hold locally (worth_holding)
+        self.no_hold = set()                    # (holder, held) pairs dispatch() found not worth it after all
+        self.hold_gain = {}                     # (holder, held) -> the holder's wait avoided
         self.root = None                        # the edited train of a plan_priority chain
         self.chain_rule = False                 # True: chain trains displace only trains they clearly outrank (tested: worse)
         self.stop_displace = False              # True: displacement also at its own stops (tested: worse)
@@ -454,6 +496,23 @@ class Planner:
         if pb[1] - pa[1] >= self.prio_gap:
             return True
         return pa[1] == pb[1] and pa[2] < pb[2]
+
+    def worth_holding(self, c, d, run):
+        """dispatcher's local decision (user: stop holding when the delay caused is much bigger than the gain): T would
+        wait c[0] - d here; holding the other train costs it about (T clears the block + dispatcher gap) - its own entry
+        into the block. Hold it if that is at most displace_cost_ratio x the gain when T clearly outranks it, at most the
+        gain when the two are equal. Without local mode (plan_priority) always True (decided globally there)."""
+        if not self.local or len(c) < 4 or c[3] is None:
+            return True
+        if (self.skip, c[1]) in self.no_hold:
+            return False                               # tried before: the held train lost far more downstream
+        gain = max(c[0] - d, 0.0)
+        hold = max(d + run + self.dispatcher_gap - c[3], 0.0)
+        limit = gain * (self.displace_ratio if self.outranks(self.skip, c[1]) else 1.0)
+        if hold <= limit:
+            self.hold_gain[(self.skip, c[1])] = self.hold_gain.get((self.skip, c[1]), 0.0) + gain
+            return True
+        return False
 
     def fit_forced(self, st, other, length):
         """T is longer than every Roman track at st while the other train fits one (or its length is unknown)"""
@@ -657,14 +716,14 @@ class Planner:
                     if not (ahead or behind):
                         kind = "overtake" if x1 < arr else "follow"
                         if worst is None or need_t > worst[0]:
-                            worst = (need_t, no, kind)
+                            worst = (need_t, no, kind, e1)
                 else:
                     follow_o = 0 if (stood and e1 >= d) else self.single_follow   # overtaken here: leaves after T
                     if not (d >= x1 + self.single_follow - self.tol or e1 >= arr + follow_o - self.tol):
                         new = x1 + (self.overtake_gap["single"] if e1 > d - 1 else self.single_follow)
                         kind = "overtake" if e1 >= d else "follow"
                         if worst is None or new > worst[0]:
-                            worst = (new, no, kind)
+                            worst = (new, no, kind, e1)
             if dbl:
                 continue
             for e2, x2, no, _ in self.tl.block.get((y, x), []):       # opposite direction (single track)
@@ -673,7 +732,7 @@ class Planner:
                 if not (d >= x2 + self.single_cross - self.tol or e2 >= arr + self.single_cross - self.tol):
                     new = x2 + self.single_cross
                     if worst is None or new > worst[0]:
-                        worst = (new, no, "cross")
+                        worst = (new, no, "cross", e2)
         return worst
 
     def t_knots(self, tr, rows, i, j, run):
@@ -798,8 +857,9 @@ class Planner:
                         if rl is None:
                             break
                         c = (rl[0], rl[1], "release")
-                    elif self.can_displace(c[1]) and (base[i][1] == "pass" or (self.stop_displace and
-                                                                               self.outranks(self.skip, c[1]))):
+                    elif self.can_displace(c[1]) and (base[i][1] == "pass" or ((self.stop_displace or self.local) and
+                                                                               self.outranks(self.skip, c[1]))) \
+                            and self.worth_holding(c, d, run):
                         # T keeps running (a station it passes: any train it may displace; one of its stops or a
                         # stop added for a wait: only trains it clearly outranks); the other is re-planned later.
                         # plan_priority keeps this only if it pays (cost limit)
@@ -1026,6 +1086,109 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
                 accepted=bool(len(out) > 1 and gain > 0 and cost <= gain and not queue))
     if not info["accepted"]:
         return {me: plain}, info
+    return out, info
+
+
+def dispatch(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=80, rounds=8, passes=3):
+    """dispatching re-plan with a downstream check: after each pass, a hold whose held train ends up much later than
+    the gain that justified it (final extra delay / weight > the holder's avoided wait; weight displace_cost_ratio when
+    the holder clearly outranks it) is forbidden and the dispatch runs again (at most `passes`). See _dispatch_once."""
+    byno = {t["no"]: t for t in pkg["trains"]}
+    P.no_hold = set()
+    for _ in range(passes):
+        P.hold_gain = {}
+        out, info = _dispatch_once(pkg, tl, P, train, dep0, printed_times, printed_from, max_trains, rounds)
+        bad = set()
+        for (holder, held), gain in P.hold_gain.items():
+            if held not in out or info["held_for"].get(held, (None,))[0] != holder:
+                continue
+            e_new, e_old = _end(out[held][0]), _end(byno[held]["stops"])
+            if e_new is None or e_old is None:
+                continue
+            w = P.displace_ratio if P.outranks(holder, held) else 1.0
+            if (e_new - e_old) / w > gain + 60:
+                bad.add((holder, held))
+        if not bad:
+            break
+        P.no_hold |= bad
+    info["forbidden_holds"] = sorted(P.no_hold)
+    P.no_hold = set()
+    return out, info
+
+
+def _dispatch_once(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=80, rounds=8):
+    """dispatching re-plan (the simulator's entry point for an edited scheduled train): the affected trains are
+    re-planned TOGETHER, highest priority first, each against the fixed timetable plus the members already placed.
+      - a member that would wait at a station it does not serve for a lower-priority train holds that train instead
+        when it is worth it locally (Planner.worth_holding: your cost rule per conflict); the held train joins the set
+      - the long-train rule (Planner.fit_forced) holds a train that fits a loop for one that does not
+      - held trains are re-timed from where they are held (hold_index / plan_from); a unit's next trip joins the set
+        when its arrival + turnaround is later than the next trip's departure (it leaves when the set is ready)
+    Rounds repeat until no train joins (or max_trains / rounds). The timeline is restored before returning.
+    Returns ({train: (rows, waits)}, info) with info['held_for'] = {held train: (train it gave way to, station)}."""
+    byno = {t["no"]: t for t in pkg["trains"]}
+    me = train["no"]
+    members = {me: (train, dep0, printed_from or train)}
+    hold_k, held_for, why_joined = {}, {}, {}
+    saved = {}
+    out = {}
+    P.local = True
+    try:
+        for rnd in range(rounds):
+            for no in members:
+                if no not in saved:
+                    saved[no] = tl.trains.get(no)
+                tl.drop(no)
+            new = {}
+            out = {}
+            for no in sorted(members, key=P.prio):
+                t, dep, pf = members[no]
+                P.displace, P.ignore, P.displaced, P.tail = True, set(), set(), False
+                P.displaced_at, P.forced, P.displaced_blk, P.root = {}, set(), {}, me
+                rows, waits = plan_from(P, t, dep, pf, hold_k.get(no, 0), printed_times)
+                out[no] = (rows, waits)
+                tl.put(no, rows)
+                for y in P.displaced:
+                    if y not in members and y not in new and len(members) + len(new) < max_trains:
+                        o = byno[y]
+                        new[y] = (o, o["stops"][0][3], o)
+                        hold_k[y] = hold_index(P, o, P.displaced_blk.get(y))
+                        held_for[y] = (no, P.displaced_at.get(y))
+                        why_joined[y] = "forced" if y in P.forced else "held"
+                # rolling stock: the unit's next trip leaves only when the set is ready
+                end = _end(rows)
+                old = saved.get(no) or byno[no]["stops"]
+                old_end = _end(old)
+                for nxt, m in P.duty_next.get(no, []):
+                    if nxt in members or nxt in new or end is None or len(members) + len(new) >= max_trains:
+                        continue
+                    rn = byno[nxt]["stops"]
+                    start, ref = rn[0][3], old_end if old_end is not None else end
+                    if start is None:
+                        continue
+                    while start < ref:
+                        start += 86400
+                    while start - 86400 >= ref:
+                        start -= 86400
+                    if start < end + m:
+                        o = byno[nxt]
+                        new[nxt] = (o, o["stops"][0][3], o)
+                        why_joined[nxt] = "turnaround"
+            if not new:
+                break
+            members.update(new)
+    finally:
+        P.local, P.displace, P.ignore, P.displaced, P.root = False, False, set(), set(), None
+        for no, rows in saved.items():
+            if rows is None:
+                tl.drop(no)
+            else:
+                tl.put(no, rows, planned=False)
+    late = {no: (_end(r) - _end(byno[no]["stops"])) for no, (r, w) in out.items()
+            if _end(r) is not None and _end(byno[no]["stops"]) is not None}
+    info = dict(accepted=True, displaced=[n for n in out if n != me and why_joined.get(n) in ("held", "forced")],
+                held_for=held_for, joined=why_joined, rounds=rnd + 1,
+                delay_others_s=sum(max(v, 0) for k, v in late.items() if k != me))
     return out, info
 
 
