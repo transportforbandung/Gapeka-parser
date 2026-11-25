@@ -75,17 +75,17 @@ website can say which rule moved a train.
 ## 4. Running times
 
 - Unchanged trains: printed GAPEKA times, never recomputed.
-- Changed or new trains: `leg_times` lookup (same as the Python model by construction), plus halts by the region's KAI
-  halt rule.
-- Cases the lookup does not cover: new speed limits, a new train type or a consist that changes the physics. The engine
-  runs the physics model from `model`. This is a later phase; v1 can refuse such edits.
+- Changed or new trains: the engine runs the physics (physics_ref.py, inputs in `profiles` and `model`) for any vmax
+  and stopping pattern, then the calibration and corrections, plus halts by the region's KAI halt rule.
+- A new run class (new rolling stock with other acceleration / braking) needs its own physics parameters and a
+  calibration type; v1 offers only the existing run classes.
 
 ## 5. Validation
 
 1. Package check (`check.py`): schema valid, every train's stations / sections exist, the totals match the databases,
    size limit.
 2. Golden replay (`replay.json.gz`): the Python reference engine re-times every train from its departure using
-   `leg_times` + waits. Report the error against the printed times, using the same measures as check.py (< 0.5 / 0.5-1 /
+   the physics + waits. Report the error against the printed times, using the same measures as check.py (< 0.5 / 0.5-1 /
    > 1 min).
 3. Re-planning test: remove one train, re-insert it at its printed departure and let the planner place its crossings /
    overtakes. Score: same waiting stations and same waiting train as GAPEKA. Run it over all trains, by type.
@@ -125,7 +125,7 @@ website can say which rule moved a train.
   (KA Dinas: graph vs model times, or past the printed end) are spread evenly and marked model (90 stops); a passing
   point read with arrival > departure gets one time. Train numbers in the notes are normalised ('2539F JJ' -> 2539F,
   '2640' -> 2640F); none left unresolved.
-- Not yet in the package: leg_times (phase 2), rule parameters (phase 3), user texts id / en (phase 4).
+- Not yet in the package: running-time inputs (phase 2), rule parameters (phase 3), user texts id / en (phase 4).
 
 ## Phase 2 result (25 Nov 2026, revised: physics in the engine)
 
