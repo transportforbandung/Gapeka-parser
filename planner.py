@@ -1215,7 +1215,7 @@ def _dispatch_once(pkg, tl, P, train, dep0, printed_times=True, printed_from=Non
                 rows, waits = plan_from(P, t, dep, pf, hold_k.get(no, 0), printed_times)
                 out[no] = (rows, waits)
                 tl.put(no, rows)
-                for y in P.displaced:
+                for y in sorted(P.displaced, key=P.prio):      # priority order (deterministic; the cap may bite)
                     if y not in members and y not in new and len(members) + len(new) < max_trains:
                         o = byno[y]
                         new[y] = (o, o["stops"][0][3], o)
@@ -1368,12 +1368,12 @@ def explain(pkg, train_no, waits, lang="id", info=None):
     return out
 
 
-def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, examples=0):
+def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, examples=0, on_train=None):
     """re-planning test (docs/simulator_package.md 5.3): every train is taken out and planned again from its printed
     departure against all other trains; its GAPEKA waits are cut to a 1-min stop; printed running times between its
     timed points are kept (physics=True: the package physics instead). Returns per type: trains, GAPEKA waits,
     planner waits, waits at the same station / with the same train, departure there within 1 min, trains without
-    waits kept clean, end within 2 min, mean |end difference| (min)."""
+    waits kept clean, end within 2 min, mean |end difference| (min). on_train(no, rows, waits): each plan (golden)."""
     tl = Timeline(pkg)
     P = Planner(pkg, tl)
     gwait = defaultdict(set)
@@ -1393,6 +1393,8 @@ def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, exam
             if r[0] in gst and r[1] == "stop" and r[2] is not None and r[3] is not None:
                 r[3] = r[2] + 60                  # the printed wait becomes a 1-min stop
         rows, waits = P.plan(dict(t, stops=stops, notes={}), stops[0][3], printed_times=not physics, printed_from=t)
+        if on_train:
+            on_train(t["no"], rows, waits)
         Pw = {(w[0], w[1]) for w in waits if w[3] >= 30}
         pst = {st for st, _ in Pw}
         s = stats[t["type"]]

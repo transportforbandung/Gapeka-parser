@@ -210,6 +210,23 @@ def main():
                        f"trains without waits kept clean {r.get('no_wait_trains_clean', 0):.0%} "
                        f"(limit {lim['no_wait_trains_clean']:.0%}), GAPEKA waits at the same station "
                        f"{r.get('same_station', 0):.0%} (limit {lim['same_station']:.0%})")
+        import planner_golden
+        for name, ok in planner_golden.matches(pkg, os.path.dirname(mpath)).items():
+            result(ok, f"golden {name}.json.gz matches a fresh run of the Python planner")
+    print("9. browser engine (engine/, TypeScript): reproduces the golden replay and planner files exactly")
+    eng_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "engine")
+    if not os.path.isdir(os.path.join(eng_dir, "node_modules")):
+        print("  skip  engine/node_modules missing (run: npm ci --prefix engine)")
+    else:
+        import subprocess
+        r = subprocess.run(["npm", "test", "--silent"], cwd=eng_dir, capture_output=True, text=True)
+        lines = [ln[2:] for ln in r.stdout.splitlines() if ln.startswith("# ") and not ln.startswith("# Subtest")
+                 and ln[2:].split(" ")[0] not in ("tests", "suites", "pass", "fail", "cancelled", "skipped", "todo",
+                                                    "duration_ms")]
+        for ln in lines:
+            print("        " + ln)
+        result(r.returncode == 0, "npm test in engine/ (golden replay, leg times, re-planning test, dispatch)"
+               + ("" if r.returncode == 0 else ": " + (r.stderr or r.stdout)[-400:]))
     print("\nall checks passed" if not failed else f"\n{len(failed)} check(s) failed")
     sys.exit(1 if failed else 0)
 

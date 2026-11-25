@@ -1,5 +1,6 @@
 """Reference outputs of the Python engine at FULL precision for the TypeScript tests (engine/build/fixtures, not in
-git): python3 engine/tools/py_fixtures.py [what ...]   what: legs (default)
+git): python3 engine/tools/py_fixtures.py [what ...]   what: legs (the planner goldens are dist/<edition>/replan.json.gz and dispatch.json.gz,
+written by planner_golden.py)
 legs: replay.Engine.compose and .minimum for every leg between consecutive timed points, and for every leg from each
 timed point to the last row with the stops in between turned into passes (other stopping patterns)"""
 import gzip

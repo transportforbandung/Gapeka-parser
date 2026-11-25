@@ -1445,6 +1445,8 @@ def main(argv):
         b = replay.bands([x["err"] for x in legs if not x["noted"] and x["type"] != "freight"])
         print(f"[10] golden replay: {len(trains_out)} trains; passenger legs without notes <0.5 / 0.5-1 / >1 min "
               f"{b[0]:.0%} / {b[1]:.0%} / {b[2]:.0%}")
+        import planner_golden                 # planner goldens for the browser engine (engine/test/planner.test.ts)
+        print("[10] planner goldens:", ", ".join(os.path.basename(x) for x in planner_golden.write(pkg, where)))
 
 
 if __name__ == "__main__":
