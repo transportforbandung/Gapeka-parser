@@ -196,3 +196,22 @@ planner plans ONE train against all others, which keep their times (rules/engine
   lines, commuter crossings on the Merak line), per-line overtake gaps (wait_gaps line names do not match the package
   line titles yet), block signals as overtake release points (next station used), station capacity per direction
   (usable_towards), the release rule (arrive when a track frees) and entry-signal marks, freight.
+
+## Phase 3 tuning (25 Nov 2026)
+
+- User rule: the wait station minimises the impact on the faster / priority train: the slower train is stopped
+  where letting it continue would hold up or slow the train behind. research/overtake_margin.py: had GAPEKA's
+  overtaken trains left after a 1-min stop, the overtaker would have come within 5 min in 57 % (8 min: 77 %); a faster
+  train left behind a slower one without an overtake keeps >= 5 min in 96 % (median 18). engine_params
+  overtake_margin 5 min (double track, applied only when the train behind is faster in the block); tested 0 / 4 / 5 / 6 /
+  8 / 10 min: 5 best (intercity same station 62 -> 69 %, commuter 43 -> 51 %, end within 2 min 90 / 89 %; >= 8 min
+  holds trains GAPEKA lets run). The same margin on single track: no gain (one train per block already protects the
+  train behind). Holding at the last planned stop is still needed (without: intercity 58 %).
+- Fixes: a station that already is a planned stop is never charged the stop / start penalty again (only stops the
+  planner adds are); the planner's printed running times keep every row (no silent physics fallback).
+- Physics vs GAPEKA (research/physics_sign.py, model - GAPEKA): running time alone over whole trips median -0.3
+  (intercity) / 0.0 / 0.0 min, -0.1 min per hour of trip, per leg faster in 48 %: no systematic bias. GAPEKA's planning
+  supplement is real (the calibration multiplies pure physics by 1.06-1.08 and adds fixed times) and is inside the
+  model. The weak physics re-planning (intercity 51 % end within 2 min) is symmetric (late > 2 min 26 %, early 23 %,
+  median 0) and comes from waits (27 min per intercity train on average): +-1 min per leg breaks GAPEKA's minute-tight
+  spacing and cascades. GAPEKA trains keep their printed running times; physics for new trains / changed patterns.

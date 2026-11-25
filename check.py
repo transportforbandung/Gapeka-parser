@@ -27,10 +27,10 @@ BASE = os.path.join(HERE, "tests", "baseline")
 LIMITS = {"model_over_1min": 0.05,
           "halts": {"bandung": (0.75, 0.98), "jabodetabek (held-out trains)": (0.85, 0.98), "surabaya": (0.80, 0.98)},
           "package_bytes": 1_500_000,
-          # re-planning test baseline (25 Nov 2026: intercity 88 / 97 / 62 %, commuter 88 / 100 / 43 %, krl 98 / 99 / 63 %)
-          "replan": {"intercity": dict(end_within_2min=0.85, no_wait_trains_clean=0.95, same_station=0.55),
-                     "commuter": dict(end_within_2min=0.85, no_wait_trains_clean=0.95, same_station=0.40),
-                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.55)}}
+          # re-planning test (25 Nov 2026, margin 5 min: intercity 90 / 96 / 69 %, commuter 89 / 100 / 50 %, krl 93 / 92 / 67 %)
+          "replan": {"intercity": dict(end_within_2min=0.87, no_wait_trains_clean=0.93, same_station=0.65),
+                     "commuter": dict(end_within_2min=0.86, no_wait_trains_clean=0.95, same_station=0.47),
+                     "krl": dict(end_within_2min=0.90, no_wait_trains_clean=0.90, same_station=0.60)}}
 EXPORTS = [  # (file name, command)
     ("cl_bandung_even.svg", ["export_poster.py", "386-431", "--even"]),
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),

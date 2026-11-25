@@ -36,7 +36,7 @@ class Timeline:
         p = self.prof.get(a, b, ctx)
         return p["km"] if p else None
 
-    def fill(self, t):
+    def fill(self, t, keep_all=False):
         rows = [list(r[:4]) for r in t["stops"]]
         ctx = {r[0] for r in rows}
         cum = [0.0]
@@ -57,6 +57,8 @@ class Timeline:
                 r[2] = r[3]
             if r[3] is None:
                 r[3] = r[2]
+        if keep_all:
+            return rows
         rows = [r for r in rows if r[2] is not None]
         return rows
 
@@ -143,6 +145,10 @@ class Planner:
         gaps = {(w["event"], w["track"]): float(w["gap_min"]) * 60 for w in pkg["rules"]["wait_gaps"] if w["line"] == "*"}
         mw = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "min_wait"]
         self.min_wait = (mw[0] if mw else 1) * 60
+        om = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "overtake_margin"]
+        self.overtake_margin = (om[0] if om else 0) * 60
+        sm = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "overtake_margin_single"]
+        self.single_margin = (sm[0] if sm else 0) * 60
         self.prefer_stop = True                 # double-track overtakes at the last planned stop (hold_at_stop)
         self.overtaken_entry_gap = 180          # data: an overtaken train leaves >= 3 min after the overtaker passed
         # GAPEKA times are whole minutes: gaps are checked with this tolerance (engine_params time_tolerance)
@@ -220,6 +226,9 @@ class Planner:
                     if stood and e1 >= d:          # the other was overtaken by T here: leaves 3 min after T passed
                         ahead = e1 >= d + self.overtaken_entry_gap - tl_ and x1 >= arr - tl_
                     else:
+                        # user: the faster train behind must not be held up or slowed: keep the planning margin
+                        if (x1 - e1) < (arr - d) - 30:
+                            h_o = max(h_o, self.overtake_margin)
                         ahead = e1 >= d + h_o - tl_ and x1 >= arr + h_o - tl_  # other follows T
                     behind = d >= e1 + h_t - tl_ and arr >= x1 + h_t - tl_     # T follows other
                     if not (ahead or behind):
@@ -229,6 +238,8 @@ class Planner:
                             worst = (new, no, kind)
                 else:
                     follow_o = 0 if (stood and e1 >= d) else self.single_follow   # overtaken here: leaves after T
+                    if not (stood and e1 >= d) and (x1 - e1) < (arr - d) - 30:
+                        follow_o = max(follow_o, self.single_margin)            # faster train behind: not held up
                     if not (d >= x1 + self.single_follow - self.tol or e1 >= arr + follow_o - self.tol):
                         new = x1 + (self.overtake_gap["single"] if e1 > d - 1 else self.single_follow)
                         kind = "overtake" if e1 >= d else "follow"
@@ -286,7 +297,7 @@ class Planner:
         self.printed = None
         self.added = set()
         if printed_times:
-            tl_rows = self.tl.fill(printed_from or train)
+            tl_rows = self.tl.fill(printed_from or train, keep_all=True)
             self.printed = tl_rows if tl_rows and len(tl_rows) == len(train["stops"]) else None
         return self._plan(train, dep0, length, max_iter)
 
@@ -303,7 +314,7 @@ class Planner:
             for i in extra_stop:
                 if rows[i][1] == "pass":
                     rows[i][1] = "stop"
-            self.added = set(extra_stop)
+            self.added = {n for n in extra_stop if base[n][1] == "pass"}   # only stops the planner added
             tr = dict(train, notes={k: v for k, v in notes.items()})
             idx = [i for i, r in enumerate(rows) if self.kind.get(r[0]) != "halt"]
             t = dep0
