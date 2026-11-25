@@ -94,7 +94,8 @@ Read this first. It records decisions and findings from earlier sessions so they
   (headways.turnaround_min fitted; planner.plan_edit re-plans the unit's next trips), window time (Planner.windows),
   capacity_warnings(). Re-planning: same station intercity 79 %, commuter 73 %, KRL 71 %; end within 2 min 92 / 93 / 98 %.
   Decided (user): v1 edits = times, stops, dwell, vmax, type, length (no routes); engine in THIS repo, TypeScript;
-  disclaimer by Transport for Bandung, id + en. PHASE 4 DRAFT (awaiting user review): origins on every value
+  disclaimer by Transport for Bandung, id + en. PHASE 4 DONE (texts are drafts the user customizes later: do not
+  list their review as open): origins on every value
   (meta.origins; restrictions / block signals / tracks carry an origin field; infra.db station_tracks.origin), texts/ui.csv
   (72 keys id / en) -> package texts, texts/disclaimer.md -> meta.disclaimer {id, en}, planner.explain(); schema 1.1.0.
   Planner fixes found then: _plan no longer returns half plans after 60 restarts; plan_priority caps chains at 30 and

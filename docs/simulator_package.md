@@ -99,7 +99,7 @@ website can say which rule moved a train.
 | 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
 | 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
 | 3 | rule parameter tables (section 3), Python reference planner, re-planning test | DONE 25 Nov 2026 (all written rules in the planner; see "Phase 3 completion") |
-| 4 | user-facing texts (id / en), origins on every value, disclaimer | DRAFT 25 Nov 2026, awaiting the user's review |
+| 4 | user-facing texts (id / en), origins on every value, disclaimer | DONE 25 Nov 2026 (texts are drafts the user customizes later; not blocking) |
 | 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
 
 ## 7. Open questions
@@ -299,7 +299,7 @@ User: finish phase 3 before phase 4. Every rule written in rules/priority.csv is
   intercity 74 -> 79 %, commuter 56 -> 73 %, KRL 67 -> 71 %; end within 2 min 94 -> 92 / 94 -> 93 / 98 -> 98 %.
 - check.py: station exemptions <= 60, no printed train held by its turnaround, no section over K.
 
-## Phase 4 draft (25 Nov 2026)
+## Phase 4 (25 Nov 2026; texts/ui.csv and texts/disclaimer.md are drafts the user will customize later)
 
 - Origins on every value: one vocabulary (meta.origins, texts origin.*: printed / sheet / ocr / graph / manual / model /
   fitted / inferred / derived / simulated). Stops: time_origin (as before); restrictions and block signals: 6th field
