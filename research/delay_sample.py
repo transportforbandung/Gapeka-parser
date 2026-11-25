@@ -13,7 +13,8 @@ P = planner.Planner(pkg, tl)
 T = {t["no"]: t for t in pkg["trains"]}
 ic = sorted([t for t in pkg["trains"] if t["type"] == "intercity" and t["no"] in tl.trains and t["stops"][0][3] is not None],
             key=lambda t: int(re.match(r"\d+", t["no"]).group()))[:30]
-fn = planner.dispatch if mode == "dispatch" else planner.plan_edit
+PASSES = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+fn = (lambda *a, **k: planner.dispatch(*a, passes=PASSES, **k)) if mode == "dispatch" else planner.plan_edit
 ends, others, secs = [], [], []
 for t in ic:
     t0 = time.time()

@@ -74,6 +74,22 @@ class Engine:
                         tot += b["value"]
         return tot
 
+    def minimum(self, train, rows, p, q, dwell_s=20.0):
+        """technical minimum running time p -> q (s): the raw physics run without GAPEKA's planning supplement
+        (calibration, buffers, corrections) + a short dwell per halt; what a late train can run to recover time"""
+        rc = train.get("run_class", train["type"])
+        st = [r[0] for r in rows[p:q + 1]]
+        start_rest, end_rest = rows[p][1] != "pass", rows[q][1] != "pass"
+        halt_idx = [i - p for i in range(p + 1, q) if rows[i][1] == "halt"]
+        leg = physics_ref.leg_cap(self.profiles, self.zones, st, [r[4] for r in rows[p:q + 1]], rc, start_rest,
+                                  end_rest, halt_idx, p == 0, q == len(rows) - 1)
+        if leg is None:
+            return None
+        cap, secs, hcells = leg
+        ph = self.phys[physics_ref.phys_group(rc)]
+        return physics_ref.simulate(cap, start_rest, end_rest, hcells, ph["a0"], ph["power"], ph["brake"]) + \
+            dwell_s * len(halt_idx)
+
     def compose(self, train, rows, p, q):
         """predicted seconds from timed point p to timed point q of train (rows = its stops): physics over the whole
         leg (physics_ref) + calibration . features + buffers + corrections; None if a station pair has no profile or

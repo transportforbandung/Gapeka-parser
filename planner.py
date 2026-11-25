@@ -409,6 +409,7 @@ class Planner:
         dg = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "double_follow_gap"]
         self.double_gap = (dg[0] if dg else 2) * 60
         self.prefer_stop = True
+        self.recovery = True                    # a late train runs down to its technical minimum (recover)
         self.hold_slack = 600                   # s: a hold at the last stop may exceed the wait it replaces by this                 # double-track overtakes at the last planned stop (hold_at_stop)
         # GAPEKA times are whole minutes: gaps are checked with this tolerance (engine_params time_tolerance)
         tol = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "time_tolerance"]
@@ -649,6 +650,23 @@ class Planner:
             new = max(new, lead[1] - self.release_margin)
         return (max(new, d + 1), lead[2] if lead else None)
 
+    def recover(self, train, rows, p, q, run, t):
+        """a late train recovers time (user: real trains run at their technical minimum when late): leaving rows[p] at t
+        later than printed, it runs max(technical minimum, printed run - lateness), never ahead of its printed times.
+        Only with printed running times (the reference for 'late'); Planner.recovery switches it."""
+        if not self.recovery or self.printed is None:
+            return run
+        pd = self.printed[p][3] if self.printed[p][3] is not None else self.printed[p][2]
+        if pd is None:
+            return run
+        late = t - pd
+        if late <= 60:
+            return run
+        mn = self.eng.minimum(train, rows, p, q)
+        if mn is None:
+            return run
+        return max(min(run, mn + 0.0) if mn < run else run, run - late)
+
     def run_time(self, train, rows, p, q):
         if self.printed is not None:
             T = self.printed_run(p, q)
@@ -842,7 +860,7 @@ class Planner:
                 while m < len(idx) - 1 and rows[idx[m]][1] == "pass" and self.is_closed(rows[idx[m]][0], t):
                     m += 1
                 j = idx[m]
-                run = self.run_time(tr, rows, i, j)
+                run = self.recover(tr, rows, i, j, self.run_time(tr, rows, i, j), t)
                 d = max(t, hold.get(i, t))
                 mid = [(rows[idx[n]][0], rows[idx[n + 1]][0]) for n in range(k, m)]
                 why = hold_why.get(i) if d > t + 1 else None
@@ -900,7 +918,7 @@ class Planner:
                         notes[st] = {"cross": "x", "overtake": "=", "follow": "=", "release": "=", "window": "="}[why[2]]
                         arr_i = t + loss_in
                         rows[i][2] = round(arr_i)
-                        run = self.run_time(tr, rows, i, j)
+                        run = self.recover(tr, rows, i, j, self.run_time(tr, rows, i, j), d)
                         tknots = self.t_knots(tr, rows, i, j, run)
                         d = max(d, arr_i + self.min_wait)
                         for _ in range(200):
