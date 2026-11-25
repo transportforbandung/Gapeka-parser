@@ -116,7 +116,7 @@ website can say which rule moved a train.
   `schema/package.schema.json` (JSON Schema 2020-12, compact rows described with prefixItems); `package_check.py`
   (references, time order) used by `check.py` section 7 (schema, problems, size <= 1.5 MB, counts = databases, same PDF).
 - Contents: 528 stations (sheet-only rows included as kind sheet_only), 13 lines, 582 sections, 419 layouts, 2669
-  trains, 1648 waits, 346 duties (112 sets + 234 locomotive units ... as read), 141 capacity sections, 26 dinas tutup
+  trains, 1648 waits, 346 duties (148 sets from rangkaian pokok: 112 KRL / KRD + 36 freight; 198 locomotive units), 141 capacity sections, 26 dinas tutup
   pieces, model and rules as in rules.db (rules still prose + ids: phase 3).
 - Stops: [station, kind, arr_s, dep_s, vmax_kmh, time_origin]; kinds terminal / stop / pass / halt / via; origins:
   printed 36695, model (halts, KA Dinas) 9714, graph (KA Dinas) 1268, manual (Bandung KAI halts) 178. Times continue
