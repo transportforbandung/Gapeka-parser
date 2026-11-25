@@ -110,7 +110,7 @@ def infer(pkg):
         km, s, tr = max(cand, key=lambda c: c[0])
         sp = near_spacing(s) or line_sp.get(s.get("line"), net)
         n = max(1, round(km / sp) - 1)
-        rows = [[round(km * k / (n + 1), 3), tr, "", None, KIND] for k in range(1, n + 1)]
+        rows = [[round(km * k / (n + 1), 3), tr, "", None, KIND, "inferred"] for k in range(1, n + 1)]
         s.setdefault("block_signals", []).extend(rows)
         tl2 = planner.Timeline(pkg)
         still = _violations(tl2, ttype, key, knot_time)

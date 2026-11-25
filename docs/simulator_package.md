@@ -99,7 +99,7 @@ website can say which rule moved a train.
 | 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
 | 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
 | 3 | rule parameter tables (section 3), Python reference planner, re-planning test | DONE 25 Nov 2026 (all written rules in the planner; see "Phase 3 completion") |
-| 4 | user-facing texts (id / en), origins on every value, disclaimer | reviewed by the user |
+| 4 | user-facing texts (id / en), origins on every value, disclaimer | DRAFT 25 Nov 2026, awaiting the user's review |
 | 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
 
 ## 7. Open questions
@@ -298,3 +298,29 @@ User: finish phase 3 before phase 4. Every rule written in rules/priority.csv is
 - Re-planning test (printed running times; block rule + 2 min gap before -> now): GAPEKA waits at the same station
   intercity 74 -> 79 %, commuter 56 -> 73 %, KRL 67 -> 71 %; end within 2 min 94 -> 92 / 94 -> 93 / 98 -> 98 %.
 - check.py: station exemptions <= 60, no printed train held by its turnaround, no section over K.
+
+## Phase 4 draft (25 Nov 2026)
+
+- Origins on every value: one vocabulary (meta.origins, texts origin.*: printed / sheet / ocr / graph / manual / model /
+  fitted / inferred / derived / simulated). Stops: time_origin (as before); restrictions and block signals: 6th field
+  origin (sheet / manual / inferred); station tracks: 10th field origin (infra.db station_tracks.origin: sheet 1675,
+  ocr 20, manual 13); consists printed; dinas tutup hours fitted; capacity {capacity printed, load / path derived};
+  model and headways fitted. Schema 1.1.0.
+- Texts: texts/ui.csv (key, id, en, note): 72 keys: train types, stop kinds, origins, block systems, track kinds, wait
+  kinds, message templates (msg.* with {train} {other} {station} {minutes} {time}), warnings, the v1 edit fields, the
+  rules in plain words, short disclaimer. Package: texts {key: {id, en}}. planner.explain(pkg, train, waits, lang, info)
+  turns a plan into sentences (held trains only when the holding was accepted).
+- Disclaimer: texts/disclaimer.md (## id / ## en; {edition} {decree} {valid_from} filled from the meta) -> meta.disclaimer
+  {id, en}. Transport for Bandung, unofficial, not affiliated with PT KAI / KAI Commuter / DJKA / Kemenhub, only
+  'printed' times from GAPEKA, rules are simplifications, not for journeys / operations / safety, no warranty.
+- check.py section 7: every train type, stop kind, origin, wait kind, message and block system used in the package has
+  an id and an en text; placeholders match between the languages; disclaimer present in both.
+- Planner bugs found while testing the texts (fixed): (1) after 60 restarts _plan silently returned a half-filled plan
+  (rows after the stop copied the printed times: 54 +15 min 'ended on time'); now the last attempt never restarts and
+  waits where the conflict is ('(no place to wait)'). Re-planning test after the fix: same station 82 / 78 / 73 %, end
+  within 2 min 91 / 92 / 97 % (half plans no longer count as on time). (2) plan_priority rejected every chain that hit
+  its cap; now the rest of the chain is planned plainly and the cap is 30. Tested and left OFF (worse): chain trains
+  displacing only trains they outrank (Planner.chain_rule), displacement at the train's own stops (stop_displace).
+- Open (planner, before phase 5): plain planning (the planned train yields to all others) can make a delayed priority
+  train wait for hours behind lower trains (7 +15 min -> ~10 h late; its holding chain is rejected); 54 +15 min -> +58
+  min with 21 trains held. Needs a proper dispatching re-plan (several trains together, in priority order).

@@ -57,6 +57,16 @@ def result(ok, text):
         failed.append(text)
 
 
+def planner_origins(pkg):
+    """every origin value used in the package"""
+    o = {r[5] for t in pkg["trains"] for r in t["stops"] if r[5]}
+    for s_ in pkg["sections"]:
+        o |= {r[5] for r in s_.get("restrictions", [])} | {b[5] for b in s_.get("block_signals", [])}
+    o |= {t[9] for L in pkg["layouts"] for t in L["tracks"]}
+    o |= {t["consist"]["origin"] for t in pkg["trains"] if t.get("consist")}
+    return o | {"fitted", "derived", "simulated"}
+
+
 def exports(db, folder):
     os.makedirs(folder, exist_ok=True)
     for name, cmd in EXPORTS:
@@ -169,6 +179,20 @@ def main():
         result(n_ex <= LIMITS["station_exemptions"] and pushed == 0 and not warn,
                f"station check: printed calls tolerated {n_ex} (limit {LIMITS['station_exemptions']}); printed trains "
                f"held by their unit's turnaround {pushed}; sections over capacity K {len(warn)}")
+        # phase 4: every value the app shows has an Indonesian and an English text; templates use the same placeholders
+        import re as _re
+        tx = pkg.get("texts", {})
+        need = [f"train.type.{t}" for t in {t["type"] for t in pkg["trains"]}] + \
+               [f"stop.kind.{k}" for k in {r[1] for t in pkg["trains"] for r in t["stops"]}] + \
+               [f"origin.{o}" for o in planner_origins(pkg)] + [f"wait.{k}" for k in planner.WAIT_KINDS] + \
+               [f"msg.{k}" for k in planner.WAIT_KINDS] + \
+               [f"block.{s_['block_system']}" for s_ in pkg["sections"] if s_.get("block_system")]
+        missing = sorted({k for k in need if k not in tx or not tx[k].get("id") or not tx[k].get("en")})
+        bad = [k for k, v in tx.items() if set(_re.findall(r"{(\w+)}", v["id"])) != set(_re.findall(r"{(\w+)}", v["en"]))]
+        disc = pkg["meta"].get("disclaimer", {})
+        result(not missing and not bad and all(disc.get(l) and "{" not in disc[l] for l in ("id", "en")),
+               f"texts id / en: {len(tx)} keys, missing {missing[:5]}, placeholder mismatch {bad[:5]}, disclaimer "
+               f"{'id + en' if disc.get('id') and disc.get('en') else 'MISSING'}")
         gpath = os.path.join(pfolder, "replay.json.gz")
         same = os.path.exists(gpath) and json.load(gzip.open(gpath))["trains"] == json.loads(json.dumps(trains_out))
         result(same, "golden replay.json.gz matches a fresh replay of the package")

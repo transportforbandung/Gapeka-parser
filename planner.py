@@ -380,6 +380,10 @@ class Planner:
         self.windows = []                       # track work (window time): dict(a, b, start, end, direction=None)
         self.ignore = set()                     # trains being displaced by the planned train (priority)
         self.displaced = set()
+        self.displaced_at = {}
+        self.root = None                        # the edited train of a plan_priority chain
+        self.chain_rule = False                 # True: chain trains displace only trains they clearly outrank (tested: worse)
+        self.stop_displace = False              # True: displacement also at its own stops (tested: worse)
         self.displace = False
         ep = {x["param"]: x["value"] for x in pkg["rules"].get("engine_params", [])}
         self.prio_gap = int(float(ep.get("priority_number_gap", 50)))
@@ -452,8 +456,11 @@ class Planner:
         is held before the block instead (re-planned afterwards). Allowed against a train it outranks or one of equal
         priority (numbers < priority_number_gap apart: then only if the total delay is smaller, see plan_priority). A
         train created outside the schedule never displaces a scheduled one."""
-        return (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip
-                and not self.outranks(other, self.skip))
+        if not (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip):
+            return False
+        if self.chain_rule and self.root is not None and self.skip != self.root:
+            return self.outranks(self.skip, other)     # in the chain: only trains it clearly outranks (no ping-pong)
+        return not self.outranks(other, self.skip)
 
     def window_conflict(self, a, b, d, arr):
         """window time (track work, PTDI: re-plan that day only): T may not be in block a -> b while a window closes a
@@ -730,7 +737,8 @@ class Planner:
                  for i, r in enumerate(base)}
         extra_stop, forbid = set(), set()
         notes, hold, hold_why = {}, {}, {}
-        for _ in range(max_iter):
+        for it in range(max_iter):
+            final = it == max_iter - 1      # last attempt: no more restarts, wait where the conflict is (flagged)
             rows = [list(r) for r in base]
             for i in extra_stop:
                 if rows[i][1] == "pass":
@@ -764,9 +772,14 @@ class Planner:
                         if rl is None:
                             break
                         c = (rl[0], rl[1], "release")
-                    elif base[i][1] == "pass" and i not in extra_stop and self.can_displace(c[1]):
-                        self.ignore.add(c[1])                   # T keeps running; the other is re-planned later
+                    elif self.can_displace(c[1]) and (base[i][1] == "pass" or (self.stop_displace and
+                                                                               self.outranks(self.skip, c[1]))):
+                        # T keeps running (a station it passes: any train it may displace; one of its stops or a
+                        # stop added for a wait: only trains it clearly outranks); the other is re-planned later.
+                        # plan_priority keeps this only if it pays (cost limit)
+                        self.ignore.add(c[1])
                         self.displaced.add(c[1])
+                        self.displaced_at.setdefault(c[1], rows[i][0])
                         continue
                     d = max(c[0], d + 1)
                     why = why or c                              # the first conflict is the reason for the wait
@@ -778,7 +791,7 @@ class Planner:
                             pass
                         waits.append((st, why[1], why[2], d - t))
                         notes[st] = {"cross": "x", "overtake": "=", "follow": "=", "release": "=", "window": "="}[why[2]]
-                    elif self.prefer_stop and rows[i][1] == "pass" and why[2] in ("overtake", "follow") and \
+                    elif not final and self.prefer_stop and rows[i][1] == "pass" and why[2] in ("overtake", "follow") and \
                             self.tl.block_double.get((rows[i][0], rows[j][0]), False) and \
                             self.hold_at_stop(rows, idx, k, why[1], hold, hold_why, why, length):
                         restart = True                          # held at the last planned stop instead
@@ -813,7 +826,7 @@ class Planner:
                     else:                                       # cannot wait here: wait at an earlier station
                         forbid.add(i)
                         prev = [n for n in idx[:k] if n not in forbid and self.kind.get(rows[n][0]) != "halt"]
-                        if not prev:
+                        if not prev or final:
                             waits.append((st, why[1], why[2] + " (no place to wait)", d - t))
                         else:
                             extra_stop.add(prev[-1])
@@ -835,7 +848,7 @@ class Planner:
                 k = m
             if not restart:
                 return rows, waits
-        return rows, waits
+        return rows, waits                      # not reached: the last attempt never restarts
 
 
 def _end(rows):
@@ -845,7 +858,7 @@ def _end(rows):
     return None
 
 
-def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=12, ratio=None):
+def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=30, ratio=None):
     """plan a scheduled train with priority (user): where it would wait at a station it does not serve for a scheduled
     train it outranks (or one of equal priority), that train is displaced instead and re-planned afterwards (held
     before the block), in priority order, each against everything planned so far; it may displace others in turn.
@@ -858,14 +871,18 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
     byno = {t["no"]: t for t in pkg["trains"]}
     P.displace, P.ignore, P.displaced = False, set(), set()
     plain = P.plan(train, dep0, printed_times=printed_times, printed_from=printed_from)
+    P.root = train["no"]
     saved = {}
     out = {}
+    info_at = {}                                # displaced train -> (train it gave way to, station)
     queue = [(train, dep0, printed_from)]
     try:
         while queue and len(out) < max_trains:
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced = True, set(), set()
+            P.displaced_at = {}
             rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            info_at.update({o: (t["no"], st) for o, st in P.displaced_at.items()})
             out[t["no"]] = (rows, waits)
             for no in [t["no"]] + sorted(P.displaced, key=P.prio):
                 if no not in saved:
@@ -879,8 +896,16 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
                 o = byno[no]
                 queue.append((o, o["stops"][0][3], o))
             queue.sort(key=lambda q: P.prio(q[0]["no"]))
+        # cap reached: the rest of the chain is planned plainly (it yields, displaces nobody), so no train is left out
+        while queue:
+            t, dep, pf = queue.pop(0)
+            P.displace, P.ignore, P.displaced = False, set(), set()
+            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            out[t["no"]] = (rows, waits)
+            tl.set_rows(t["no"], rows)
+            tl.index()
     finally:
-        P.displace, P.ignore, P.displaced = False, set(), set()
+        P.displace, P.ignore, P.displaced, P.root = False, set(), set(), None
         for no, rows in saved.items():
             if rows is None:
                 tl.trains.pop(no, None)
@@ -902,7 +927,7 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
         d = max(0.0, new - old)
         raw += d
         cost += d / ratio if P.outranks(me, no) else d
-    info = dict(gain_s=gain, cost_s=cost, delay_others_s=raw, displaced=[n for n in out if n != me],
+    info = dict(gain_s=gain, cost_s=cost, delay_others_s=raw, displaced=[n for n in out if n != me], held_for=info_at,
                 accepted=bool(len(out) > 1 and gain > 0 and cost <= gain and not queue))
     if not info["accepted"]:
         return {me: plain}, info
@@ -973,6 +998,43 @@ def capacity_warnings(pkg, tl):
                 n += 1
         if n > c["capacity"]:
             out.append((a, b, n, c["capacity"]))
+    return out
+
+
+WAIT_KINDS = ("cross", "overtake", "follow", "release", "window")
+def P_outranks(pkg, a, b):
+    """Planner.outranks for the texts (no timeline needed)"""
+    import re
+    T = {t["no"]: t for t in pkg["trains"]}
+    gap = int(float({x["param"]: x["value"] for x in pkg["rules"].get("engine_params", [])}
+                    .get("priority_number_gap", 50)))
+
+    def key(n):
+        m = re.match(r"\D*(\d+)", n)
+        t = T.get(n, {})
+        return (t.get("type") == "dinas", int(m.group(1)) if m else 10 ** 6, bool(t.get("facultative")))
+    ka, kb = key(a), key(b)
+    if ka[0] != kb[0]:
+        return ka[0] < kb[0]
+    return kb[1] - ka[1] >= gap or (ka[1] == kb[1] and ka[2] < kb[2])
+
+
+def explain(pkg, train_no, waits, lang="id", info=None):
+    """user-facing sentences (texts msg.*) for a plan: one per wait [(station, other, kind, seconds)] of 30 s or more,
+    plus the trains held for it (info['displaced']) and the unit's next trips moved (info['turnaround'])"""
+    tx = pkg["texts"]
+    name = {c: s.get("name") or c for c, s in pkg["stations"].items()}
+    out = []
+    for st, other, kind, sec in waits:
+        k = kind.split(" ")[0]
+        if sec < 30 or f"msg.{k}" not in tx:
+            continue
+        out.append(tx[f"msg.{k}"][lang].format(train=train_no, other=other or "-", station=name.get(st, st),
+                                               minutes=round(sec / 60)))
+    for other in ((info or {}).get("displaced", []) if (info or {}).get("accepted") else []):
+        by, st = (info.get("held_for") or {}).get(other, (train_no, None))
+        key = "msg.displaced" if P_outranks(pkg, by, other) else "msg.displaced_equal"
+        out.append(tx[key][lang].format(train=by, other=other, station=name.get(st, st or "-")))
     return out
 
 

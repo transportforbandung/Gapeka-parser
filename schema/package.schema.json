@@ -4,204 +4,937 @@
   "title": "GAPEKA simulator data package",
   "description": "One package per GAPEKA edition (export_package.py). Times in seconds from 00:00 of the train's first day (may pass 86400), distances km, speeds km/h, lengths m. Compact rows are arrays; their field order is in 'fields' and in the prefixItems below.",
   "type": "object",
-  "required": ["meta", "fields", "profiles", "stations", "lines", "sections", "layouts", "layout_refs", "dinas_tutup", "capacity",
-               "trains", "waits", "duties", "model", "rules"],
+  "required": [
+    "meta",
+    "fields",
+    "profiles",
+    "stations",
+    "lines",
+    "sections",
+    "layouts",
+    "layout_refs",
+    "dinas_tutup",
+    "capacity",
+    "trains",
+    "waits",
+    "duties",
+    "model",
+    "rules",
+    "texts"
+  ],
   "additionalProperties": false,
   "$defs": {
-    "code": {"type": "string", "minLength": 1, "maxLength": 24, "description": "station code; '?name' = a row of the graph sheet that is not a timetable station"},
-    "train_no": {"type": "string", "minLength": 1},
-    "time": {"type": ["integer", "null"], "minimum": 0, "maximum": 259200},
-    "num": {"type": ["number", "null"]},
-    "origin": {"enum": ["printed", "model", "graph", "manual", null]},
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "description": "station code; '?name' = a row of the graph sheet that is not a timetable station"
+    },
+    "train_no": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 259200
+    },
+    "num": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "printed",
+        "model",
+        "graph",
+        "manual",
+        null
+      ]
+    },
     "stop": {
-      "type": "array", "minItems": 6, "maxItems": 6,
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
       "prefixItems": [
-        {"$ref": "#/$defs/code"},
-        {"enum": ["terminal", "stop", "pass", "halt", "via"]},
-        {"$ref": "#/$defs/time"},
-        {"$ref": "#/$defs/time"},
-        {"$ref": "#/$defs/num", "description": "vmax (km/h) from this stop to the next"},
-        {"$ref": "#/$defs/origin"}
+        {
+          "$ref": "#/$defs/code"
+        },
+        {
+          "enum": [
+            "terminal",
+            "stop",
+            "pass",
+            "halt",
+            "via"
+          ]
+        },
+        {
+          "$ref": "#/$defs/time"
+        },
+        {
+          "$ref": "#/$defs/time"
+        },
+        {
+          "$ref": "#/$defs/num",
+          "description": "vmax (km/h) from this stop to the next"
+        },
+        {
+          "$ref": "#/$defs/origin"
+        }
       ]
     },
     "restriction": {
-      "type": "array", "minItems": 5, "maxItems": 5,
-      "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "integer"},
-                      {"type": "string", "description": "'' = both / single track, 'hu', 'hi', 'hu hi'"},
-                      {"type": "string"}]
-    },
-    "block_signal": {
-      "type": "array", "minItems": 5, "maxItems": 5,
-      "prefixItems": [{"$ref": "#/$defs/num"}, {"type": "string"}, {"type": "string"}, {"$ref": "#/$defs/num"},
-                      {"type": "string"}]
-    },
-    "track": {
-      "type": "array", "minItems": 9, "maxItems": 9,
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
       "prefixItems": [
-        {"type": "string", "description": "track name: Roman = main / siding, Arabic = yard"},
-        {"enum": ["roman", "yard"]},
-        {"$ref": "#/$defs/num", "description": "effective length m (longest of the drawings)"},
-        {"type": "string", "description": "usable directions on the sheet: 'L', 'R', 'LR', '' = none"},
-        {"type": "string", "description": "neighbour stations it can be used towards"},
-        {"type": "string", "description": "directions that can get onto it (termini / dead ends)"},
-        {"type": "boolean", "description": "runs over the whole diagram"},
-        {"type": "boolean", "description": "out of service (dashed / dotted)"},
-        {"type": "string", "description": "drawn arrows"}
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string",
+          "description": "'' = both / single track, 'hu', 'hi', 'hu hi'"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/value_origin"
+        }
       ]
     },
-    "kv": {"type": "object"}
+    "block_signal": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/num"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/num"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/value_origin"
+        }
+      ]
+    },
+    "track": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "prefixItems": [
+        {
+          "type": "string",
+          "description": "track name: Roman = main / siding, Arabic = yard"
+        },
+        {
+          "enum": [
+            "roman",
+            "yard"
+          ]
+        },
+        {
+          "$ref": "#/$defs/num",
+          "description": "effective length m (longest of the drawings)"
+        },
+        {
+          "type": "string",
+          "description": "usable directions on the sheet: 'L', 'R', 'LR', '' = none"
+        },
+        {
+          "type": "string",
+          "description": "neighbour stations it can be used towards"
+        },
+        {
+          "type": "string",
+          "description": "directions that can get onto it (termini / dead ends)"
+        },
+        {
+          "type": "boolean",
+          "description": "runs over the whole diagram"
+        },
+        {
+          "type": "boolean",
+          "description": "out of service (dashed / dotted)"
+        },
+        {
+          "type": "string",
+          "description": "drawn arrows"
+        },
+        {
+          "$ref": "#/$defs/value_origin"
+        }
+      ]
+    },
+    "kv": {
+      "type": "object"
+    },
+    "value_origin": {
+      "enum": [
+        "printed",
+        "sheet",
+        "ocr",
+        "graph",
+        "manual",
+        "model",
+        "fitted",
+        "inferred",
+        "derived",
+        "simulated"
+      ],
+      "description": "where a value comes from: meta.origins / texts origin.* explain each (id / en)"
+    }
   },
   "properties": {
     "meta": {
       "type": "object",
-      "required": ["edition", "decree", "valid_from", "pdf_sha256", "schema_version", "built", "units", "time_origins", "disclaimer"],
+      "required": [
+        "edition",
+        "decree",
+        "valid_from",
+        "pdf_sha256",
+        "schema_version",
+        "built",
+        "units",
+        "time_origins",
+        "disclaimer",
+        "origins"
+      ],
       "properties": {
-        "edition": {"type": "string"}, "decree": {"type": "string"}, "valid_from": {"type": "string"},
-        "pdf": {"type": "string"}, "pdf_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"}, "built": {"type": "string"},
-        "units": {"type": "object"}, "time_origins": {"type": "object"}, "disclaimer": {"type": "string"}
+        "edition": {
+          "type": "string"
+        },
+        "decree": {
+          "type": "string"
+        },
+        "valid_from": {
+          "type": "string"
+        },
+        "pdf": {
+          "type": "string"
+        },
+        "pdf_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "schema_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "built": {
+          "type": "string"
+        },
+        "units": {
+          "type": "object"
+        },
+        "time_origins": {
+          "type": "object"
+        },
+        "disclaimer": {
+          "type": "object",
+          "required": [
+            "id",
+            "en"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "en": {
+              "type": "string"
+            }
+          }
+        },
+        "origins": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "id",
+              "en"
+            ]
+          }
+        }
       }
     },
-    "fields": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
     "profiles": {
       "type": "array",
-      "items": {"type": "array", "minItems": 10, "maxItems": 10,
-                "prefixItems": [{"$ref": "#/$defs/code"}, {"$ref": "#/$defs/code"}, {"type": "string"},
-                                {"type": "string", "description": "stations that select this variant"},
-                                {"type": "number", "exclusiveMinimum": 0}, {"type": ["integer", "null"]},
-                                {"type": ["number", "null"]}, {"type": "string", "description": "'' = one sheet section; else how the pair was derived"},
-                                {"type": "array", "items": {"type": "array", "minItems": 4, "maxItems": 4,
-                                 "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "integer"},
-                                                 {"enum": ["line", "platform-track"]}]}},
-                                {"type": "boolean", "description": "double track (every sheet section on the pair's route)"}]}
+      "items": {
+        "type": "array",
+        "minItems": 10,
+        "maxItems": 10,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/code"
+          },
+          {
+            "$ref": "#/$defs/code"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "string",
+            "description": "stations that select this variant"
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "'' = one sheet section; else how the pair was derived"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "enum": [
+                    "line",
+                    "platform-track"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "double track (every sheet section on the pair's route)"
+          }
+        ]
+      }
     },
     "stations": {
       "type": "object",
-      "propertyNames": {"$ref": "#/$defs/code"},
+      "propertyNames": {
+        "$ref": "#/$defs/code"
+      },
       "additionalProperties": {
-        "type": "object", "required": ["kind"], "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false,
         "properties": {
-          "name": {"type": "string"}, "kind": {"enum": ["station", "halt", "sheet_only"]},
-          "ctc": {"type": "boolean"}, "dispatcher": {"$ref": "#/$defs/code"}, "sheet_name": {"type": "string"},
-          "attributes": {"type": "object"}
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "station",
+              "halt",
+              "sheet_only"
+            ]
+          },
+          "ctc": {
+            "type": "boolean"
+          },
+          "dispatcher": {
+            "$ref": "#/$defs/code"
+          },
+          "sheet_name": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object"
+          }
         }
       }
     },
     "lines": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["id", "stations"],
+        "type": "object",
+        "required": [
+          "id",
+          "stations"
+        ],
         "properties": {
-          "id": {"type": "string"}, "title": {"type": ["string", "null"]}, "pages": {"type": ["string", "null"]},
-          "stations": {"type": "array", "items": {"type": "array", "minItems": 4, "maxItems": 4,
-                       "prefixItems": [{"$ref": "#/$defs/code"}, {"$ref": "#/$defs/num"}, {"$ref": "#/$defs/num"}, {"$ref": "#/$defs/num"}]}}
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pages": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stations": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/code"
+                },
+                {
+                  "$ref": "#/$defs/num"
+                },
+                {
+                  "$ref": "#/$defs/num"
+                },
+                {
+                  "$ref": "#/$defs/num"
+                }
+              ]
+            }
+          }
         }
       }
     },
     "sections": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["a", "b", "km", "double_track", "origin"], "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "km",
+          "double_track",
+          "origin"
+        ],
+        "additionalProperties": false,
         "properties": {
-          "a": {"$ref": "#/$defs/code"}, "b": {"$ref": "#/$defs/code"},
-          "variant": {"type": "string"}, "context": {"type": "string"}, "line": {"type": "string"},
-          "km": {"type": "number", "exclusiveMinimum": 0}, "km_a": {"type": "number"}, "km_b": {"type": "number"},
-          "umum_kmh": {"type": "integer"}, "ruling_gradient_permil": {"type": "number"},
-          "double_track": {"type": "boolean"},
-          "block_system": {"enum": ["closed_abs", "open_abs", "electromechanical", "none"], "description": "closed_abs / open_abs = closed / open automatic block, electromechanical = mechanical block, none = no block between stations (legacy communication)"},
-          "electrified": {"type": "boolean"},
-          "restrictions": {"type": "array", "items": {"$ref": "#/$defs/restriction"}},
-          "block_signals": {"type": "array", "items": {"$ref": "#/$defs/block_signal"}},
-          "origin": {"enum": ["sheet", "manual"]}, "source": {"type": "string"}, "page": {"type": "integer"}
+          "a": {
+            "$ref": "#/$defs/code"
+          },
+          "b": {
+            "$ref": "#/$defs/code"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "context": {
+            "type": "string"
+          },
+          "line": {
+            "type": "string"
+          },
+          "km": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "km_a": {
+            "type": "number"
+          },
+          "km_b": {
+            "type": "number"
+          },
+          "umum_kmh": {
+            "type": "integer"
+          },
+          "ruling_gradient_permil": {
+            "type": "number"
+          },
+          "double_track": {
+            "type": "boolean"
+          },
+          "block_system": {
+            "enum": [
+              "closed_abs",
+              "open_abs",
+              "electromechanical",
+              "none"
+            ],
+            "description": "closed_abs / open_abs = closed / open automatic block, electromechanical = mechanical block, none = no block between stations (legacy communication)"
+          },
+          "electrified": {
+            "type": "boolean"
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/restriction"
+            }
+          },
+          "block_signals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/block_signal"
+            }
+          },
+          "origin": {
+            "enum": [
+              "sheet",
+              "manual"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          }
         }
       }
     },
     "layouts": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["station", "tracks"],
+        "type": "object",
+        "required": [
+          "station",
+          "tracks"
+        ],
         "properties": {
-          "station": {"$ref": "#/$defs/code"}, "line": {"type": "string"}, "page": {"type": "integer"},
-          "ends": {"type": "array"}, "longest_roman_m": {"type": "number"}, "ppka": {"type": "boolean"},
-          "tracks": {"type": "array", "items": {"$ref": "#/$defs/track"}},
-          "entry_signal_grade_from": {"type": "array", "items": {"type": ["string", "null"]}}
+          "station": {
+            "$ref": "#/$defs/code"
+          },
+          "line": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "ends": {
+            "type": "array"
+          },
+          "longest_roman_m": {
+            "type": "number"
+          },
+          "ppka": {
+            "type": "boolean"
+          },
+          "tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/track"
+            }
+          },
+          "entry_signal_grade_from": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       }
     },
-    "layout_refs": {"type": "array", "items": {"$ref": "#/$defs/kv"}},
+    "layout_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/kv"
+      }
+    },
     "dinas_tutup": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["ends", "closable"],
+        "type": "object",
+        "required": [
+          "ends",
+          "closable"
+        ],
         "properties": {
-          "ends": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/code"}},
-          "closable": {"type": "array", "items": {"$ref": "#/$defs/code"}},
-          "page": {"type": "integer"},
-          "hours": {"type": "object", "additionalProperties": {"type": "object", "required": ["closed_from", "closed_to"]}}
+          "ends": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/$defs/code"
+            }
+          },
+          "closable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/code"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "hours": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "closed_from",
+                "closed_to"
+              ],
+              "properties": {
+                "origin": {
+                  "$ref": "#/$defs/value_origin"
+                }
+              }
+            }
+          }
         }
       }
     },
     "capacity": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["a", "b", "capacity", "load_regular", "load_facultative"],
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "capacity",
+          "load_regular",
+          "load_facultative"
+        ],
         "properties": {
-          "a": {"$ref": "#/$defs/code"}, "b": {"$ref": "#/$defs/code"},
-          "path": {"type": "array", "items": {"$ref": "#/$defs/code"}},
-          "capacity": {"type": "integer", "minimum": 0},
-          "load_regular": {"type": "integer", "minimum": 0}, "load_facultative": {"type": "integer", "minimum": 0},
-          "printed_program": {"type": "array"}, "printed_adds_up": {"type": "boolean"}, "page": {"type": "integer"}
+          "a": {
+            "$ref": "#/$defs/code"
+          },
+          "b": {
+            "$ref": "#/$defs/code"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/code"
+            }
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "load_regular": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "load_facultative": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "printed_program": {
+            "type": "array"
+          },
+          "printed_adds_up": {
+            "type": "boolean"
+          },
+          "page": {
+            "type": "integer"
+          }
         }
       }
     },
     "trains": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["no", "type", "facultative", "stops"], "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "no",
+          "type",
+          "facultative",
+          "stops"
+        ],
+        "additionalProperties": false,
         "properties": {
-          "no": {"$ref": "#/$defs/train_no"}, "name": {"type": "string"}, "identity": {"type": "string"},
-          "route": {"type": "string"},
-          "type": {"enum": ["krl", "commuter", "intercity", "freight", "dinas"]},
-          "class": {"type": "string"}, "classification": {"type": "string"},
-          "facultative": {"type": "boolean"}, "operator": {"type": "string"}, "km": {"type": "number"},
-          "consist": {"type": "object", "properties": {"cars": {"type": "integer"}, "sets": {"type": "integer"},
-                      "locomotive": {"type": "string"}, "wagon": {"type": "string"}}},
-          "graph_only": {"type": "boolean"},
-          "run_class": {"enum": ["krl", "commuter", "commuter-emu", "intercity", "freight", "dinas"]},
-          "notes": {"type": "object", "additionalProperties": {"type": "string"}, "description": "timetable note symbols per station: x = crossing, = = overtaken, // = overtaking / passing"},
-          "stops": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stop"}}
+          "no": {
+            "$ref": "#/$defs/train_no"
+          },
+          "name": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "krl",
+              "commuter",
+              "intercity",
+              "freight",
+              "dinas"
+            ]
+          },
+          "class": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string"
+          },
+          "facultative": {
+            "type": "boolean"
+          },
+          "operator": {
+            "type": "string"
+          },
+          "km": {
+            "type": "number"
+          },
+          "consist": {
+            "type": "object",
+            "properties": {
+              "cars": {
+                "type": "integer"
+              },
+              "sets": {
+                "type": "integer"
+              },
+              "locomotive": {
+                "type": "string"
+              },
+              "wagon": {
+                "type": "string"
+              },
+              "origin": {
+                "$ref": "#/$defs/value_origin"
+              }
+            }
+          },
+          "graph_only": {
+            "type": "boolean"
+          },
+          "run_class": {
+            "enum": [
+              "krl",
+              "commuter",
+              "commuter-emu",
+              "intercity",
+              "freight",
+              "dinas"
+            ]
+          },
+          "notes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "timetable note symbols per station: x = crossing, = = overtaken, // = overtaking / passing"
+          },
+          "stops": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/stop"
+            }
+          }
         }
       }
     },
     "waits": {
       "type": "array",
-      "items": {"type": "object", "required": ["kind", "station", "trains"],
-                "properties": {"kind": {"type": "string"}, "station": {"$ref": "#/$defs/code"},
-                               "trains": {"type": "array", "items": {"type": ["string", "null"]}},
-                               "waiter": {"type": "string"}, "overtaker": {"type": "string"},
-                               "unknown_trains": {"type": "array", "items": {"type": "string"}, "description": "trains named in the note that are not in the timetable"}}}
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "station",
+          "trains"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "station": {
+            "$ref": "#/$defs/code"
+          },
+          "trains": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "waiter": {
+            "type": "string"
+          },
+          "overtaker": {
+            "type": "string"
+          },
+          "unknown_trains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "trains named in the note that are not in the timetable"
+          }
+        }
+      }
     },
     "duties": {
       "type": "array",
-      "items": {"type": "object", "required": ["id", "kind", "trains", "source"],
-                "properties": {"id": {"type": "string"}, "kind": {"type": "string"},
-                               "trains": {"type": "array", "items": {"$ref": "#/$defs/train_no"}},
-                               "unit": {"type": ["string", "null"]}, "cars": {"type": "integer"},
-                               "locomotive": {"type": "string"}, "wagon": {"type": "string"}, "sets": {"type": "integer"},
-                               "source": {"type": "string"}}}
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "trains",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "trains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/train_no"
+            }
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cars": {
+            "type": "integer"
+          },
+          "locomotive": {
+            "type": "string"
+          },
+          "wagon": {
+            "type": "string"
+          },
+          "sets": {
+            "type": "integer"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
     },
     "model": {
       "type": "object",
-      "required": ["physics", "calibration", "corrections", "station_zones", "section_buffers", "station_buffers", "halt_rules"],
+      "required": [
+        "physics",
+        "calibration",
+        "corrections",
+        "station_zones",
+        "section_buffers",
+        "station_buffers",
+        "halt_rules"
+      ],
       "properties": {
-        "physics": {"type": "object", "additionalProperties": {"type": "object", "required": ["a0", "power", "brake"]}},
-        "corrections": {"type": "array", "items": {"type": "array", "minItems": 7, "maxItems": 7}}
+        "physics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "a0",
+              "power",
+              "brake"
+            ]
+          }
+        },
+        "corrections": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7
+          }
+        }
       }
     },
     "rules": {
-      "type": "object", "required": ["priority", "wait_gaps", "mandatory_stops", "fit_exemptions"],
+      "type": "object",
+      "required": [
+        "priority",
+        "wait_gaps",
+        "mandatory_stops",
+        "fit_exemptions"
+      ],
       "properties": {
-        "priority": {"type": "array", "items": {"type": "object", "required": ["id", "event", "rule"]}}
+        "priority": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "event",
+              "rule"
+            ]
+          }
+        }
+      }
+    },
+    "texts": {
+      "type": "object",
+      "description": "user-facing texts (texts/ui.csv): key -> {id, en}; {placeholders} filled by the app",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "id",
+          "en"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "en": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   }

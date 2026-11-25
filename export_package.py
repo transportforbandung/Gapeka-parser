@@ -19,16 +19,17 @@ import sqlite3
 
 import gapeka_model
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # field order of the compact rows (also documented in the schema)
 FIELDS = {
     "stops": ["station", "kind", "arr_s", "dep_s", "vmax_kmh", "time_origin"],
-    "restrictions": ["offset_from_km", "offset_to_km", "speed_kmh", "tracks", "note"],
-    "block_signals": ["offset_km", "track", "signal_no", "km", "kind"],
+    "restrictions": ["offset_from_km", "offset_to_km", "speed_kmh", "tracks", "note", "origin"],
+    "block_signals": ["offset_km", "track", "signal_no", "km", "kind", "origin"],
     "line_stations": ["station", "km", "km_alt", "elevation_m"],
-    "tracks": ["track", "kind", "length_m", "usable", "usable_towards", "enter", "through", "out_of_service", "arrows"],
+    "tracks": ["track", "kind", "length_m", "usable", "usable_towards", "enter", "through", "out_of_service", "arrows",
+               "origin"],
     "corrections": ["kind", "a", "b", "end_kind", "train_type", "seconds", "support"],
     "profiles": ["a", "b", "variant", "context", "km", "umum_kmh", "ruling_gradient_permil", "derived", "restrictions",
                  "double_track"],
@@ -128,10 +129,12 @@ def build(tt_path, infra_path, rules_path):
     restr, blocks = {}, {}
     for x in rows(i, "select * from restrictions"):
         restr.setdefault((x["a"], x["b"], x["variant"] or ""), []).append(
-            [x["offset_from_km"], x["offset_to_km"], x["speed_kmh"], x["tracks"] or "", x["note"] or ""])
+            [x["offset_from_km"], x["offset_to_km"], x["speed_kmh"], x["tracks"] or "", x["note"] or "",
+             "manual" if (x["source"] or "").startswith("manual") else "sheet"])
     for x in rows(i, "select * from block_signals"):
         blocks.setdefault((x["a"], x["b"], x["variant"] or ""), []).append(
-            [x["offset_km"], x["track"] or "", x["signal_no"] or "", x["km"], x["kind"]])
+            [x["offset_km"], x["track"] or "", x["signal_no"] or "", x["km"], x["kind"],
+             "manual" if x["kind"].startswith("manual") else "inferred" if x["kind"].startswith("inferred") else "sheet"])
     sections = []
     for s in rows(i, "select * from sections order by a, b, variant"):
         k = (s["a"], s["b"], s["variant"] or "")
@@ -148,7 +151,7 @@ def build(tt_path, infra_path, rules_path):
     layouts = []
     for L in rows(i, "select * from station_layouts order by station, line_id"):
         tr = [[t["track"], t["kind"], t["length_m"], t["usable"] or "", t["usable_towards"] or "", t["enter"] or "",
-               bool(t["through"]), bool(t["out_of_service"]), t["arrows"] or ""]
+               bool(t["through"]), bool(t["out_of_service"]), t["arrows"] or "", t["origin"] or "sheet"]
               for t in rows(i, "select * from station_tracks where station = ? and line_id = ? and page = ? order by seq",
                             L["station"], L["line_id"], L["page"])]
         marks = [m["towards"] for m in rows(i, "select towards from station_signal_marks where station = ? and line_id = ?",
@@ -162,14 +165,15 @@ def build(tt_path, infra_path, rules_path):
     hours = {}
     for h in rows(r, "select * from dinas_tutup_hours"):
         hours[h["station"]] = clean(dict(closed_from=h["closed_from"], closed_to=h["closed_to"], hours=h["hours"],
-                                         note=h["note"]))
+                                         note=h["note"], origin="fitted"))
     dinas_tutup = [dict(ends=[d["end_a"], d["end_b"]], closable=(d["closed"] or "").split(), page=d["page"],
                         hours={c: hours[c] for c in (d["closed"] or "").split() if c in hours})
                    for d in rows(i, "select * from dinas_tutup")]
     capacity = [clean(dict(a=c["a"], b=c["b"], path=(c["path"] or "").split() or None, capacity=c["capacity"],
                            load_regular=c["timetable_regular"], load_facultative=c["timetable_facultative"],
                            printed_program=[c["program_regular"], c["program_facultative"]],
-                           printed_adds_up=bool(c["counts_add_up"]), page=c["page"]))
+                           printed_adds_up=bool(c["counts_add_up"]), page=c["page"],
+                           origin=dict(capacity="printed", load="derived", path="derived")))
                 for c in rows(i, "select * from section_capacity")]
 
     # ---- trains and stops (printed times + estimates for halts / KA Dinas passing points)
@@ -219,7 +223,7 @@ def build(tt_path, infra_path, rules_path):
                 row[j], last = x, x
         ix, c, pk = idx.get(t["no"], {}), cons.get(t["no"]), pokok.get(t["no"])
         consist = clean(dict(cars=c["cars"], sets=c["sets"], locomotive=c["locomotive"],
-                             wagon=pk["wagon"] if pk else None)) if c else None
+                             wagon=pk["wagon"] if pk else None, origin="printed")) if c else None
         trains.append(clean(dict(
             no=t["no"], name=ix.get("name") or t["service"], identity=ix.get("identity"), route=t["route"],
             type=t["type"], class_=t["kelas"], classification=t["klasifikasi"], facultative=bool(t["facultative"]),
@@ -290,6 +294,8 @@ def build(tt_path, infra_path, rules_path):
     print(f"stops re-spread between printed times (inconsistent estimates): {repaired}")
     rules["engine_params"] = [clean(x) for x in rows(r, "select * from engine_params")] \
         if r.execute("select 1 from sqlite_master where name = 'engine_params'").fetchone() else []
+    texts, disclaimer = load_texts(dict(edition=edition, decree=meta_i.get("decree"), valid_from=meta_i.get("valid_from")))
+    model["origin"] = "fitted"
     meta = dict(
         edition=edition, decree=meta_i.get("decree"), valid_from=meta_i.get("valid_from"), pdf=meta_i.get("pdf"),
         pdf_sha256=meta_i.get("pdf_sha256"), schema_version=SCHEMA_VERSION,
@@ -299,11 +305,11 @@ def build(tt_path, infra_path, rules_path):
         time_origins=dict(printed="as printed in GAPEKA", model="running-time model estimate (not official)",
                           graph="read from the GAPEKA graph sheets (not printed in the timetable)",
                           manual="set by hand (user decision)"),
-        disclaimer="Unofficial data package built from the GAPEKA PDF; only 'printed' times are official. "
-                   "Licence and public disclaimer still to be decided (docs/simulator_package.md).")
+        origins={k[7:]: v for k, v in texts.items() if k.startswith("origin.")},
+        disclaimer=disclaimer)
     pkg = dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
-                duties=duties, model=model, rules=rules)
+                duties=duties, model=model, rules=rules, texts=texts)
     # block signals the sheet leaves out, inferred from GAPEKA's own train pairs (signal_infer.py); stored in
     # infra.db too (kind 'inferred: ...' + qa rows), before the headways are fitted
     import signal_infer
@@ -314,7 +320,23 @@ def build(tt_path, infra_path, rules_path):
     pkg["rules"]["headways"] = planner.fit_headways(tl, {t["no"]: t["type"] for t in trains})
     pkg["rules"]["headways"]["turnaround_min"] = planner.fit_turnaround(pkg)
     pkg["rules"]["headways"]["station_exemptions"] = planner.station_exemptions(pkg, tl)
+    pkg["rules"]["headways"]["origin"] = "fitted"
     return pkg
+
+
+def load_texts(fill):
+    """user-facing texts (phase 4): texts/ui.csv (key, id, en) and texts/disclaimer.md (## id / ## en sections,
+    {edition} {decree} {valid_from} filled from the meta). Returns ({key: {id, en}}, {id, en})"""
+    import csv
+    texts = {}
+    for r in csv.DictReader(open(os.path.join(HERE, "texts", "ui.csv"), encoding="utf-8")):
+        texts[r["key"]] = dict(id=r["id"], en=r["en"])
+    raw = open(os.path.join(HERE, "texts", "disclaimer.md"), encoding="utf-8").read()
+    parts = {}
+    for chunk in raw.split("\n## ")[1:]:
+        lang, body = chunk.split("\n", 1)
+        parts[lang.strip()] = body.strip().format(**{k: v or "" for k, v in fill.items()})
+    return texts, dict(id=parts["id"], en=parts["en"])
 
 
 def write(pkg, out_dir):
