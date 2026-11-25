@@ -49,8 +49,9 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Direction agreed so far: the pipeline (this repo) builds one data package per edition offline; the simulation
   engine runs in the user's browser (TypeScript / WASM in a Web Worker), checked against the Python engine with a
   "replay the official GAPEKA" test; static hosting; a server only later for accounts / shared scenarios.
-- Open decisions: who uses it (TfB internal or public), starting scope (all of Java or one region), check-only
-  conflicts vs automatic re-planning first, station track counts (not in the GAPEKA margins).
+- Decided (user, 25 Nov 2026): public from the start, all of Java, automatic re-planning, one compressed JSON package
+  per edition (+ JSON Schema / TypeScript types). Plan: docs/simulator_package.md (contents, rules as engine
+  parameters, precomputed leg_times, golden replay + re-planning test, phases 1-5, open questions).
 
 ## Domain rules from the user (do not re-guess these)
 
