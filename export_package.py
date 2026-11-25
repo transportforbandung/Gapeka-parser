@@ -30,7 +30,8 @@ FIELDS = {
     "line_stations": ["station", "km", "km_alt", "elevation_m"],
     "tracks": ["track", "kind", "length_m", "usable", "usable_towards", "enter", "through", "out_of_service", "arrows"],
     "corrections": ["kind", "a", "b", "end_kind", "train_type", "seconds", "support"],
-    "leg_times": ["a", "b", "variant", "run_class", "vmax_kmh", "km", "ruling_gradient_permil", "physics_s"],
+    "profiles": ["a", "b", "variant", "context", "km", "umum_kmh", "ruling_gradient_permil", "derived", "restrictions"],
+    "profile_restrictions": ["from_km", "to_km", "speed_kmh", "kind"],
 }
 BLOCK = {"closed automatic block": "closed_abs", "open automatic block": "open_abs",
          "electromechanical block": "electromechanical", "none": "none"}
@@ -81,6 +82,14 @@ def repair_segments(st):
             row[5] = "model"
             changed += 1
     return changed
+
+
+def run_class(ttype, service):
+    """train type for the running-time model; non-KRL commuters with EMU performance (Ka Feeder) run like KRL"""
+    import gapeka_model as gm
+    if ttype == "commuter" and service in gm.EMU_LIKE:
+        return "commuter-emu"
+    return ttype
 
 
 def build(tt_path, infra_path, rules_path):
@@ -172,9 +181,9 @@ def build(tt_path, infra_path, rules_path):
         pokok.setdefault(p["train_no"], p)
     est = {(e["train_no"], e["seq"]): e for e in rows(g, "select * from halt_est")}
     import gapeka_model as gm
-    import leg_times as lt
-    model = gm.Model(g, gm.Infra(infra_path, g), gm.load_rules(os.path.join(HERE, "rules")))
-    legt = lt.build(model)
+    import physics_ref
+    infra_m = gm.Infra(infra_path, g)
+    profiles = physics_ref.export_profiles(infra_m, g)
     syms = {}
     for no, st_, sym in g.execute("select train_no, station, symbol from notes"):
         syms.setdefault(no, {}).setdefault(st_, set()).add(sym)
@@ -214,7 +223,7 @@ def build(tt_path, infra_path, rules_path):
             type=t["type"], class_=t["kelas"], classification=t["klasifikasi"], facultative=bool(t["facultative"]),
             operator=t["operator"], km=t["index_km"], consist=consist,
             graph_only=(t["first_page"] or "").startswith("graph:") or None,
-            run_class=lt.run_class(t["type"], t["service"] or ""),
+            run_class=run_class(t["type"], t["service"] or ""),
             notes={k: " ".join(sorted(v)) for k, v in syms.get(t["no"], {}).items()} or None, stops=st)))
     for t in trains:
         t["class"] = t.pop("class_", None)
@@ -257,6 +266,7 @@ def build(tt_path, infra_path, rules_path):
     # ---- running-time model and rules (phase 3 turns the prose rules into parameters)
     model = dict(
         physics={k: dict(a0=v[0], power=v[1], brake=v[2]) for k, v in gapeka_model.PHYS.items()},
+        cell_m=gapeka_model.DX, min_speed_kmh=8, algorithm="physics_ref.py (docstring)",
         emu_like_services=sorted(gapeka_model.EMU_LIKE),
         calibration=[clean(x) for x in rows(r, "select train_type, feature, value from fitted_calibration")],
         corrections=[[x["kind"], x["a"], x["b"], x["end_kind"], x["train_type"], round(x["seconds"], 2), x["support"]]
@@ -287,10 +297,7 @@ def build(tt_path, infra_path, rules_path):
                           manual="set by hand (user decision)"),
         disclaimer="Unofficial data package built from the GAPEKA PDF; only 'printed' times are official. "
                    "Licence and public disclaimer still to be decided (docs/simulator_package.md).")
-    meta["leg_times"] = dict(patterns=[a + b for a in "pst" for b in "pst"],
-                             note="physics s per directed section; p = pass, s = stop, t = the train's origin / "
-                                  "terminus; first letter = start at a; compose per leg as in replay.py")
-    return dict(meta=meta, fields=FIELDS, leg_times=legt, stations=stations, lines=lines, sections=sections, layouts=layouts,
+    return dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
                 duties=duties, model=model, rules=rules)
 

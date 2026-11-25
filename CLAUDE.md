@@ -54,9 +54,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   parameters, precomputed leg_times, golden replay + re-planning test, phases 1-5, open questions).
   Phase 1 DONE: export_package.py = pipeline step 10 -> dist/gapeka-2026/package.json.gz (0.44 MB) + manifest,
   schema/package.schema.json, package_check.py, check.py section 7 (see the phase 1 notes in the plan).
-  Phase 2 DONE: leg_times.py (physics s per directed pair x variant x run class x vmax x 9 end patterns, in the
-  package) + replay.py (reference engine from the package alone; composition = whole-leg model within 0.1 s; held-out
-  83 / 14 / 3 %) + golden dist/gapeka-2026/replay.json.gz checked by check.py.
+  Phase 2 DONE (revised, user: "rely on physics for trains not in GAPEKA"): the engine runs the physics itself.
+  Package `profiles` (physics inputs per directed station pair, derived pairs resolved in Python) + physics_ref.py
+  (pure-Python physics, the port spec) + replay.py (reference engine from the package alone; = gapeka_model on every
+  timed leg, 0.0 s; held-out 83 / 14 / 3 %) + golden dist/gapeka-2026/replay.json.gz checked by check.py. Any vmax
+  works (precomputed leg times could not time a vmax GAPEKA never uses; removed).
 
 ## Domain rules from the user (do not re-guess these)
 

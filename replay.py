@@ -4,8 +4,8 @@
     python replay.py [dist/gapeka-2026] [--write]
 
 compose(): running time of one leg between two timed points of a train:
-  sim   = sum of leg_times physics s of its sections, each with its own end kinds (pass / stop at a halt or stop /
-          terminal at the train's origin / terminus)
+  sim   = physics_ref.simulate over the whole leg (speed cap per 50 m cell from the package profiles, station
+          zones, rest at the leg ends where the train stops and at every halt)
   T     = calibration[type] . features + buffers + corrections, as gapeka_model.Model (features: sim, 1, halts in the
           leg, terminus arrival, origin departure, start from a stop, stop at the end, crossing / overtaking roles from
           the train's note symbols at both ends, km on 5-10 and >= 10 permil sections); freight has no calibration of
@@ -24,10 +24,11 @@ import os
 import sys
 from collections import defaultdict
 
+import physics_ref
+
 FEATURES = ["sim", "const", "per_halt", "terminus_arrival", "origin_departure", "start_from_stop", "stop_at_end",
             "start_wait_cross", "start_wait_overtaken", "start_pass_cross", "end_wait_cross", "end_wait_overtaken",
             "end_pass_cross", "km_5_10_permil", "km_10plus_permil"]
-PAT = {a + b: i for i, (a, b) in enumerate((a, b) for a in "pst" for b in "pst")}
 
 
 class Engine:
@@ -41,13 +42,9 @@ class Engine:
         for kind, a, b, end_kind, t, sec, _ in m["corrections"]:
             key = {"section": ("sec", a, b, t), "halt": ("halt", a, t)}.get(kind, (kind, a, end_kind, t))
             self.corr[key] = sec
-        self.lt = {}
-        for a, b, var, rc, v, km, ruling, times in pkg["leg_times"]:
-            self.lt[(a, b, var, rc, v)] = (km, ruling, times)
-        self.variants = defaultdict(list)
-        for s in pkg["sections"]:
-            if s.get("variant"):
-                self.variants[frozenset((s["a"], s["b"]))].append((s["variant"], set(s.get("context", "").split())))
+        self.profiles = physics_ref.Profiles(pkg["profiles"])
+        self.zones = m["station_zones"]
+        self.phys = m["physics"]
         self.buffers = []
         for b in m["section_buffers"]:
             val = float(str(b["seconds"]).split()[0])
@@ -56,13 +53,6 @@ class Engine:
         for b in m["station_buffers"]:
             self.buffers.append(dict(kind="station_buffer", station=b["station"], side=b["side"], when=b["applies_when"],
                                      value=float(b["seconds"]), types=b["train_types"].split()))
-
-    def variant(self, a, b, ctx):
-        """the section variant whose context holds one of the leg's stations, else the default ('')"""
-        for var, c in self.variants.get(frozenset((a, b)), []):
-            if c & ctx:
-                return var
-        return ""
 
     def buffer_s(self, typ, st, secs, start_rest, end_rest, first, last):
         pairs = set(zip(st, st[1:]))
@@ -85,23 +75,22 @@ class Engine:
         return tot
 
     def compose(self, train, rows, p, q):
-        """predicted seconds from timed point p to timed point q of train (rows = its stops); None if a section has
-        no leg time"""
+        """predicted seconds from timed point p to timed point q of train (rows = its stops): physics over the whole
+        leg (physics_ref) + calibration . features + buffers + corrections; None if a station pair has no profile or
+        a section no vmax"""
         typ, rc = train["type"], train.get("run_class", train["type"])
         st = [r[0] for r in rows[p:q + 1]]
         ctx = set(st)
         first, last = p == 0, q == len(rows) - 1
         start_rest, end_rest = rows[p][1] != "pass", rows[q][1] != "pass"
-        sim, secs = 0.0, []
-        for i in range(p, q):
-            a, b, v = rows[i][0], rows[i + 1][0], rows[i][4]
-            e = self.lt.get((a, b, self.variant(a, b, ctx), rc, v))
-            if e is None:
-                return None
-            sk = "t" if i == 0 else ("s" if rows[i][1] != "pass" else "p")
-            ek = "t" if i + 1 == len(rows) - 1 else ("s" if rows[i + 1][1] != "pass" else "p")
-            sim += e[2][PAT[sk + ek]]
-            secs.append((e[0], e[1]))
+        halt_idx = [i - p for i in range(p + 1, q) if rows[i][1] == "halt"]
+        leg = physics_ref.leg_cap(self.profiles, self.zones, st, [r[4] for r in rows[p:q + 1]], rc, start_rest,
+                                  end_rest, halt_idx, first, last)
+        if leg is None:
+            return None
+        cap, secs, hcells = leg
+        ph = self.phys[physics_ref.phys_group(rc)]
+        sim = physics_ref.simulate(cap, start_rest, end_rest, hcells, ph["a0"], ph["power"], ph["brake"])
         halts = [r[0] for r in rows[p + 1:q] if r[1] == "halt"]
         notes = train.get("notes", {})
 

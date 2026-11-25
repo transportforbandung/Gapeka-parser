@@ -44,7 +44,7 @@ schema/
 | `stops` | per train in order: station, kind (stop / pass / halt / via), arrival / departure s, vmax of the following section, origin of each time | gapeka.db |
 | `waits` | from the timetable notes: waiting train, station, other train(s), crossing / overtake | gapeka.db constraints |
 | `duties` | set and locomotive chains (rangkaian pokok, rosters): which train turns into which, minimum turnaround | gapeka.db |
-| `leg_times` | precomputed running time per directed section x train type x end pattern (pass / stop at each end), Python model | new |
+| `profiles` | physics inputs per directed station pair (km, Umum, gradient, restrictions of this direction's track); the engine runs the physics (physics_ref.py) | new |
 | `model` | physics parameters per group, calibration, per-section corrections, station zones, buffers, gradient allowance, halt rules | rules.db |
 | `rules` | engine parameters (section 3), fit exemptions, mandatory stops | rules/ (new tables) |
 | `text` | user-facing messages per rule and warning (Indonesian + English), category names (KOM, EKO, ...) | new |
@@ -97,7 +97,7 @@ website can say which rule moved a train.
 | Phase | Output | Done when |
 |---|---|---|
 | 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
-| 2 | `leg_times` + golden replay | DONE 25 Nov 2026: composition = whole-leg model (mean 0.1 s), held-out 83 / 14 / 3 % |
+| 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
 | 3 | rule parameter tables (section 3), Python reference planner, re-planning test | baseline score recorded, rules tuned |
 | 4 | user-facing texts (id / en), origins on every value, disclaimer | reviewed by the user |
 | 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
@@ -127,22 +127,30 @@ website can say which rule moved a train.
   '2640' -> 2640F); none left unresolved.
 - Not yet in the package: leg_times (phase 2), rule parameters (phase 3), user texts id / en (phase 4).
 
-## Phase 2 result (25 Nov 2026)
+## Phase 2 result (25 Nov 2026, revised: physics in the engine)
 
-- `leg_times.py` -> package `leg_times`: 3554 entries [a, b, variant, run_class, vmax, km, ruling, 9 physics s] for every
-  directed station pair, junction variant, run class (krl / commuter / commuter-emu = Ka Feeder / intercity / freight)
-  and vmax used by a timed leg; end patterns pp ps pt sp ss st tp ts tt (p pass, s stop, t origin / terminus). Trains
-  carry `run_class` and their note symbols per station (`notes`: x crossing, = overtaken, // overtaking / passing),
-  which the calibration's crossing / overtaking features need. Package 0.51 MB.
-- `replay.py` = Python reference engine using ONLY the package: compose() = sum of section physics times (each with
-  its own end kinds) + calibration . features + buffers + corrections, once per leg (the model's formula). Composition
-  vs the whole-leg model on all 29203 timed legs: mean |difference| 0.1 s, none > 30 s (research/compose_check.py).
-  Held-out legs without notes: package 83.0 / 13.7 / 3.2 % vs model 83.1 / 13.6 / 3.3 %. All passenger legs without
-  notes 85 / 12 / 2.5 %; freight (no calibration of its own, uses intercity's) 54 / 23 / 23 % (freight on hold).
+User decision: trains that are not in GAPEKA (any vmax, any stopping pattern, later new rolling stock) are timed by
+the physics model itself, not by a table of precomputed times. A first version shipped leg times per (pair, run
+class, vmax) and could not time a vmax GAPEKA never uses (e.g. 100 km/h where only 90 / 120 exist); interpolating
+between speeds was tested: pass-pass mean 0.5 s, stop-stop mean 3 s, worst 35 s. Replaced by:
+
+- Package `profiles` (physics_ref.export_profiles): every directed station pair a train runs plus every sheet section
+  both ways, with junction variants: km, Umum, ruling gradient, derived ('' = one sheet section, else joined / split /
+  chain, resolved in Python), and the restrictions that apply to this direction's track [from_km, to_km, kmh, kind]
+  (kind line, or platform-track = EMU-like trains only; siding notes dropped). `model.physics` (a0, power, brake per
+  group), `cell_m` 50, `min_speed_kmh` 8, `station_zones`.
+- `physics_ref.py`: pure-Python physics (no numpy), written for a line-by-line port: leg_cap() (50 m cells, Umum,
+  restrictions, zones), simulate() (forward acceleration pass, backward braking pass). Its docstring is the spec.
+- `replay.py` compose(): physics over the whole leg + calibration . features + buffers + corrections (the model's
+  formula). Equal to gapeka_model on all 29203 timed legs (mean |difference| 0.0 s; research/compose_check.py);
+  held-out legs without notes 83.1 / 13.6 / 3.3 %, all passenger legs without notes 85 / 12 / 2.5 %, freight (borrows
+  intercity's calibration) 54 / 23 / 23 %.
 - Train replay (chained from the printed first departure, printed dwell kept): drift at the last timed point, median
-  / p10 / p90 min: KRL 0.0 / -1.0 / +0.9, commuter 0.0 / -2.5 / +2.1, intercity -0.3 / -7.9 / +6.5 (34 % > 5 min:
-  GAPEKA's slack and crossing slow-downs add up over long trips), freight -4.3 / -37 / +3.2.
+  / p10 / p90 min: KRL 0.0 / -1.0 / +0.9, commuter 0.0 / -2.5 / +2.1, intercity -0.3 / -7.9 / +6.6, freight -4.3 /
+  -37 / +3.2 (GAPEKA's slack and crossing slow-downs add up over long trips).
+- Example (any vmax works): Argo Wilis (10) Bandung - Banjar as one run, 27 sections: own GAPEKA vmax 163.3 min, all
+  sections at 90 / 100 / 110 / 120 km/h: 165.1 / 162.5 / 161.4 / 160.6 min (Umum and restrictions still cap).
 - Golden output `dist/gapeka-2026/replay.json.gz` (per train [stop index, arr, dep, leg s], 0.1 s), written by
-  pipeline step 10; check.py section 7 replays the package and compares it with the golden file. The browser engine
-  must give the same numbers from the same package.
-- Not done: times for the 3444 untimed passes (would need sub-leg times inside a leg); freight calibration.
+  pipeline step 10, compared by check.py section 7. The browser engine must give the same numbers from the package.
+- Package 0.46 MB. Not done: times for the 3444 untimed passes; a freight calibration; new run classes (new
+  acceleration groups) need their own physics parameters and a calibration type.

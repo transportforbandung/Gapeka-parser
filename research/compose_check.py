@@ -1,4 +1,4 @@
-"""Composition error of the package leg times (replay.compose) vs gapeka_model's whole-leg prediction, same legs.
+"""Package physics (replay.compose: physics_ref over the whole leg) vs gapeka_model's whole-leg prediction, same legs.
 Also held-out-only bands for a fair comparison with the model's fit_stats."""
 import gzip, json, sqlite3, sys
 import numpy as np
