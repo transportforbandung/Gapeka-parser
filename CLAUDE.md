@@ -98,7 +98,11 @@ Read this first. It records decisions and findings from earlier sessions so they
   (meta.origins; restrictions / block signals / tracks carry an origin field; infra.db station_tracks.origin), texts/ui.csv
   (72 keys id / en) -> package texts, texts/disclaimer.md -> meta.disclaimer {id, en}, planner.explain(); schema 1.1.0.
   Planner fixes found then: _plan no longer returns half plans after 60 restarts; plan_priority caps chains at 30 and
-  plans the rest plainly. Open: plain planning makes a delayed priority train wait hours (7 +15 min -> ~10 h). Physics is
+  plans the rest plainly. Delayed priority trains (research/delay_cases.py): hold_at_stop now limited (hold <= wait it
+  replaces + 10 min; freight re-planning mean 88 -> 15 min), long-train rule in the planner (Planner.forced: a train
+  fitting no track holds the other train that fits, any number), own set successors never held, chain tail keeps the
+  long-train rule. 7 +5 -> 21 min late; 7 +15 still rejected (held freights lose 2-4 h each when re-planned from their
+  origin) -> 6.7 h. Next idea: re-time held trains from the hold point / dispatching re-plan in priority order. Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
 

@@ -324,3 +324,20 @@ User: finish phase 3 before phase 4. Every rule written in rules/priority.csv is
 - Open (planner, before phase 5): plain planning (the planned train yields to all others) can make a delayed priority
   train wait for hours behind lower trains (7 +15 min -> ~10 h late; its holding chain is rejected); 54 +15 min -> +58
   min with 21 trains held. Needs a proper dispatching re-plan (several trains together, in priority order).
+
+## Delayed priority trains (25 Nov 2026, user: "Bima 7 has a number below 10, how can it be 10 h late?")
+
+research/delay_cases.py (plan_edit, train starts N min late). Causes found and fixed:
+- hold_at_stop (hold a train at its last planned stop for an overtake) had no length limit: freight 2523 was held 6 h at
+  Batang for 2761F, still hours behind. Now the hold may exceed the wait it replaces by at most hold_slack (10 min).
+  Freight re-planning test: end mean |diff| 88 -> 15 min, same station 58 -> 68 %; passenger unchanged.
+- hold_at_stop's overtaker day: chosen by its time at the conflict station vs the train's arrival there.
+- Long-train rule in the planner (user: the long train goes first, the other stops and fits): a train that fits no
+  track at a station holds the other train (crossing, or a faster one behind) when that one fits, whatever its
+  number (Planner.forced). Kalingga Cargo 2535 (391 m) on Surabaya Pasarturi - Lamongan.
+- A train's own set's next trip is never 'held' for it (it follows anyway: plan_edit turnaround).
+- plan_priority chain past its cap: still applies the long-train rule (no priority holding), hard cap 3 x.
+Results (end late): 7 +5 -> 21 min (accepted), 54 +15 -> 58, 8 +20 -> 40, 121 +15 -> 28, 2535 +10 -> 273; 7 +15 / +30
+still rejected (gain 367 min vs weighted cost 369 / 414: the held freight trains, re-planned from their printed
+departure, lose 2-4 h each) -> plain plan 6.7 h late. Open: re-time held trains from the hold point (not re-plan from
+the origin) / a dispatching re-plan of the affected trains in priority order.

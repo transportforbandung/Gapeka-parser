@@ -369,7 +369,8 @@ class Planner:
         self.approach_blocks = int(ab[0]) if ab else 1
         dg = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "double_follow_gap"]
         self.double_gap = (dg[0] if dg else 2) * 60
-        self.prefer_stop = True                 # double-track overtakes at the last planned stop (hold_at_stop)
+        self.prefer_stop = True
+        self.hold_slack = 600                   # s: a hold at the last stop may exceed the wait it replaces by this                 # double-track overtakes at the last planned stop (hold_at_stop)
         # GAPEKA times are whole minutes: gaps are checked with this tolerance (engine_params time_tolerance)
         tol = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "time_tolerance"]
         self.tol = tol[0] if tol else 59.0
@@ -381,6 +382,8 @@ class Planner:
         self.ignore = set()                     # trains being displaced by the planned train (priority)
         self.displaced = set()
         self.displaced_at = {}
+        self.forced = set()                     # trains held by the long-train rule (any priority)
+        self.tail = False                       # plan_priority past its cap
         self.root = None                        # the edited train of a plan_priority chain
         self.chain_rule = False                 # True: chain trains displace only trains they clearly outrank (tested: worse)
         self.stop_displace = False              # True: displacement also at its own stops (tested: worse)
@@ -451,6 +454,14 @@ class Planner:
             return True
         return pa[1] == pb[1] and pa[2] < pb[2]
 
+    def fit_forced(self, st, other, length):
+        """T is longer than every Roman track at st while the other train fits one (or its length is unknown)"""
+        lo = self.longest.get(st)
+        if not lo or not length or length <= lo:
+            return False
+        ol = self.length.get(other)
+        return ol is None or ol <= lo
+
     def can_displace(self, other):
         """user: a train with priority runs through every station it does not serve: the conflicting SCHEDULED train
         is held before the block instead (re-planned afterwards). Allowed against a train it outranks or one of equal
@@ -458,6 +469,10 @@ class Planner:
         train created outside the schedule never displaces a scheduled one."""
         if not (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip):
             return False
+        if self.tail:
+            return False                               # chain tail: no priority holding (long-train rule only)
+        if any(n == other for n, _ in self.duty_next.get(self.skip, [])):
+            return False                               # its own set's next trip follows it anyway (plan_edit)
         if self.chain_rule and self.root is not None and self.skip != self.root:
             return self.outranks(self.skip, other)     # in the chain: only trains it clearly outranks (no ping-pong)
         return not self.outranks(other, self.skip)
@@ -694,10 +709,20 @@ class Planner:
             if not nxt:
                 return False
             ref = nxt[0][2] + self.overtake_gap["double"]
-            here = r[3] if r[3] is not None else r[2]
-            if here is not None:                       # the overtaker's copy on T's day (times may pass 86400)
-                ref += min((-86400, 0, 86400), key=lambda sh: abs(o_rows[q][2] + sh - here))
+            # the overtaker's copy (times may pass 86400) is the one that meets T at the conflict station: its time
+            # there nearest to T's arrival there; else nearest to T's departure from this stop
+            cs = rows[idx[k]][0]
+            t_at = rows[idx[k]][2] if rows[idx[k]][2] is not None else (r[3] if r[3] is not None else r[2])
+            o_cs = next((x[2] for x in o_rows if x[0] == cs), None)
+            base_t, near = (o_cs, t_at) if o_cs is not None else (o_rows[q][2], r[3] if r[3] is not None else r[2])
+            if near is not None:
+                ref += min((-86400, 0, 86400), key=lambda sh: abs(base_t + sh - near))
             nx = next((x[0] for x in rows[n + 1:] if self.kind.get(x[0]) != "halt"), None)
+            # only worth it if the hold is about as long as the wait at the conflict station would be (no holding a
+            # train for hours at an earlier stop for an overtaker that is still far behind)
+            wait_there = max((why[0] or 0) - (t_at or 0), 0) if t_at is not None else 0
+            if ref - (r[3] or r[2] or 0) > wait_there + self.hold_slack:
+                return False
             if ref <= (r[3] or 0) or not self.can_wait(r[0], r[2] or r[3], ref, length, nx):
                 return False
             hold[n] = ref
@@ -823,6 +848,19 @@ class Planner:
                                 break
                             d = max(c[0], d + 1)
                         waits.append((st, why[1], why[2], d - arr_i))
+                    elif (self.displace and why[2] in ("cross", "overtake", "follow") and why[1]
+                          and self.fit_forced(st, why[1], length)
+                          and not any(n == why[1] for n, _ in self.duty_next.get(self.skip, []))
+                          and self.skip in self.scheduled and why[1] in self.scheduled):
+                        # user (long-train rule): T fits no track here but the other train does: the
+                        # long train goes first; a crossing train waits in the loop, a faster train behind stays
+                        # behind it (both re-planned after, whatever their number)
+                        self.ignore.add(why[1])
+                        self.displaced.add(why[1])
+                        self.displaced_at.setdefault(why[1], st)
+                        self.forced.add(why[1])
+                        restart = True
+                        break
                     else:                                       # cannot wait here: wait at an earlier station
                         forbid.add(i)
                         prev = [n for n in idx[:k] if n not in forbid and self.kind.get(rows[n][0]) != "halt"]
@@ -880,7 +918,7 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
         while queue and len(out) < max_trains:
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced = True, set(), set()
-            P.displaced_at = {}
+            P.displaced_at, P.forced = {}, set()
             rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
             info_at.update({o: (t["no"], st) for o, st in P.displaced_at.items()})
             out[t["no"]] = (rows, waits)
@@ -896,8 +934,27 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
                 o = byno[no]
                 queue.append((o, o["stops"][0][3], o))
             queue.sort(key=lambda q: P.prio(q[0]["no"]))
-        # cap reached: the rest of the chain is planned plainly (it yields, displaces nobody), so no train is left out
-        while queue:
+        # cap reached: the rest of the chain holds nobody for priority, only where the long-train rule forces it
+        # (physical: it fits no loop), so no train is left out; a hard cap of 3 x max_trains ends it
+        while queue and len(out) < 3 * max_trains:
+            t, dep, pf = queue.pop(0)
+            P.displace, P.ignore, P.displaced, P.tail = True, set(), set(), True
+            P.displaced_at, P.forced = {}, set()
+            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            P.tail = False
+            out[t["no"]] = (rows, waits)
+            for no in sorted(P.displaced, key=P.prio):
+                if no not in saved:
+                    saved[no] = tl.trains.get(no)
+            tl.set_rows(t["no"], rows)
+            for no in P.displaced:
+                tl.trains.pop(no, None)
+            tl.index()
+            done = set(out) | {q[0]["no"] for q in queue}
+            for no in sorted(P.displaced - done, key=P.prio):
+                o = byno[no]
+                queue.append((o, o["stops"][0][3], o))
+        while queue:                                # hard cap: plain (yields to all)
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced = False, set(), set()
             rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
