@@ -59,6 +59,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   (pure-Python physics, the port spec) + replay.py (reference engine from the package alone; = gapeka_model on every
   timed leg, 0.0 s; held-out 83 / 14 / 3 %) + golden dist/gapeka-2026/replay.json.gz checked by check.py. Any vmax
   works (precomputed leg times could not time a vmax GAPEKA never uses; removed).
+  Phase 3 BASELINE (25 Nov 2026): user: scheduled trains may be edited (GAPEKA times = starting point, re-planned);
+  never moved for a train created outside the schedule; the planner plans one train against all others (fixed).
+  rules/engine_params.csv; package rules.headways (fitted 0.1th percentile, >= 2 min: single follow / cross 2,
+  double 2-3 min; 1st percentiles caused false conflicts); planner.py (Timeline + Planner + replan_test; time tolerance
+  59 s because GAPEKA keeps exact minute gaps; double-track overtakes held at the last planned stop: +16 points);
+  check.py section 8. Re-planning test (printed running times): GAPEKA waits at the same station intercity 62 %,
+  commuter 43 %, KRL 63 %; end within 2 min 88 / 88 / 98 %; physics running times cascade (intercity 50 %): keep
+  printed running times for GAPEKA trains. Details + open tuning items: docs/simulator_package.md phase 3.
 
 ## Domain rules from the user (do not re-guess these)
 

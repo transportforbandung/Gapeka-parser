@@ -1,0 +1,9 @@
+param,value,unit,source,note
+dispatcher_gap,2,min,data (waits) + user,"a waiting train leaves this long after the reference event (crossing: other train arrives / passes; overtake: overtaker at the next block point; see wait_gaps for per-line overtake gaps)"
+min_wait,1,min,data (waits),a planned wait is at least this long (arrival + 1 min)
+release_margin,1,min,data (release_timing) + user,follower leaves the previous station this long before the train ahead leaves the next (full) station when it continues on the same path
+dinas_tutup_open_before,10,min,PD 19 Pasal 99-100,a closed station reopens at least this long before the first train of the open period
+move_scheduled_trains,only when edited,,user (25 Nov 2026),"the user may edit any scheduled train (its GAPEKA times are the starting point; the planner re-plans it); scheduled trains are never moved to make room for a train created outside the schedule (it yields and waits, like a KLB held so regular trains stay on time); the train being planned yields to all others"
+single_track_block,one train,,PM 110/2017 + data,"single track: one train per block between two open stations (0 overlaps in GAPEKA 2026); halts are not block points; during dinas tutup the closed stations are not block points either"
+wait_station,station with a usable Roman track,,user + layouts,"a train can wait only at a station (not a halt) with a Roman track usable in its direction and long enough, unless no other train enters or passes while it stands there (stop alone rule)"
+time_tolerance,59,s,GAPEKA (whole minutes),"gaps between trains are checked with this tolerance: GAPEKA plans in whole minutes and often keeps exactly the minimum gap, while computed running times have seconds"

@@ -36,10 +36,10 @@ def train_type(run_class):
 # ------------------------------------------------------------------------------------------------ package side
 class Profiles:
     def __init__(self, rows):
-        """rows: package 'profiles' [a, b, variant, context, km, umum, ruling, derived, restrictions]"""
+        """rows: package 'profiles' [a, b, variant, context, km, umum, ruling, derived, restrictions, double_track]"""
         self.by = {}
-        for a, b, var, ctx, km, umum, ruling, derived, restr in rows:
-            self.by.setdefault((a, b), []).append(dict(variant=var, ctx=set(ctx.split()), km=km, umum=umum,
+        for a, b, var, ctx, km, umum, ruling, derived, restr, dbl in rows:
+            self.by.setdefault((a, b), []).append(dict(variant=var, ctx=set(ctx.split()), km=km, umum=umum, double=dbl,
                                                        ruling=ruling, restr=restr))
 
     def get(self, a, b, ctx):
@@ -131,10 +131,22 @@ def simulate(cap_kmh, start_rest, end_rest, halts, a0, power, brake):
 
 
 # ------------------------------------------------------------------------------------------------ build side
-def export_profiles(infra, ttdb):
+def export_profiles(infra, ttdb, double=None):
     """package rows for every directed station pair a timetable train runs (halts included) and every sheet section
-    in both directions; variants of a sheet section exported separately with their context"""
+    in both directions; variants of a sheet section exported separately with their context. double: {frozenset(a, b):
+    0 / 1} of the sheet sections; a pair that is not one sheet section is double track if every sheet section on its
+    shortest sheet route is"""
     import gapeka_model as gm
+    double = double or {}
+
+    def is_double(a, b):
+        k = frozenset((a, b))
+        if k in double:
+            return bool(double[k])
+        pth = infra.path(a, b, max_km=60)
+        if not pth or len(pth) < 2:
+            return False
+        return all(double.get(frozenset(xy), 0) for xy in zip(pth, pth[1:]))
     pairs = set()
     prev = {}
     for no, st in ttdb.execute("select train_no, station from stops order by train_no, seq"):
@@ -161,5 +173,6 @@ def export_profiles(infra, ttdb):
                 if (tracks == "hu" and not down) or (tracks == "hi" and down):
                     continue                     # the other track of a double track
                 restr.append([o0, o1, int(v), kind])
-            rows.append([a, b, var, ctxs, p["km"], p["umum"], p["ruling"], p.get("derived") or "", restr])
+            rows.append([a, b, var, ctxs, p["km"], p["umum"], p["ruling"], p.get("derived") or "", restr,
+                         is_double(a, b)])
     return rows

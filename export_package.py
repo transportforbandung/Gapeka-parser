@@ -30,7 +30,8 @@ FIELDS = {
     "line_stations": ["station", "km", "km_alt", "elevation_m"],
     "tracks": ["track", "kind", "length_m", "usable", "usable_towards", "enter", "through", "out_of_service", "arrows"],
     "corrections": ["kind", "a", "b", "end_kind", "train_type", "seconds", "support"],
-    "profiles": ["a", "b", "variant", "context", "km", "umum_kmh", "ruling_gradient_permil", "derived", "restrictions"],
+    "profiles": ["a", "b", "variant", "context", "km", "umum_kmh", "ruling_gradient_permil", "derived", "restrictions",
+                 "double_track"],
     "profile_restrictions": ["from_km", "to_km", "speed_kmh", "kind"],
 }
 BLOCK = {"closed automatic block": "closed_abs", "open automatic block": "open_abs",
@@ -183,7 +184,8 @@ def build(tt_path, infra_path, rules_path):
     import gapeka_model as gm
     import physics_ref
     infra_m = gm.Infra(infra_path, g)
-    profiles = physics_ref.export_profiles(infra_m, g)
+    dbl = {frozenset((a, b_)): d for a, b_, d in i.execute("select a, b, max(double_track) from sections group by a, b")}
+    profiles = physics_ref.export_profiles(infra_m, g, dbl)
     syms = {}
     for no, st_, sym in g.execute("select train_no, station, symbol from notes"):
         syms.setdefault(no, {}).setdefault(st_, set()).add(sym)
@@ -286,6 +288,8 @@ def build(tt_path, infra_path, rules_path):
         fit_exemptions=[clean(x) for x in rows(r, "select * from fit_exemptions")])
 
     print(f"stops re-spread between printed times (inconsistent estimates): {repaired}")
+    rules["engine_params"] = [clean(x) for x in rows(r, "select * from engine_params")] \
+        if r.execute("select 1 from sqlite_master where name = 'engine_params'").fetchone() else []
     meta = dict(
         edition=edition, decree=meta_i.get("decree"), valid_from=meta_i.get("valid_from"), pdf=meta_i.get("pdf"),
         pdf_sha256=meta_i.get("pdf_sha256"), schema_version=SCHEMA_VERSION,
@@ -297,9 +301,12 @@ def build(tt_path, infra_path, rules_path):
                           manual="set by hand (user decision)"),
         disclaimer="Unofficial data package built from the GAPEKA PDF; only 'printed' times are official. "
                    "Licence and public disclaimer still to be decided (docs/simulator_package.md).")
-    return dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
+    pkg = dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
                 duties=duties, model=model, rules=rules)
+    import planner
+    pkg["rules"]["headways"] = planner.fit_headways(planner.Timeline(pkg), {t["no"]: t["type"] for t in trains})
+    return pkg
 
 
 def write(pkg, out_dir):

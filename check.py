@@ -26,7 +26,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(HERE, "tests", "baseline")
 LIMITS = {"model_over_1min": 0.05,
           "halts": {"bandung": (0.75, 0.98), "jabodetabek (held-out trains)": (0.85, 0.98), "surabaya": (0.80, 0.98)},
-          "package_bytes": 1_500_000}
+          "package_bytes": 1_500_000,
+          # re-planning test baseline (25 Nov 2026: intercity 88 / 97 / 62 %, commuter 88 / 100 / 43 %, krl 98 / 99 / 63 %)
+          "replan": {"intercity": dict(end_within_2min=0.85, no_wait_trains_clean=0.95, same_station=0.55),
+                     "commuter": dict(end_within_2min=0.85, no_wait_trains_clean=0.95, same_station=0.40),
+                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.55)}}
 EXPORTS = [  # (file name, command)
     ("cl_bandung_even.svg", ["export_poster.py", "386-431", "--even"]),
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),
@@ -139,6 +143,20 @@ def main():
         gpath = os.path.join(pfolder, "replay.json.gz")
         same = os.path.exists(gpath) and json.load(gzip.open(gpath))["trains"] == json.loads(json.dumps(trains_out))
         result(same, "golden replay.json.gz matches a fresh replay of the package")
+    print("8. re-planning test (planner.py: each train re-planned from its printed departure, printed running times)")
+    import planner
+    for mpath in found[:1]:
+        pkg, _ = package_check.load(os.path.dirname(mpath))
+        res, _ = planner.replan_test(pkg, ("intercity", "commuter", "krl"))
+        for typ, lim in LIMITS["replan"].items():
+            r = res.get(typ, {})
+            ok = r.get("end_within_2min", 0) >= lim["end_within_2min"] and \
+                r.get("no_wait_trains_clean", 0) >= lim["no_wait_trains_clean"] and \
+                r.get("same_station", 0) >= lim["same_station"]
+            result(ok, f"{typ}: end within 2 min {r.get('end_within_2min', 0):.0%} (limit {lim['end_within_2min']:.0%}), "
+                       f"trains without waits kept clean {r.get('no_wait_trains_clean', 0):.0%} "
+                       f"(limit {lim['no_wait_trains_clean']:.0%}), GAPEKA waits at the same station "
+                       f"{r.get('same_station', 0):.0%} (limit {lim['same_station']:.0%})")
     print("\nall checks passed" if not failed else f"\n{len(failed)} check(s) failed")
     sys.exit(1 if failed else 0)
 

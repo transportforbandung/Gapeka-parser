@@ -98,7 +98,7 @@ website can say which rule moved a train.
 |---|---|---|
 | 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
 | 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
-| 3 | rule parameter tables (section 3), Python reference planner, re-planning test | baseline score recorded, rules tuned |
+| 3 | rule parameter tables (section 3), Python reference planner, re-planning test | BASELINE 25 Nov 2026 (see phase 3 notes); tuning continues |
 | 4 | user-facing texts (id / en), origins on every value, disclaimer | reviewed by the user |
 | 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
 
@@ -107,8 +107,8 @@ website can say which rule moved a train.
 - Where the browser engine lives (this repo or a new one) and its language (TypeScript or Rust / WASM).
 - Licence / disclaimer text for public use of the GAPEKA data and of the estimated times.
 - Which train attributes a public user may edit in v1 (times and stops only, or also type, speed and length).
-- Limits for automatic geser / ulur (how far may a scheduled train be moved for a user's train: never? only
-  facultative trains?).
+- (decided 25 Nov 2026, user) Scheduled trains may be edited by the user (their GAPEKA times are the starting point
+  and the planner re-plans them); they are never moved to make room for a train created outside the schedule.
 
 ## Phase 1 result (25 Nov 2026)
 
@@ -154,3 +154,45 @@ between speeds was tested: pass-pass mean 0.5 s, stop-stop mean 3 s, worst 35 s.
   pipeline step 10, compared by check.py section 7. The browser engine must give the same numbers from the package.
 - Package 0.46 MB. Not done: times for the 3444 untimed passes; a freight calibration; new run classes (new
   acceleration groups) need their own physics parameters and a calibration type.
+
+## Phase 3 baseline (25 Nov 2026)
+
+User decision: the user may edit any scheduled train (its GAPEKA times are the starting point; the planner re-plans
+it); scheduled trains are never moved to make room for a train created outside the schedule. In both cases the
+planner plans ONE train against all others, which keep their times (rules/engine_params.csv move_scheduled_trains).
+
+- `rules/engine_params.csv` (rules.db + package rules.engine_params): dispatcher gap 2 min, min wait 1 min, release
+  margin 1 min, dinas tutup reopening 10 min, move_scheduled_trains, single-track block, wait station, time tolerance
+  59 s (GAPEKA plans in whole minutes and often keeps exactly the minimum gap).
+- Package `rules.headways` (planner.fit_headways, recomputed from GAPEKA every build, 0.1th percentile, >= 2 min):
+  single track: follower enters 2 min after the leader cleared the block, opposing train 2 min after the other cleared
+  it (0 overlaps in GAPEKA); double track: KRL after KRL 3, KRL after other 2, other after KRL 3, other after other 3
+  min. (1st percentiles 3 / 3 / 4 / 5 gave false conflicts: by definition 1 % of GAPEKA's own pairs break them.)
+  Profiles carry a double-track flag (a derived pair: every sheet section on its route).
+- `planner.py`: Timeline (every scheduled train at every station, untimed passes by distance; blocks = consecutive
+  non-halt stations; copies a day earlier / later for midnight) and Planner.plan(train, departure): block by block the
+  earliest departure that keeps the gaps (single: one train per block, crossing / following gaps; double: following
+  gaps; an overtaken train that stood at the station leaves >= 3 min after the overtaker passed and after it cleared
+  the block; dinas tutup: closed stations are no block points). The train waits only where it can (a station, not
+  closed, with a Roman track it fits, room beside the trains standing there), else at an earlier station. Double-track
+  overtakes: held at its last planned stop until the overtaker reached the next station + 2.5 min (data: GAPEKA lets
+  the faster train pass where the slower one stops anyway; +16 points on intercity). A wait at a station the train
+  passes = a stop there (printed time + physics difference stop vs pass). Waits name the train and rule (cross /
+  overtake / follow).
+- Re-planning test (planner.replan_test, research/replan_test.py, check.py section 8): each train out, re-planned
+  from its printed departure against all others, its GAPEKA waits cut to a 1-min stop, printed running times kept:
+
+  | type | trains | GAPEKA waits at the same station | + same other train | departure there +-1 min | planner waits not in GAPEKA | trains without waits kept clean | end within 2 min (mean) |
+  |---|---|---|---|---|---|---|---|
+  | intercity | 345 | 62 % | 61 % | 33 % | 53 % | 97 % | 88 % (2.5 min) |
+  | commuter | 280 | 43 % | 38 % | 23 % | 37 % | 100 % | 88 % (1.6 min) |
+  | KRL | 1342 | 63 % | 63 % | 29 % | 55 % | 99 % | 98 % (0.2 min) |
+  | freight | 126 | 52 % | 34 % | 10 % | 52 % | 98 % | 63 % (37 min) |
+
+  With the package physics instead of printed running times: intercity end within 2 min 50 %, KRL 78 % (running
+  times off by +-1 min against GAPEKA's minute-tight spacing cascade): for trains that exist in GAPEKA the engine should
+  keep their printed running times and use physics only for new trains / changed stopping patterns.
+- Open (tuning): where GAPEKA chooses the overtake / crossing station (misses: double-track overtakes on Cikampek
+  lines, commuter crossings on the Merak line), per-line overtake gaps (wait_gaps line names do not match the package
+  line titles yet), block signals as overtake release points (next station used), station capacity per direction
+  (usable_towards), the release rule (arrive when a track frees) and entry-signal marks, freight.

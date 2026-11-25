@@ -65,14 +65,15 @@
     "fields": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
     "profiles": {
       "type": "array",
-      "items": {"type": "array", "minItems": 9, "maxItems": 9,
+      "items": {"type": "array", "minItems": 10, "maxItems": 10,
                 "prefixItems": [{"$ref": "#/$defs/code"}, {"$ref": "#/$defs/code"}, {"type": "string"},
                                 {"type": "string", "description": "stations that select this variant"},
                                 {"type": "number", "exclusiveMinimum": 0}, {"type": ["integer", "null"]},
                                 {"type": ["number", "null"]}, {"type": "string", "description": "'' = one sheet section; else how the pair was derived"},
                                 {"type": "array", "items": {"type": "array", "minItems": 4, "maxItems": 4,
                                  "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "integer"},
-                                                 {"enum": ["line", "platform-track"]}]}}]}
+                                                 {"enum": ["line", "platform-track"]}]}},
+                                {"type": "boolean", "description": "double track (every sheet section on the pair's route)"}]}
     },
     "stations": {
       "type": "object",
