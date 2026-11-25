@@ -100,7 +100,7 @@ website can say which rule moved a train.
 | 2 | physics in the engine (`profiles`, physics_ref.py) + golden replay | DONE 25 Nov 2026: = gapeka_model on every leg, held-out 83 / 14 / 3 % |
 | 3 | rule parameter tables (section 3), Python reference planner, re-planning test | DONE 25 Nov 2026 (all written rules in the planner; see "Phase 3 completion") |
 | 4 | user-facing texts (id / en), origins on every value, disclaimer | DONE 25 Nov 2026 (texts are drafts the user customizes later; not blocking) |
-| 5 | browser engine (separate repository?) | reproduces 2. and 3. exactly |
+| 5 | browser engine in engine/ (TypeScript, Web Worker) | DONE 25 Nov 2026: reproduces 2. and 3. exactly (see "Phase 5") |
 
 ## 7. Open questions
 
@@ -380,3 +380,25 @@ prove 'ahead' or 'behind' (the full test would give the same), and computes the 
 caches compose / minimum per (type, run class, end notes, rows p..q). KRL 1008 +15 min dispatch 19.5 -> 2.8 s,
 54 9.8 -> 1.5 s; 30-intercity sample max 16 -> 3 s. The TypeScript port should keep these three ideas (time-window
 lookup, early bound test, precomputed block-point times).
+
+## Phase 5 (25 Nov 2026): browser engine
+engine/ (TypeScript, README there): py.ts (CPython float semantics), physics.ts, replay.ts, planner.ts (Timeline, Planner,
+dispatch, replanTest, capacityWarnings, explain), session.ts (scenario: edit / create / apply / reset), worker.ts (Web
+Worker protocol). Bundle build/worker.js 37 KB (esbuild).
+- Exact, not close: golden replay 2093 trains 0 differ; compose / minimum on 36695 legs equal to the last bit;
+  re-planning test 2093 trains (all four types) rows and waits identical, stats identical; dispatch of 8 delay cases
+  identical (plans + info). Goldens next to the package: replan.json.gz (0.35 MB) and dispatch.json.gz (37 KB) from
+  planner_golden.py (pipeline step 10); check.py section 8 compares them with a fresh Python run (any hash seed),
+  section 9 runs npm test and the browser smoke test (bundled worker in headless Chromium: package loaded in 0.17 s,
+  the 8 cases identical).
+- Python side changed for it: physics_ref squares as v * v (pow differs from v * v in the last bit for ~0.1 % of values;
+  golden replay unchanged at 0.1 s); dispatch takes held trains in priority order (was set order).
+- Speed (TypeScript, Node / Chromium): re-planning test of all 2093 trains 1.4 s; 1008 +15 min dispatch 0.5-0.6 s
+  (Python 2.8 s).
+- Session rules: an edit of departure / dwell keeps the printed running times; stops / vmax / type re-time the train by
+  the physics; a created train is planned against everything and never moves a scheduled train; apply() makes the
+  planned rows the scenario's timetable for those trains (origin 'simulated' where a time changed).
+- Open (data, user): station display names. The package has one name per station, the timetable's, printed without
+  spaces for most (Surabayagubeng, Pasarsenen, Jakartagudang; 19 of 470 have a space). The texts show them as they
+  are until a name list (manual CSV) gives the display names.
+- Next: the website itself (graph view, edit forms, scenario sharing later) on top of the worker.

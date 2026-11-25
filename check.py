@@ -227,6 +227,13 @@ def main():
             print("        " + ln)
         result(r.returncode == 0, "npm test in engine/ (golden replay, leg times, re-planning test, dispatch)"
                + ("" if r.returncode == 0 else ": " + (r.stderr or r.stdout)[-400:]))
+        has_pw = subprocess.run(["node", "-e", "require('playwright')"], cwd=eng_dir, capture_output=True).returncode == 0
+        if not has_pw:
+            print("  skip  browser smoke test (playwright not installed)")
+        else:
+            r = subprocess.run(["npm", "run", "smoke", "--silent"], cwd=eng_dir, capture_output=True, text=True)
+            tail = [ln for ln in r.stdout.splitlines() if ln.strip()][-1:] or [r.stderr[-300:]]
+            result(r.returncode == 0, f"browser smoke test (bundled worker in Chromium vs dispatch golden): {tail[0]}")
     print("\nall checks passed" if not failed else f"\n{len(failed)} check(s) failed")
     sys.exit(1 if failed else 0)
 

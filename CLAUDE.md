@@ -113,6 +113,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
   Python planner sped up 4-7x with identical plans (bisect time windows, early bound test, cached block-point times,
   cached compose / minimum): 1008 +15 min 19.5 -> 2.8 s (docs/simulator_package.md 'Python planner speed').
+  PHASE 5 DONE (user: "start phase 5"): engine/ = TypeScript port (py.ts / physics.ts / replay.ts / planner.ts /
+  session.ts / worker.ts), equal to Python TO THE LAST BIT: golden replay, 36695 legs, re-planning test (2093 trains,
+  rows + waits), dispatch goldens (dist/<edition>/replan.json.gz + dispatch.json.gz by planner_golden.py, pipeline
+  step 10, check.py sections 8-9 incl. a headless-Chromium smoke test of the bundled worker). Keep the exactness rules
+  in engine/README.md when changing planner.py / physics_ref.py / replay.py (v * v not ** 2, pySum for sum(), round
+  half even, floor %, dict order, heapq order, no set-order dependence); after a Python change rewrite the goldens
+  (planner_golden.py --write, replay.py --write) and port the change. Open data item: station display names (timetable
+  names lack spaces: Surabayagubeng, Pasarsenen).
 
 ## Domain rules from the user (do not re-guess these)
 
