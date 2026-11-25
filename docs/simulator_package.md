@@ -370,3 +370,13 @@ other trains' total delay median / max:
 research/delay_cases.py: 7 +15 -> 1 min late (others 1 min); 7 +30 -> 0 (others 216 min); 54 +15 -> 1 (9); 8 +20 -> 1
 (328); 121 +15 -> 0 (1); KRL 1008 +15 -> 26 (694: KRL have little slack, the set's day ripples).
 Re-planning test with recovery: same station 85 / 78 / 73 %, end within 2 min 92 / 93 / 98 %; freight 80 % (mean 5.8 min).
+
+## Python planner speed (25 Nov 2026, user: "optimize the python first")
+Same plans, bit for bit (dispatch of 7 / 1008 / 29 / 2535 / 54 and the intercity re-planning test compared before /
+after): Timeline.window() bisects the sorted block / station lists to the time window (maxdur per key) instead of
+scanning every train of the day; block_conflict skips a double-track train early when bounds on both trains' times
+prove 'ahead' or 'behind' (the full test would give the same), and computes the times at the block points once
+(other train: cached per train + block in Timeline.ptimes, dropped with the train; T: once per block); replay.Engine
+caches compose / minimum per (type, run class, end notes, rows p..q). KRL 1008 +15 min dispatch 19.5 -> 2.8 s,
+54 9.8 -> 1.5 s; 30-intercity sample max 16 -> 3 s. The TypeScript port should keep these three ideas (time-window
+lookup, early bound test, precomputed block-point times).

@@ -111,6 +111,8 @@ Read this first. It records decisions and findings from earlier sessions so they
   -> 1 min late. Re-planning test: same station 85 / 78 / 73 %, freight end within 2 min 80 %. Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
+  Python planner sped up 4-7x with identical plans (bisect time windows, early bound test, cached block-point times,
+  cached compose / minimum): 1008 +15 min 19.5 -> 2.8 s (docs/simulator_package.md 'Python planner speed').
 
 ## Domain rules from the user (do not re-guess these)
 

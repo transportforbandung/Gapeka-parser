@@ -74,7 +74,26 @@ class Engine:
                         tot += b["value"]
         return tot
 
+    def _memo(self, kind, train, rows, p, q, fn):
+        """cache of compose / minimum: the result depends only on the train's type / run class / notes at the ends and
+        on rows p..q (station, kind, vmax) and whether they are the train's first / last rows"""
+        notes = train.get("notes", {})
+        key = (kind, train["type"], train.get("run_class"), tuple((r[0], r[1], r[4]) for r in rows[p:q + 1]),
+               p == 0, q == len(rows) - 1, notes.get(rows[p][0]), notes.get(rows[q][0]))
+        cache = self.__dict__.setdefault("_cache", {})
+        if key not in cache:
+            if len(cache) > 500000:
+                cache.clear()
+            cache[key] = fn()
+        return cache[key]
+
     def minimum(self, train, rows, p, q, dwell_s=20.0):
+        return self._memo(("min", dwell_s), train, rows, p, q, lambda: self._minimum(train, rows, p, q, dwell_s))
+
+    def compose(self, train, rows, p, q):
+        return self._memo("compose", train, rows, p, q, lambda: self._compose(train, rows, p, q))
+
+    def _minimum(self, train, rows, p, q, dwell_s=20.0):
         """technical minimum running time p -> q (s): the raw physics run without GAPEKA's planning supplement
         (calibration, buffers, corrections) + a short dwell per halt; what a late train can run to recover time"""
         rc = train.get("run_class", train["type"])
@@ -90,7 +109,7 @@ class Engine:
         return physics_ref.simulate(cap, start_rest, end_rest, hcells, ph["a0"], ph["power"], ph["brake"]) + \
             dwell_s * len(halt_idx)
 
-    def compose(self, train, rows, p, q):
+    def _compose(self, train, rows, p, q):
         """predicted seconds from timed point p to timed point q of train (rows = its stops): physics over the whole
         leg (physics_ref) + calibration . features + buffers + corrections; None if a station pair has no profile or
         a section no vmax"""

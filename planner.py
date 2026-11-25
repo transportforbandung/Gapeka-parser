@@ -146,6 +146,8 @@ class Timeline:
         self.block_base = defaultdict(list)          # without the day copies (statistics)
         self.knots = {}                              # (a, b, train) -> times at the halts inside the block
         self.keys_of = {}                            # train -> the index keys it occupies (incremental updates)
+        self.ptimes = {}                             # train -> {(a, b, run, single block): times at block points}
+        self.maxdur = defaultdict(float)             # block key / station -> longest occupation (bisect windows)
         for no in self.trains:
             self._add(no, sort=False)
         for v in self.block.values():
@@ -155,7 +157,6 @@ class Timeline:
         self.fit_block_spacing()
 
     def _add(self, no, sort=True):
-        import bisect
         rows = self.trains[no]
         ctx = {r[0] for r in rows}
         idx = [i for i, r in enumerate(rows) if self.kind.get(r[0]) != "halt"]
@@ -168,6 +169,8 @@ class Timeline:
             self.block_base[key].append((x[3], y[2], no))
             for shift in (-86400, 0, 86400):         # copies a day earlier / later: comparisons across midnight
                 ins(self.block[key], (x[3] + shift, y[2] + shift, no, stood))
+            if y[2] - x[3] > self.maxdur[key]:
+                self.maxdur[key] = y[2] - x[3]
             bk.append(key)
             if key not in self.bpts:
                 self.bpts[key] = self.block_points(rows, i, j, ctx)
@@ -181,7 +184,19 @@ class Timeline:
                 ins(self.point[r[0]], (r[2] + shift, r[3] + shift, no, st[i - 1][0] if i else None,
                                        st[i + 1][0] if i + 1 < len(st) else None))
             pk.append(r[0])
+            if r[3] - r[2] > self.maxdur[r[0]]:
+                self.maxdur[r[0]] = r[3] - r[2]
         self.keys_of[no] = (bk, pk, kk)
+
+    def window(self, key, t0, t1, point=False):
+        """the entries of block key (or station key, point=True) that can be occupied between t0 and t1: a slice of
+        the sorted list found by bisect (the callers still filter each entry exactly)"""
+        lst = (self.point if point else self.block).get(key)
+        if not lst:
+            return ()
+        lo = bisect.bisect_left(lst, (t0 - self.maxdur[key] - 1.0,))
+        hi = bisect.bisect_right(lst, (t1 + 1.0,))
+        return lst[lo:hi]
 
     def _remove(self, no):
         bk, pk, kk = self.keys_of.pop(no, ((), (), ()))
@@ -192,6 +207,7 @@ class Timeline:
             self.point[st] = [e for e in self.point[st] if e[2] != no]
         for k in kk:
             self.knots.pop(k, None)
+        self.ptimes.pop(no, None)
 
     def drop(self, no):
         """take a train out of the timeline (incremental, no full index)"""
@@ -598,7 +614,7 @@ class Planner:
             return None
         # whole-minute times (time_tolerance): a train leaving in the minute T arrives no longer counts
         # only a train that STANDS needs to fit its track (a train running through needs a free track, any length)
-        others = [(a, d - self.tol, no, nxt, d - a >= 60) for a, d, no, prv, nxt in self.tl.point.get(st, [])
+        others = [(a, d - self.tol, no, nxt, d - a >= 60) for a, d, no, prv, nxt in self.tl.window(st, t0, t1, True)
                   if a <= t1 and d - self.tol >= t0 and no != self.skip and no not in self.ignore]
         if not others:
             return None                                  # stop alone
@@ -694,7 +710,14 @@ class Planner:
         worst = self.window_conflict(a, b, d, arr)
         for x, y in mid:
             dbl = self.tl.block_double.get((x, y), self.tl.block_double.get((y, x), False))
-            for e1, x1, no, stood in self.tl.block.get((x, y), []):   # same direction
+            if dbl:
+                # bounds on T's knot times, for a quick no-conflict test (same result as the full test below)
+                tk_ = tknots if len(mid) == 1 else None
+                t_lo = min([0.0] + [v for kn in tk_ for v in kn[1:]]) if tk_ else 0.0
+                t_hi = max([arr - d] + [v for kn in tk_ for v in kn[1:]]) if tk_ else arr - d
+                g_max = max(self.double_gap, self.overtake_gap["double"], 0.0)
+            tpts = None
+            for e1, x1, no, stood in self.tl.window((x, y), d - 7200, arr + 7200):   # same direction
                 if x1 < d - 7200 or e1 > arr + 7200 or no == self.skip or no in self.ignore:
                     continue
                 ot = self.type.get(no)
@@ -709,27 +732,53 @@ class Planner:
                     ok = self.tl.knots.get((x, y, no))      # the other train's times at halts in the block
                     if ok and abs(ok[-1][1] - (x1 - e1)) > 1:
                         ok = None
+                    # quick test: every time of the other train lies in [e1 + o_lo, e1 + o_hi], T's in [d + t_lo,
+                    # d + t_hi]; the H branch only lowers need_t, so 'behind' holds when d clears the latest possible
+                    # need_t, 'ahead' when the other's earliest time clears T's latest + gap
+                    if ok:
+                        o_lo = min([0.0] + [v for kn in ok for v in kn[1:]])
+                        o_hi = max([x1 - e1] + [v for kn in ok for v in kn[1:]])
+                    else:
+                        o_lo, o_hi = 0.0, x1 - e1
+                    if d >= e1 + o_hi + g_max - t_lo - tl_ + 1e-6 or \
+                            e1 + o_lo >= d + t_hi + self.double_gap - tl_ + 1e-6:
+                        continue
                     tk = tknots if len(mid) == 1 else None
-                    o_at = lambda g, c: e1 + knot_time(ok, g, x1 - e1, c)
-                    t_at = lambda g, c: d + knot_time(tk, g, run, c)
+                    # times at the block points f: the other train's (relative to e1, cached per train and block)
+                    # and T's (relative to d, once per block): oA / tA reaching the point, oC / tC passed it
+                    pc = self.tl.ptimes.setdefault(no, {})
+                    pkey = (x, y, x1 - e1, len(mid) == 1)
+                    if pkey not in pc:
+                        pc[pkey] = ([knot_time(ok, g, x1 - e1, False) for g in f],
+                                    [knot_time(ok, g, x1 - e1, True) for g in f])
+                    rA, rC = pc[pkey]
+                    oA = [e1 + v for v in rA]
+                    oC = [e1 + v for v in rC]
+                    if tpts is None:
+                        tpts = ([knot_time(tk, g, run, False) for g in f], [knot_time(tk, g, run, True) for g in f])
+                    tA, tC = tpts
                     n = len(f) - 1
                     # other ahead, T behind: T reaches f[k] after the other has passed f[k+1]
                     g_ = self.double_gap                 # dispatcher gap after block clear (user)
-                    need_t = max(o_at(f[k + 1], True) + g_ - knot_time(tk, f[k], run, False) for k in range(n))
+                    need_t = max(oC[k + 1] + g_ - tA[k] for k in range(n))
                     # T ahead, other behind: the other reaches f[k] after T has passed f[k+1]; a faster train behind
                     # (approach_blocks = 1) must find the block clear one block point earlier: it sees the signal
                     # from there and is not slowed
                     ab = self.approach_blocks if (x1 - e1) < run - 30 else 0
-                    ahead = all(o_at(f[max(k - ab, 0)], False) >= t_at(f[k + 1], True) + g_ - tl_ for k in range(n))
+                    ahead = True
+                    for k in range(n):
+                        if not oA[max(k - ab, 0)] >= (d + tC[k + 1]) + g_ - tl_:
+                            ahead = False
+                            break
                     H = self.tl.block_hmin.get((x, y)) if len(mid) == 1 else None
                     if H is not None:
                         # or spaced like the tightest GAPEKA pair on this block at every block point
-                        need_t = min(need_t, max(o_at(g, True) + H - knot_time(tk, g, run, False) for g in f))
-                        ahead = ahead or all(o_at(g, False) >= t_at(g, True) + H - tl_ for g in f)
+                        need_t = min(need_t, max(oC[k] + H - tA[k] for k in range(n + 1)))
+                        ahead = ahead or all(oA[k] >= (d + tC[k]) + H - tl_ for k in range(n + 1))
                     if e1 >= at - tl_ and n:
                         # overtaken at a: the waiting train leaves when the overtaker has passed the next block point
                         # + the dispatcher gap (user; wait_gaps overtake double)
-                        need_t = max(need_t, o_at(f[1], True) + self.overtake_gap["double"])
+                        need_t = max(need_t, oC[1] + self.overtake_gap["double"])
                     behind = d >= need_t - tl_
                     if not (ahead or behind):
                         kind = "overtake" if x1 < arr else "follow"
@@ -744,7 +793,7 @@ class Planner:
                             worst = (new, no, kind, e1)
             if dbl:
                 continue
-            for e2, x2, no, _ in self.tl.block.get((y, x), []):       # opposite direction (single track)
+            for e2, x2, no, _ in self.tl.window((y, x), d - 7200, arr + 7200):   # opposite direction
                 if x2 < d - 7200 or e2 > arr + 7200 or no == self.skip or no in self.ignore:
                     continue
                 if not (d >= x2 + self.single_cross - self.tol or e2 >= arr + self.single_cross - self.tol):
