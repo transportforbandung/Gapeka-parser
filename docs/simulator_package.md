@@ -220,6 +220,10 @@ planner plans ONE train against all others, which keep their times (rules/engine
   Fixed at the source (user): Cikini - Manggarai has no signal printed on page 13 (Gambir - Gondangdia 1, Gondangdia -
   Cikini 3); manual/block_signals.csv adds 3 per track, evenly spaced (any number >= 1 makes GAPEKA consistent there;
   3 = the Gondangdia - Cikini spacing). GAPEKA pairs breaking the block rule 24 -> 3 of 23127.
+  Pipeline guard (signal_infer.py, step 10): blocks where >= 3 GAPEKA pairs break the block rule get evenly spaced
+  signals inferred on their longest ABS double-track section without printed signals (spacing of the neighbouring
+  sections), stored in infra.db as kind 'inferred: ...' with a qa row; fewer pairs -> qa row only. Re-run without the
+  manual Cikini - Manggarai row: it infers the same 3 signals per track. check.py: broken pairs <= 5.
   The waiting train (overtaken) leaves when the overtaker has passed the next block point + the dispatcher gap
   (wait_gaps overtake double, 2.5 min).
   Re-planning test (printed running times; old fixed margins in brackets): intercity same station 68 % (69),

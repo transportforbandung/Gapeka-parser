@@ -304,6 +304,11 @@ def build(tt_path, infra_path, rules_path):
     pkg = dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
                 duties=duties, model=model, rules=rules)
+    # block signals the sheet leaves out, inferred from GAPEKA's own train pairs (signal_infer.py); stored in
+    # infra.db too (kind 'inferred: ...' + qa rows), before the headways are fitted
+    import signal_infer
+    added, sqa = signal_infer.infer(pkg)
+    signal_infer.write_infra(infra_path, added, sqa)
     import planner
     pkg["rules"]["headways"] = planner.fit_headways(planner.Timeline(pkg), {t["no"]: t["type"] for t in trains})
     return pkg

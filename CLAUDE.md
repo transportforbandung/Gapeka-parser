@@ -74,7 +74,14 @@ Read this first. It records decisions and findings from earlier sessions so they
   clear one point earlier (signal aspect; the user's "stop the slower train where it would hold up the faster one").
   Missing signals: Cikini - Manggarai prints no block signal (page 13) though the line has several (user):
   manual/block_signals.csv (3 per track, evenly spaced like Gondangdia - Cikini; build_infra applies it) -> GAPEKA
-  pairs breaking the rule 24 -> 3 / 23127. Per-block fallback kept for other gaps = tightest GAPEKA spacing at the
+  pairs breaking the rule 24 -> 3 / 23127. So it cannot happen silently again: signal_infer.py (pipeline step 10,
+  run by export_package.build before the headways): every double-track block where >= 3 GAPEKA pairs break the block
+  rule gets evenly spaced signals on its longest ABS double-track sheet section with none printed for that track (no
+  manual entry), spacing = the neighbouring sections' printed spacing; kept only if it removes broken pairs; written to
+  infra.db block_signals (kind 'inferred: ...') + qa rows; 1-2 broken pairs = qa row only (CTR-RK 1798/1800, KDB-WK
+  52/2604, KPB-KMO 2762F/5560). Without the manual row it reproduces CKI-MRI exactly (3 per track, 0.44 km spacing).
+  check.py section 7 fails above 5 broken pairs. build_infra alone drops inferred rows; step 10 adds them again.
+  Per-block fallback kept for other gaps = tightest GAPEKA spacing at the
   block points (headways.double_block_spacing_s, fitted at package build). Removed: overtake_margin, KRL exception, fixed double
   minima. Re-planning: intercity 68 / 94 % (same station / end within 2 min), commuter 48 / 92, KRL 55 / 98
   (research/block_clear.py, docs phase 3 tuning). Dispatcher gap (user): double-track following = block clear + 1-2

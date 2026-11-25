@@ -33,6 +33,7 @@ LIMITS = {"model_over_1min": 0.05,
           # distance than the signals require at e.g. Tambun (research/block_clear.py)
           # + 2 min dispatcher gap on double track (user): intercity 74 / 98 / 94 %, commuter 56 / 100 / 94 %,
           # KRL 67 / 98 / 98 %
+          "block_rule_broken": 5,         # GAPEKA pairs breaking the double-track block rule (3 single pairs, Nov 2026)
           "replan": {"intercity": dict(end_within_2min=0.91, no_wait_trains_clean=0.95, same_station=0.71),
                      "commuter": dict(end_within_2min=0.91, no_wait_trains_clean=0.97, same_station=0.53),
                      "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.64)}}
@@ -145,6 +146,18 @@ def main():
         b = replay.bands([x["err"] for x in legs if not x["noted"] and x["type"] != "freight"])
         result(b[2] <= LIMITS["model_over_1min"], f"replay from the package: passenger legs without notes > 1 min off "
                                                   f"{b[2]:.1%} (limit {LIMITS['model_over_1min']:.0%}), < 0.5 min {b[0]:.1%}")
+        # double-track block rule vs GAPEKA (signal_infer.py): broken pairs left after the printed, manual and inferred
+        # signals; a new edition with signals missing on the sheet shows up here (and in infra.db qa)
+        import planner
+        import signal_infer
+        tl = planner.Timeline(pkg)
+        tt = {t["no"]: t["type"] for t in pkg["trains"]}
+        broken = {k: len(v) for k in tl.block_base if tl.block_double.get(k)
+                  for v in [signal_infer._violations(tl, tt, k, planner.knot_time)] if v}
+        n_inf = infra.execute("select count(*) from block_signals where kind like 'inferred:%'").fetchone()[0]
+        result(sum(broken.values()) <= LIMITS["block_rule_broken"],
+               f"double-track block rule: GAPEKA pairs breaking it {sum(broken.values())} (limit "
+               f"{LIMITS['block_rule_broken']}) {sorted(broken.items())[:5]}; inferred signals in infra.db {n_inf}")
         gpath = os.path.join(pfolder, "replay.json.gz")
         same = os.path.exists(gpath) and json.load(gzip.open(gpath))["trains"] == json.loads(json.dumps(trains_out))
         result(same, "golden replay.json.gz matches a fresh replay of the package")
