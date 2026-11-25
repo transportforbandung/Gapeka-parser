@@ -33,6 +33,14 @@ class Timeline:
                 self.trains[t["no"]] = tl
         self.index()
 
+    def set_rows(self, no, rows):
+        """replace a train's rows by planned rows ([station, kind, arr, dep, ...]); call index() afterwards"""
+        out = []
+        for r in rows:
+            a, d = r[2], r[3]
+            out.append([r[0], r[1], a if a is not None else d, d if d is not None else a])
+        self.trains[no] = [r for r in out if r[2] is not None]
+
     def _signals_init(self):
         """block signals per directed sheet section: (x, y) -> km positions from x on the track used x -> y (hulu =
         sheet order a -> b, hilir = b -> a); sheet graph for routes between timetable stations"""
@@ -290,6 +298,11 @@ class Planner:
         self.tol = tol[0] if tol else 59.0
         self.overtake_gap = {"single": gaps.get(("overtake", "single"), 120), "double": gaps.get(("overtake", "double"), 150)}
         self.type = {t["no"]: t["type"] for t in pkg["trains"]}
+        self.facultative = {t["no"]: bool(t.get("facultative")) for t in pkg["trains"]}
+        self.scheduled = {t["no"] for t in pkg["trains"]}   # GAPEKA trains (a user-created train is not in here)
+        self.ignore = set()                     # trains being displaced by the planned train (priority)
+        self.displaced = set()
+        self.displace = False
         # station tracks: Roman tracks in service and the longest usable one, over all diagrams of the station
         self.roman, self.longest = defaultdict(int), defaultdict(float)
         for L in pkg["layouts"]:
@@ -305,6 +318,20 @@ class Planner:
                 self.closed[st].append((hhmm_s(h["closed_from"]), hhmm_s(h["closed_to"])))
 
     # ---- helpers
+    def prio(self, no):
+        """lower = higher priority: regular trains before KA Dinas, then the train number (PM 110 Pasal 11(2)), then
+        regular before facultative"""
+        import re
+        m = re.match(r"\D*(\d+)", no)
+        return (self.type.get(no) == "dinas", int(m.group(1)) if m else 10 ** 6, self.facultative.get(no, False), no)
+
+    def can_displace(self, other):
+        """user: a lower number has priority through every station it does not serve: the higher-numbered SCHEDULED
+        train is held before the block instead (re-planned afterwards). A train created outside the schedule never
+        displaces a scheduled one."""
+        return (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip
+                and self.prio(other) > self.prio(self.skip))
+
     def is_closed(self, st, t):
         for a, b in self.closed.get(st, []):
             x = t % 86400
@@ -320,7 +347,7 @@ class Planner:
         if length and self.longest.get(st) and length > self.longest[st]:
             return False
         standing = sum(1 for a, d, no, *_ in self.tl.point.get(st, []) if a < t1 and d > t0 and d - a >= 60
-                       and no != self.skip)
+                       and no != self.skip and no not in self.ignore)
         return standing + 1 < self.roman[st] + (1 if self.roman[st] == 1 else 0) or standing == 0
 
     def run_time(self, train, rows, p, q):
@@ -351,7 +378,7 @@ class Planner:
         for x, y in mid:
             dbl = self.tl.block_double.get((x, y), self.tl.block_double.get((y, x), False))
             for e1, x1, no, stood in self.tl.block.get((x, y), []):   # same direction
-                if x1 < d - 7200 or e1 > arr + 7200 or no == self.skip:
+                if x1 < d - 7200 or e1 > arr + 7200 or no == self.skip or no in self.ignore:
                     continue
                 ot = self.type.get(no)
                 if dbl:
@@ -401,7 +428,7 @@ class Planner:
             if dbl:
                 continue
             for e2, x2, no, _ in self.tl.block.get((y, x), []):       # opposite direction (single track)
-                if x2 < d - 7200 or e2 > arr + 7200 or no == self.skip:
+                if x2 < d - 7200 or e2 > arr + 7200 or no == self.skip or no in self.ignore:
                     continue
                 if not (d >= x2 + self.single_cross - self.tol or e2 >= arr + self.single_cross - self.tol):
                     new = x2 + self.single_cross
@@ -511,6 +538,10 @@ class Planner:
                     c = self.block_conflict(rows[i][0], rows[j][0], d, d + run, mid, train["type"], True, at, tknots)
                     if c is None:
                         break
+                    if base[i][1] == "pass" and i not in extra_stop and self.can_displace(c[1]):
+                        self.ignore.add(c[1])                   # T keeps running; the other is re-planned later
+                        self.displaced.add(c[1])
+                        continue
                     d = max(c[0], d + 1)
                     why = why or c                              # the first conflict is the reason for the wait
                 if d > t + 1:                                   # T has to wait at rows[i]
@@ -579,6 +610,44 @@ class Planner:
             if not restart:
                 return rows, waits
         return rows, waits
+
+
+def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=12):
+    """plan a scheduled train with priority (user): where it would wait at a station it does not serve for a
+    higher-numbered scheduled train, that train is displaced instead and re-planned afterwards (held before the block),
+    in priority order, each against everything planned so far; it may displace even higher numbers in turn.
+    Changes the timeline (restored before returning). Returns {train: (rows, waits)} in planning order."""
+    byno = {t["no"]: t for t in pkg["trains"]}
+    saved = {}
+    out = {}
+    queue = [(train, dep0, printed_from)]
+    try:
+        while queue and len(out) < max_trains:
+            t, dep, pf = queue.pop(0)
+            P.displace, P.ignore, P.displaced = True, set(), set()
+            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            out[t["no"]] = (rows, waits)
+            for no in [t["no"]] + sorted(P.displaced, key=P.prio):
+                if no not in saved:
+                    saved[no] = tl.trains.get(no)
+            tl.set_rows(t["no"], rows)
+            for no in P.displaced:
+                tl.trains.pop(no, None)                 # out of the way until it is planned again
+            tl.index()
+            done = set(out) | {q[0]["no"] for q in queue}
+            for no in sorted(P.displaced - done, key=P.prio):
+                o = byno[no]
+                queue.append((o, o["stops"][0][3], o))
+            queue.sort(key=lambda q: P.prio(q[0]["no"]))
+    finally:
+        P.displace, P.ignore, P.displaced = False, set(), set()
+        for no, rows in saved.items():
+            if rows is None:
+                tl.trains.pop(no, None)
+            else:
+                tl.trains[no] = rows
+        tl.index()
+    return out
 
 
 def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, examples=0):

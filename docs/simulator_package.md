@@ -232,6 +232,15 @@ planner plans ONE train against all others, which keep their times (rules/engine
   92 / 93 / 94, 98 / 98 / 98 %. GAPEKA keeps less than 2 min (after the 59 s tolerance) in 2.8 % of consecutive
   double-track pairs. Fix found on the way: hold_at_stop compared the overtaker's raw times (346 at 29:49 = 05:49 next
   day) with T's: now the overtaker's copy on T's day (98 was held 24 h at Gambringan).
+- Priority with displacement (user): a lower-numbered train never waits at a station it does not serve; the
+  higher-numbered scheduled train is held before the block instead (planner.plan_priority; rules/priority.csv cross).
+  The planned train skips higher-numbered scheduled trains where it would wait at a pass station; they are re-planned
+  afterwards in priority order from their printed departures and may displace higher numbers in turn (max 12 trains
+  per edit). research/priority_displace.py on GAPEKA's 57 crossings where the lower number waits (station treated as
+  not served): it waits there in 39 with plain planning, 1 with priority (it waits at a station it serves); displaced
+  trains (157) end median 11 min later than in GAPEKA, 45 % within 5 min, max 3.3 h (ripples on busy single track:
+  52 at Kepanjen moves 11 trains). Open: limit the ripple (stop displacing when the cost to the displaced trains is
+  much larger than the gain, or let the user choose).
   Remaining intercity outliers (end 1.5-4.5 h late, 6 of 345): a faster train that loses its GAPEKA overtakes falls
   behind slower FIXED trains and waits at several stations ('follow'); the planner cannot slow a train to follow
   (only waits at stations) and fixed trains never yield. Open item.

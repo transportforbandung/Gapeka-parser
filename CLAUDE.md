@@ -187,7 +187,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   printed waits); the simulation auto-calculates with the number rule. Written as hand rules in rules/priority.csv
   (rules.db table priority): overtake -> higher number waits; crossing -> lower number keeps running, unless it
   reaches the loop first while the other is still in the section, then the first to arrive waits; equal numbers ->
-  regular before facultative (assumed).
+  regular before facultative (assumed). SUPERSEDED (user, 25 Nov 2026): the lower number never stops at a station it
+  does not serve for a crossing / overtake; if it would arrive there while the higher-numbered train is still in the
+  block, the higher number is held at its previous station (before the block). planner.plan_priority: the planned
+  scheduled train ignores higher-numbered scheduled trains where it would wait at a non-served (pass) station; those
+  are displaced and re-planned in priority order (KA Dinas last, then number, regular before facultative), each may
+  displace higher numbers; a train created outside the schedule never displaces. research/priority_displace.py
+  (GAPEKA's 57 lower-number crossing waits, station treated as not served): waits there 39 -> 1; displaced trains end
+  median 11 min later than GAPEKA (45 % within 5 min; ripples on busy single track, e.g. 52 at Kepanjen moves 11
+  trains, max_trains 12). replan_test keeps the plain mode (planned train yields to all).
 - Station track diagrams (right of each graph sheet, user): label "track-effective length (m)" ("I-255,9").
   Roman numerals = main or siding tracks; Arabic = stabling / yard only (no crossing / overtaking use). Arrows show
   the NORMAL running direction; Indonesia runs on the RIGHT track on double track. Main straight through tracks are
