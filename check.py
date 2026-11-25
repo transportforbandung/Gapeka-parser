@@ -31,9 +31,11 @@ LIMITS = {"model_over_1min": 0.05,
           # block-point rule (25 Nov 2026): intercity 68 / 98 / 94 %, commuter 48 / 100 / 92 %, KRL 55 / 98 / 98 %
           # (same station / clean / end); KRL same station dropped from 63 % (old fixed gaps): GAPEKA keeps more
           # distance than the signals require at e.g. Tambun (research/block_clear.py)
-          "replan": {"intercity": dict(end_within_2min=0.91, no_wait_trains_clean=0.95, same_station=0.65),
-                     "commuter": dict(end_within_2min=0.89, no_wait_trains_clean=0.97, same_station=0.45),
-                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.52)}}
+          # + 2 min dispatcher gap on double track (user): intercity 74 / 98 / 94 %, commuter 56 / 100 / 94 %,
+          # KRL 67 / 98 / 98 %
+          "replan": {"intercity": dict(end_within_2min=0.91, no_wait_trains_clean=0.95, same_station=0.71),
+                     "commuter": dict(end_within_2min=0.91, no_wait_trains_clean=0.97, same_station=0.53),
+                     "krl": dict(end_within_2min=0.95, no_wait_trains_clean=0.95, same_station=0.64)}}
 EXPORTS = [  # (file name, command)
     ("cl_bandung_even.svg", ["export_poster.py", "386-431", "--even"]),
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),

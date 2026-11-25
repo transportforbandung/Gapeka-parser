@@ -282,6 +282,8 @@ class Planner:
         self.min_wait = (mw[0] if mw else 1) * 60
         ab = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "approach_blocks"]
         self.approach_blocks = int(ab[0]) if ab else 1
+        dg = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "double_follow_gap"]
+        self.double_gap = (dg[0] if dg else 2) * 60
         self.prefer_stop = True                 # double-track overtakes at the last planned stop (hold_at_stop)
         # GAPEKA times are whole minutes: gaps are checked with this tolerance (engine_params time_tolerance)
         tol = [float(x["value"]) for x in pkg["rules"].get("engine_params", []) if x["param"] == "time_tolerance"]
@@ -368,12 +370,13 @@ class Planner:
                     t_at = lambda g, c: d + knot_time(tk, g, run, c)
                     n = len(f) - 1
                     # other ahead, T behind: T reaches f[k] after the other has passed f[k+1]
-                    need_t = max(o_at(f[k + 1], True) - knot_time(tk, f[k], run, False) for k in range(n))
+                    g_ = self.double_gap                 # dispatcher gap after block clear (user)
+                    need_t = max(o_at(f[k + 1], True) + g_ - knot_time(tk, f[k], run, False) for k in range(n))
                     # T ahead, other behind: the other reaches f[k] after T has passed f[k+1]; a faster train behind
                     # (approach_blocks = 1) must find the block clear one block point earlier: it sees the signal
                     # from there and is not slowed
                     ab = self.approach_blocks if (x1 - e1) < run - 30 else 0
-                    ahead = all(o_at(f[max(k - ab, 0)], False) >= t_at(f[k + 1], True) - tl_ for k in range(n))
+                    ahead = all(o_at(f[max(k - ab, 0)], False) >= t_at(f[k + 1], True) + g_ - tl_ for k in range(n))
                     H = self.tl.block_hmin.get((x, y)) if len(mid) == 1 else None
                     if H is not None:
                         # or spaced like the tightest GAPEKA pair on this block at every block point
@@ -440,6 +443,9 @@ class Planner:
             if not nxt:
                 return False
             ref = nxt[0][2] + self.overtake_gap["double"]
+            here = r[3] if r[3] is not None else r[2]
+            if here is not None:                       # the overtaker's copy on T's day (times may pass 86400)
+                ref += min((-86400, 0, 86400), key=lambda sh: abs(o_rows[q][2] + sh - here))
             if ref <= (r[3] or 0) or not self.can_wait(r[0], r[2] or r[3], ref, length):
                 return False
             hold[n] = ref

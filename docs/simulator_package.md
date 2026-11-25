@@ -225,6 +225,16 @@ planner plans ONE train against all others, which keep their times (rules/engine
   require at Tambun (intercity 78F 0.9-3 min clear behind KRL 5016 at every block point to Cikarang, GAPEKA still
   overtakes at Tambun) and on Yogyakarta - Solo (Srowot / Brambanan: the planner overtakes one station later, ending
   earlier). Both are valid plans under the rule. Physics running times: intercity end within 2 min 53 % (51).
+- Dispatcher gap on double track (user: the follower needs the block ahead clear PLUS 1-2 min for the dispatcher, as
+  on single track): engine_params double_follow_gap = 2 min, added to both the "behind" and the "ahead" check (the
+  per-block GAPEKA spacing fallback already contains GAPEKA's gaps). Re-planning test, gap 0 / 1 / 2 min: same
+  station intercity 68 / 71 / 74 %, commuter 48 / 53 / 56 %, KRL 55 / 61 / 67 %; end within 2 min 94 / 94 / 94,
+  92 / 93 / 94, 98 / 98 / 98 %. GAPEKA keeps less than 2 min (after the 59 s tolerance) in 2.8 % of consecutive
+  double-track pairs. Fix found on the way: hold_at_stop compared the overtaker's raw times (346 at 29:49 = 05:49 next
+  day) with T's: now the overtaker's copy on T's day (98 was held 24 h at Gambringan).
+  Remaining intercity outliers (end 1.5-4.5 h late, 6 of 345): a faster train that loses its GAPEKA overtakes falls
+  behind slower FIXED trains and waits at several stations ('follow'); the planner cannot slow a train to follow
+  (only waits at stations) and fixed trains never yield. Open item.
 - Fixes: a station that already is a planned stop is never charged the stop / start penalty again (only stops the
   planner adds are); the planner's printed running times keep every row (no silent physics fallback).
 - Physics vs GAPEKA (research/physics_sign.py, model - GAPEKA): running time alone over whole trips median -0.3
