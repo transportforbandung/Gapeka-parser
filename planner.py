@@ -303,6 +303,9 @@ class Planner:
         self.ignore = set()                     # trains being displaced by the planned train (priority)
         self.displaced = set()
         self.displace = False
+        ep = {x["param"]: x["value"] for x in pkg["rules"].get("engine_params", [])}
+        self.prio_gap = int(float(ep.get("priority_number_gap", 100)))
+        self.displace_ratio = float(ep.get("displace_cost_ratio", 3))
         # station tracks: Roman tracks in service and the longest usable one, over all diagrams of the station
         self.roman, self.longest = defaultdict(int), defaultdict(float)
         for L in pkg["layouts"]:
@@ -325,12 +328,25 @@ class Planner:
         m = re.match(r"\D*(\d+)", no)
         return (self.type.get(no) == "dinas", int(m.group(1)) if m else 10 ** 6, self.facultative.get(no, False), no)
 
+    def outranks(self, a, b):
+        """a has CLEARLY higher priority than b (research/cross_priority.py: GAPEKA crossings follow the number in 81 %
+        when the numbers differ by >= 100, but only 57-61 % below that, close to chance; the direction (odd = from the
+        east, even = from the west) makes no difference): a regular train over a KA Dinas; else the numbers differ by
+        at least priority_number_gap; the same number: regular over facultative"""
+        pa, pb = self.prio(a), self.prio(b)
+        if pa[0] != pb[0]:
+            return pa[0] < pb[0]
+        if pb[1] - pa[1] >= self.prio_gap:
+            return True
+        return pa[1] == pb[1] and pa[2] < pb[2]
+
     def can_displace(self, other):
-        """user: a lower number has priority through every station it does not serve: the higher-numbered SCHEDULED
-        train is held before the block instead (re-planned afterwards). A train created outside the schedule never
-        displaces a scheduled one."""
+        """user: a train with priority runs through every station it does not serve: the conflicting SCHEDULED train
+        is held before the block instead (re-planned afterwards). Allowed against a train it outranks or one of equal
+        priority (numbers < priority_number_gap apart: then only if the total delay is smaller, see plan_priority). A
+        train created outside the schedule never displaces a scheduled one."""
         return (self.displace and self.skip in self.scheduled and other in self.scheduled and other != self.skip
-                and self.prio(other) > self.prio(self.skip))
+                and not self.outranks(other, self.skip))
 
     def is_closed(self, st, t):
         for a, b in self.closed.get(st, []):
@@ -612,12 +628,26 @@ class Planner:
         return rows, waits
 
 
-def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=12):
-    """plan a scheduled train with priority (user): where it would wait at a station it does not serve for a
-    higher-numbered scheduled train, that train is displaced instead and re-planned afterwards (held before the block),
-    in priority order, each against everything planned so far; it may displace even higher numbers in turn.
-    Changes the timeline (restored before returning). Returns {train: (rows, waits)} in planning order."""
+def _end(rows):
+    for r in reversed(rows):
+        if r[2] is not None or r[3] is not None:
+            return r[2] if r[2] is not None else r[3]
+    return None
+
+
+def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None, max_trains=12, ratio=None):
+    """plan a scheduled train with priority (user): where it would wait at a station it does not serve for a scheduled
+    train it outranks (or one of equal priority), that train is displaced instead and re-planned afterwards (held
+    before the block), in priority order, each against everything planned so far; it may displace others in turn.
+    Accepted only if it pays (user: stop holding when the delay is much bigger than the gain): gain = how much earlier
+    the train arrives than with plain planning; cost = the displaced trains' extra delay at their ends, divided by
+    `ratio` (engine_params displace_cost_ratio) for trains the planned train outranks, counted in full for trains of
+    equal priority (there the least total delay decides). cost > gain -> the plain plan (the train waits).
+    The timeline is restored before returning. Returns ({train: (rows, waits)}, info)."""
+    ratio = P.displace_ratio if ratio is None else ratio
     byno = {t["no"]: t for t in pkg["trains"]}
+    P.displace, P.ignore, P.displaced = False, set(), set()
+    plain = P.plan(train, dep0, printed_times=printed_times, printed_from=printed_from)
     saved = {}
     out = {}
     queue = [(train, dep0, printed_from)]
@@ -647,7 +677,26 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
             else:
                 tl.trains[no] = rows
         tl.index()
-    return out
+    me = train["no"]
+    e0, e1 = _end(plain[0]), _end(out[me][0])
+    gain = (e0 - e1) if e0 is not None and e1 is not None else 0.0
+    cost, raw = 0.0, 0.0
+    P.skip = me
+    for no, (rows, _) in out.items():
+        if no == me:
+            continue
+        old = _end(saved.get(no) or [])
+        new = _end(rows)
+        if old is None or new is None:
+            continue
+        d = max(0.0, new - old)
+        raw += d
+        cost += d / ratio if P.outranks(me, no) else d
+    info = dict(gain_s=gain, cost_s=cost, delay_others_s=raw, displaced=[n for n in out if n != me],
+                accepted=bool(len(out) > 1 and gain > 0 and cost <= gain and not queue))
+    if not info["accepted"]:
+        return {me: plain}, info
+    return out, info
 
 
 def replan_test(pkg, types=("intercity", "commuter", "krl"), physics=False, examples=0):

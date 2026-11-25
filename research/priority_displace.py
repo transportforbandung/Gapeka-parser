@@ -8,6 +8,7 @@ import gzip, json, re, statistics, sys
 sys.path.insert(0, "/home/user/Gapeka-parser")
 import planner
 
+RATIO = float(sys.argv[1]) if len(sys.argv) > 1 else None
 pkg = json.load(gzip.open("/home/user/Gapeka-parser/dist/gapeka-2026/package.json.gz"))
 tl = planner.Timeline(pkg)
 P = planner.Planner(pkg, tl)
@@ -35,7 +36,9 @@ for no, other, st in cases:
     res["cases"] += 1
     rows, waits = P.plan(tt, stops[0][3], printed_times=True, printed_from=t)
     res["plain_wait"] += any(w[0] == st and w[3] >= 30 for w in waits)
-    out = planner.plan_priority(pkg, tl, P, tt, stops[0][3], printed_from=t)
+    out, info = planner.plan_priority(pkg, tl, P, tt, stops[0][3], printed_from=t, ratio=RATIO)
+    res.setdefault("accepted", 0)
+    res["accepted"] += info["accepted"]
     rows, waits = out[no]
     res["prio_wait"] += any(w[0] == st and w[3] >= 30 for w in waits)
     if rows[-1][2] is not None and t["stops"][-1][2] is not None:
@@ -47,12 +50,13 @@ for no, other, st in cases:
         g = T[d]["stops"][-1][2]
         if r2[-1][2] is not None and g is not None:
             res["delays"].append((r2[-1][2] - g) / 60)
-    if len(res["displaced"]) and res["cases"] <= 6:
+    if len(res["displaced"]) and res["cases"] <= 6 and False:
         print(f"  {no} at {st} (GAPEKA: waits for {other}): displaced {[d for d in out if d != no]}, "
               f"waits {[(w[0], w[1], round(w[3] / 60, 1)) for w in waits if w[3] >= 30]}")
 print(f"cases {res['cases']}: lower number still waits there: plain planning {res['plain_wait']}, with priority "
       f"{res['prio_wait']}")
+print(f"displacement accepted (cost <= gain) in {res['accepted']} cases")
 print(f"waiter end vs GAPEKA (min): median {statistics.median(res['end_waiter']):.1f}")
 print(f"displaced trains {len(res['displaced'])}; their end vs GAPEKA (min): median "
-      f"{statistics.median(res['delays']):.1f}, max {max(res['delays']):.1f}, within 5 min "
-      f"{sum(x <= 5 for x in res['delays']) / len(res['delays']):.0%}")
+      f"{statistics.median(res['delays'] or [0]):.1f}, max {max(res['delays'] or [0]):.1f}, within 5 min "
+      f"{sum(x <= 5 for x in res['delays']) / max(len(res['delays']), 1):.0%}")

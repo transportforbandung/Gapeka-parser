@@ -239,8 +239,19 @@ planner plans ONE train against all others, which keep their times (rules/engine
   per edit). research/priority_displace.py on GAPEKA's 57 crossings where the lower number waits (all at its passenger
   stops, which the rule allows: user, more effective; the test treats them as not served to exercise the mechanism): it waits there in 39 with plain planning, 1 with priority (it waits at a station it serves); displaced
   trains (157) end median 11 min later than in GAPEKA, 45 % within 5 min, max 3.3 h (ripples on busy single track:
-  52 at Kepanjen moves 11 trains). Open: limit the ripple (stop displacing when the cost to the displaced trains is
-  much larger than the gain, or let the user choose).
+  52 at Kepanjen moves 11 trains).
+- Cost limit (user: stop holding when the delay is much bigger than the gain): plan_priority plans the train plainly
+  too; holding is accepted only if the held trains' extra end delay (divided by displace_cost_ratio = 3 for trains
+  the planned train clearly outranks, in full for trains of equal priority) is at most the time the planned train
+  gains. 57-case test: ratio 1 / 3 / 5 accepts 21 / 23 / 24; held trains then end median 0 min late, 97 / 87 / 85 %
+  within 5 min (the unlimited version: median +11 min, max 3.3 h).
+- Equal priority (user: odd = from the east, even = from the west; neither direction nor a 1-number gap may decide):
+  research/cross_priority.py on 300 GAPEKA crossings where one train stands and the other runs through: the lower
+  number runs in 81 % when the numbers differ by >= 100, 57-61 % below 100 (near chance); the lower number being odd
+  or even: 74 / 79 % (no effect); by type pair: commuter-intercity 88 %, freight-intercity 85 %, intercity-intercity
+  72 %, freight-freight 57 %, commuter-freight 43 % (n 23). Rule: clear priority = regular over KA Dinas, numbers
+  >= priority_number_gap (100) apart, or the same number regular over facultative; otherwise EQUAL priority and the
+  crossing goes where the total delay of both trains is least.
   Remaining intercity outliers (end 1.5-4.5 h late, 6 of 345): a faster train that loses its GAPEKA overtakes falls
   behind slower FIXED trains and waits at several stations ('follow'); the planner cannot slow a train to follow
   (only waits at stations) and fixed trains never yield. Open item.

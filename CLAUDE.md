@@ -197,6 +197,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   it serves passengers is more effective; the test treats those stations as not served, a synthetic check): waits there 39 -> 1; displaced trains end
   median 11 min later than GAPEKA (45 % within 5 min; ripples on busy single track, e.g. 52 at Kepanjen moves 11
   trains, max_trains 12). replan_test keeps the plain mode (planned train yields to all).
+  Close numbers / direction (user: odd = from the east, even = from the west; a 1-number gap or the direction must not
+  decide priority): research/cross_priority.py, 300 clear GAPEKA crossings (one stands, one runs): lower number runs
+  81 % when numbers differ by >= 100, 57-61 % below 100 (chance), odd vs even lower number 74 / 79 % (no effect).
+  Rule: clear priority only for regular over KA Dinas, number gap >= 100 (engine_params priority_number_gap), or same
+  number regular over facultative; closer = EQUAL priority, the crossing goes where the total delay is least.
+  Cost limit (user: stop holding when the delay is much bigger than the gain): plan_priority compares with the plain
+  plan; held trains' end delay / displace_cost_ratio (3) for trains clearly outranked, in full for equal ones, must
+  be <= the planned train's gain, else the plain plan. 57-case test: accepted 23, held trains median 0 min late, 87 %
+  within 5 min (ratio 1 / 5: 21 / 24 accepted).
 - Station track diagrams (right of each graph sheet, user): label "track-effective length (m)" ("I-255,9").
   Roman numerals = main or siding tracks; Arabic = stabling / yard only (no crossing / overtaking use). Arrows show
   the NORMAL running direction; Indonesia runs on the RIGHT track on double track. Main straight through tracks are
