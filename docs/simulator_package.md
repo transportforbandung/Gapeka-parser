@@ -194,21 +194,37 @@ planner plans ONE train against all others, which keep their times (rules/engine
   keep their printed running times and use physics only for new trains / changed stopping patterns.
 - Open (tuning): where GAPEKA chooses the overtake / crossing station (misses: double-track overtakes on Cikampek
   lines, commuter crossings on the Merak line), per-line overtake gaps (wait_gaps line names do not match the package
-  line titles yet), block signals as overtake release points (next station used), station capacity per direction
+  line titles yet), station capacity per direction
   (usable_towards), the release rule (arrive when a track frees) and entry-signal marks, freight.
 
 ## Phase 3 tuning (25 Nov 2026)
 
-- User rule: the wait station minimises the impact on the faster / priority train: the slower train is stopped
-  where letting it continue would hold up or slow the train behind. research/overtake_margin.py: had GAPEKA's
-  overtaken trains left after a 1-min stop, the overtaker would have come within 5 min in 57 % (8 min: 77 %); a faster
-  train left behind a slower one without an overtake keeps >= 5 min in 96 % (median 18). engine_params
-  overtake_margin 5 min (double track, applied only when the train behind is faster in the block); tested 0 / 4 / 5 / 6 /
-  8 / 10 min: 5 best (intercity same station 62 -> 69 %, commuter 43 -> 51 %, end within 2 min 90 / 89 %; >= 8 min
-  holds trains GAPEKA lets run). Not when either train is a KRL: on the dense KRL lines GAPEKA follows at 3 min; with
-  the margin, Basoetta trains waited 12-18 min at Manggarai (KRL end within 2 min 98 -> 93 %); excluded: KRL back to
-  98 / 99 % (same station 63 %). The same margin on single track: no gain (one train per block already protects the
-  train behind). Holding at the last planned stop is still needed (without: intercity 58 %).
+- Superseded (user: fixed 3-5 min margins are wrong, overtakes depend on the line: block lengths and signals; "trains
+  usually only need the block ahead to clear"): the overtake_margin (5 min, not for KRL) and the fixed double-track
+  following minima were replaced by the block-point rule below. History: research/overtake_margin.py.
+- Block-point rule (double track; engine_params double_track_block, approach_blocks; research/block_clear.py):
+  block points = stations (not halts) + the block signals of the track in the travel direction (package
+  sections.block_signals: hulu = sheet a -> b, offsets from a; hilir = km - offset; a station pair over several sheet
+  sections collects the signals of each). A train may run into block k only when the train ahead has passed point
+  k+1. Times inside a block by distance between each train's times at the halts in it (Timeline.block_knots: a KRL
+  stopping at Gondangdia / Cikini is not at an even speed). GAPEKA 2026 keeps it: 24 of 23127 consecutive pairs
+  break it, no margin beyond block clear (0.0 min at whole minutes) -> only the 59 s time tolerance.
+  User's wait-station rule ("stop the slower train where continuing would hold up or slow the faster one"):
+  approach_blocks 1 = a FASTER train behind must find each block clear one block point earlier (where it sees the
+  signal aspect), so it is never slowed. 0 (only the block ahead): KRL same-station 55 -> 35 %, commuter 48 -> 40 %.
+  Incomplete signal data: Gambir - Manggarai shows one signal (GMR-GDD) but GAPEKA runs KRL 3 min behind intercity
+  trains, so the sheet misses signals there; without help intercity trains waited hours at Gambir. Fallback per
+  directed block: a pair is also allowed when it is spaced at every block point at least like the tightest GAPEKA pair
+  on that block (headways.double_block_spacing_s, 462 blocks, >= 60 s, fitted on GAPEKA when the package is built,
+  never refitted on a user scenario). A line condition per block, not a global margin.
+  The waiting train (overtaken) leaves when the overtaker has passed the next block point + the dispatcher gap
+  (wait_gaps overtake double, 2.5 min).
+  Re-planning test (printed running times; old fixed margins in brackets): intercity same station 68 % (69),
+  end within 2 min 94 % (90), mean |end diff| 1.8 min (3.2), clean 98 % (96), waits not in GAPEKA 41 % (48);
+  commuter 48 % (50), 92 % (89); KRL 55 % (63), 98 % (98). KRL misses: GAPEKA keeps more distance than the signals
+  require at Tambun (intercity 78F 0.9-3 min clear behind KRL 5016 at every block point to Cikarang, GAPEKA still
+  overtakes at Tambun) and on Yogyakarta - Solo (Srowot / Brambanan: the planner overtakes one station later, ending
+  earlier). Both are valid plans under the rule. Physics running times: intercity end within 2 min 53 % (51).
 - Fixes: a station that already is a planned stop is never charged the stop / start penalty again (only stops the
   planner adds are); the planner's printed running times keep every row (no silent physics fallback).
 - Physics vs GAPEKA (research/physics_sign.py, model - GAPEKA): running time alone over whole trips median -0.3

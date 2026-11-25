@@ -67,10 +67,15 @@ Read this first. It records decisions and findings from earlier sessions so they
   check.py section 8. Re-planning test (printed running times): GAPEKA waits at the same station intercity 62 %,
   commuter 43 %, KRL 63 %; end within 2 min 88 / 88 / 98 %; physics running times cascade (intercity 50 %): keep
   printed running times for GAPEKA trains. Details + open tuning items: docs/simulator_package.md phase 3.
-  Tuning (user: the wait station minimises the impact on the faster train; the slower one stops where continuing
-  would hold up / slow the train behind): engine_params overtake_margin 5 min on double track when the train behind
-  is faster and neither train is a KRL (tested 0-10: 5 best; intercity same station 69 %, commuter 50 %, KRL
-  unchanged 98 / 99 %); no margin on single track. Physics is
+  Overtakes (user: no fixed 3-5 min margins; "trains usually only need the block ahead to clear"): double-track
+  block-point rule: block points = stations (not halts) + block signals of the track in the direction; a train enters
+  block k only when the train ahead passed point k+1; times inside a block by distance between halt times (knots).
+  GAPEKA keeps it (24 / 23127 pairs break it, 0 margin). approach_blocks 1: a faster train behind must find the block
+  clear one point earlier (signal aspect; the user's "stop the slower train where it would hold up the faster one").
+  Missing signals (Gambir - Manggarai): per-block fallback = tightest GAPEKA spacing at the block points
+  (headways.double_block_spacing_s, fitted at package build). Removed: overtake_margin, KRL exception, fixed double
+  minima. Re-planning: intercity 68 / 94 % (same station / end within 2 min), commuter 48 / 92, KRL 55 / 98
+  (research/block_clear.py, docs phase 3 tuning). Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
 
