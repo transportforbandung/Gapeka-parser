@@ -130,6 +130,15 @@ def main():
                f"trains {man['counts']['trains']} / {n_t}, sections {man['counts']['sections']} / {n_s} (package / databases)")
         sha = infra.execute("select value from meta where key = 'pdf_sha256'").fetchone()[0]
         result(man["pdf_sha256"] == sha, "package built from the same PDF as infra.db")
+        import gzip
+        import replay
+        legs, trains_out = replay.replay(pkg)
+        b = replay.bands([x["err"] for x in legs if not x["noted"] and x["type"] != "freight"])
+        result(b[2] <= LIMITS["model_over_1min"], f"replay from the package: passenger legs without notes > 1 min off "
+                                                  f"{b[2]:.1%} (limit {LIMITS['model_over_1min']:.0%}), < 0.5 min {b[0]:.1%}")
+        gpath = os.path.join(pfolder, "replay.json.gz")
+        same = os.path.exists(gpath) and json.load(gzip.open(gpath))["trains"] == json.loads(json.dumps(trains_out))
+        result(same, "golden replay.json.gz matches a fresh replay of the package")
     print("\nall checks passed" if not failed else f"\n{len(failed)} check(s) failed")
     sys.exit(1 if failed else 0)
 

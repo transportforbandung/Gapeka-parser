@@ -4,7 +4,7 @@
   "title": "GAPEKA simulator data package",
   "description": "One package per GAPEKA edition (export_package.py). Times in seconds from 00:00 of the train's first day (may pass 86400), distances km, speeds km/h, lengths m. Compact rows are arrays; their field order is in 'fields' and in the prefixItems below.",
   "type": "object",
-  "required": ["meta", "fields", "stations", "lines", "sections", "layouts", "layout_refs", "dinas_tutup", "capacity",
+  "required": ["meta", "fields", "leg_times", "stations", "lines", "sections", "layouts", "layout_refs", "dinas_tutup", "capacity",
                "trains", "waits", "duties", "model", "rules"],
   "additionalProperties": false,
   "$defs": {
@@ -63,6 +63,16 @@
       }
     },
     "fields": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "leg_times": {
+      "type": "array",
+      "items": {"type": "array", "minItems": 8, "maxItems": 8,
+                "prefixItems": [{"$ref": "#/$defs/code"}, {"$ref": "#/$defs/code"}, {"type": "string"},
+                                {"enum": ["krl", "commuter", "commuter-emu", "intercity", "freight"]},
+                                {"type": "number", "exclusiveMinimum": 0}, {"type": "number", "exclusiveMinimum": 0},
+                                {"type": ["number", "null"]},
+                                {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "number", "exclusiveMinimum": 0},
+                                 "description": "physics s for start x end kind pp ps pt sp ss st tp ts tt (p pass, s stop, t origin / terminus)"}]}
+    },
     "stations": {
       "type": "object",
       "propertyNames": {"$ref": "#/$defs/code"},
@@ -155,6 +165,8 @@
           "consist": {"type": "object", "properties": {"cars": {"type": "integer"}, "sets": {"type": "integer"},
                       "locomotive": {"type": "string"}, "wagon": {"type": "string"}}},
           "graph_only": {"type": "boolean"},
+          "run_class": {"enum": ["krl", "commuter", "commuter-emu", "intercity", "freight", "dinas"]},
+          "notes": {"type": "object", "additionalProperties": {"type": "string"}, "description": "timetable note symbols per station: x = crossing, = = overtaken, // = overtaking / passing"},
           "stops": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stop"}}
         }
       }

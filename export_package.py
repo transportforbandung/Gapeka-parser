@@ -30,6 +30,7 @@ FIELDS = {
     "line_stations": ["station", "km", "km_alt", "elevation_m"],
     "tracks": ["track", "kind", "length_m", "usable", "usable_towards", "enter", "through", "out_of_service", "arrows"],
     "corrections": ["kind", "a", "b", "end_kind", "train_type", "seconds", "support"],
+    "leg_times": ["a", "b", "variant", "run_class", "vmax_kmh", "km", "ruling_gradient_permil", "physics_s"],
 }
 BLOCK = {"closed automatic block": "closed_abs", "open automatic block": "open_abs",
          "electromechanical block": "electromechanical", "none": "none"}
@@ -170,6 +171,13 @@ def build(tt_path, infra_path, rules_path):
     for p in rows(g, "select train_no, wagon, locomotive, kind from rangkaian_pokok"):
         pokok.setdefault(p["train_no"], p)
     est = {(e["train_no"], e["seq"]): e for e in rows(g, "select * from halt_est")}
+    import gapeka_model as gm
+    import leg_times as lt
+    model = gm.Model(g, gm.Infra(infra_path, g), gm.load_rules(os.path.join(HERE, "rules")))
+    legt = lt.build(model)
+    syms = {}
+    for no, st_, sym in g.execute("select train_no, station, symbol from notes"):
+        syms.setdefault(no, {}).setdefault(st_, set()).add(sym)
     trains, repaired = [], 0
     for t in rows(g, "select * from trains order by cast(no as integer), no"):
         st = []
@@ -205,7 +213,9 @@ def build(tt_path, infra_path, rules_path):
             no=t["no"], name=ix.get("name") or t["service"], identity=ix.get("identity"), route=t["route"],
             type=t["type"], class_=t["kelas"], classification=t["klasifikasi"], facultative=bool(t["facultative"]),
             operator=t["operator"], km=t["index_km"], consist=consist,
-            graph_only=(t["first_page"] or "").startswith("graph:") or None, stops=st)))
+            graph_only=(t["first_page"] or "").startswith("graph:") or None,
+            run_class=lt.run_class(t["type"], t["service"] or ""),
+            notes={k: " ".join(sorted(v)) for k, v in syms.get(t["no"], {}).items()} or None, stops=st)))
     for t in trains:
         t["class"] = t.pop("class_", None)
         if t["class"] is None:
@@ -277,7 +287,10 @@ def build(tt_path, infra_path, rules_path):
                           manual="set by hand (user decision)"),
         disclaimer="Unofficial data package built from the GAPEKA PDF; only 'printed' times are official. "
                    "Licence and public disclaimer still to be decided (docs/simulator_package.md).")
-    return dict(meta=meta, fields=FIELDS, stations=stations, lines=lines, sections=sections, layouts=layouts,
+    meta["leg_times"] = dict(patterns=[a + b for a in "pst" for b in "pst"],
+                             note="physics s per directed section; p = pass, s = stop, t = the train's origin / "
+                                  "terminus; first letter = start at a; compose per leg as in replay.py")
+    return dict(meta=meta, fields=FIELDS, leg_times=legt, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
                 duties=duties, model=model, rules=rules)
 
