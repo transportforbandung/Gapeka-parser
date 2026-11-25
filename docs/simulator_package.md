@@ -236,8 +236,8 @@ planner plans ONE train against all others, which keep their times (rules/engine
   higher-numbered scheduled train is held before the block instead (planner.plan_priority; rules/priority.csv cross).
   The planned train skips higher-numbered scheduled trains where it would wait at a pass station; they are re-planned
   afterwards in priority order from their printed departures and may displace higher numbers in turn (max 12 trains
-  per edit). research/priority_displace.py on GAPEKA's 57 crossings where the lower number waits (station treated as
-  not served): it waits there in 39 with plain planning, 1 with priority (it waits at a station it serves); displaced
+  per edit). research/priority_displace.py on GAPEKA's 57 crossings where the lower number waits (all at its passenger
+  stops, which the rule allows: user, more effective; the test treats them as not served to exercise the mechanism): it waits there in 39 with plain planning, 1 with priority (it waits at a station it serves); displaced
   trains (157) end median 11 min later than in GAPEKA, 45 % within 5 min, max 3.3 h (ripples on busy single track:
   52 at Kepanjen moves 11 trains). Open: limit the ripple (stop displacing when the cost to the displaced trains is
   much larger than the gain, or let the user choose).
