@@ -250,7 +250,7 @@ planner plans ONE train against all others, which keep their times (rules/engine
   number runs in 81 % when the numbers differ by >= 100, 57-61 % below 100 (near chance); the lower number being odd
   or even: 74 / 79 % (no effect); by type pair: commuter-intercity 88 %, freight-intercity 85 %, intercity-intercity
   72 %, freight-freight 57 %, commuter-freight 43 % (n 23). Rule: clear priority = regular over KA Dinas, numbers
-  >= priority_number_gap (100) apart, or the same number regular over facultative; otherwise EQUAL priority and the
+  >= priority_number_gap (50; user, from 100: gaps 50-99 follow the number 73 % (n 22), below 50 51 %) apart, or the same number regular over facultative; otherwise EQUAL priority and the
   crossing goes where the total delay of both trains is least.
   Remaining intercity outliers (end 1.5-4.5 h late, 6 of 345): a faster train that loses its GAPEKA overtakes falls
   behind slower FIXED trains and waits at several stations ('follow'); the planner cannot slow a train to follow

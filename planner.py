@@ -304,7 +304,7 @@ class Planner:
         self.displaced = set()
         self.displace = False
         ep = {x["param"]: x["value"] for x in pkg["rules"].get("engine_params", [])}
-        self.prio_gap = int(float(ep.get("priority_number_gap", 100)))
+        self.prio_gap = int(float(ep.get("priority_number_gap", 50)))
         self.displace_ratio = float(ep.get("displace_cost_ratio", 3))
         # station tracks: Roman tracks in service and the longest usable one, over all diagrams of the station
         self.roman, self.longest = defaultdict(int), defaultdict(float)
