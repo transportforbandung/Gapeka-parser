@@ -69,7 +69,8 @@ Read this first. It records decisions and findings from earlier sessions so they
   printed running times for GAPEKA trains. Details + open tuning items: docs/simulator_package.md phase 3.
   Tuning (user: the wait station minimises the impact on the faster train; the slower one stops where continuing
   would hold up / slow the train behind): engine_params overtake_margin 5 min on double track when the train behind
-  is faster (tested 0-10: 5 best; intercity same station 69 %, commuter 51 %); no margin on single track. Physics is
+  is faster and neither train is a KRL (tested 0-10: 5 best; intercity same station 69 %, commuter 50 %, KRL
+  unchanged 98 / 99 %); no margin on single track. Physics is
   unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
   times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
 

@@ -227,7 +227,7 @@ class Planner:
                         ahead = e1 >= d + self.overtaken_entry_gap - tl_ and x1 >= arr - tl_
                     else:
                         # user: the faster train behind must not be held up or slowed: keep the planning margin
-                        if (x1 - e1) < (arr - d) - 30:
+                        if (x1 - e1) < (arr - d) - 30 and "krl" not in (ot, own_type):   # not on the dense KRL lines
                             h_o = max(h_o, self.overtake_margin)
                         ahead = e1 >= d + h_o - tl_ and x1 >= arr + h_o - tl_  # other follows T
                     behind = d >= e1 + h_t - tl_ and arr >= x1 + h_t - tl_     # T follows other

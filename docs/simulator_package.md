@@ -205,7 +205,9 @@ planner plans ONE train against all others, which keep their times (rules/engine
   train left behind a slower one without an overtake keeps >= 5 min in 96 % (median 18). engine_params
   overtake_margin 5 min (double track, applied only when the train behind is faster in the block); tested 0 / 4 / 5 / 6 /
   8 / 10 min: 5 best (intercity same station 62 -> 69 %, commuter 43 -> 51 %, end within 2 min 90 / 89 %; >= 8 min
-  holds trains GAPEKA lets run). The same margin on single track: no gain (one train per block already protects the
+  holds trains GAPEKA lets run). Not when either train is a KRL: on the dense KRL lines GAPEKA follows at 3 min; with
+  the margin, Basoetta trains waited 12-18 min at Manggarai (KRL end within 2 min 98 -> 93 %); excluded: KRL back to
+  98 / 99 % (same station 63 %). The same margin on single track: no gain (one train per block already protects the
   train behind). Holding at the last planned stop is still needed (without: intercity 58 %).
 - Fixes: a station that already is a planned stop is never charged the stop / start penalty again (only stops the
   planner adds are); the planner's printed running times keep every row (no silent physics fallback).
