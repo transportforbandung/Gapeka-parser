@@ -96,7 +96,7 @@ website can say which rule moved a train.
 
 | Phase | Output | Done when |
 |---|---|---|
-| 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | package builds, check passes, < 1.5 MB |
+| 1 | `export_package.py` (pipeline step 10), schema, manifest, static parts of section 2 | DONE 25 Nov 2026: 0.44 MB, check.py section 7 |
 | 2 | `leg_times` + golden replay | replay error at least as good as the held-out model (> 1 min <= 5 %) |
 | 3 | rule parameter tables (section 3), Python reference planner, re-planning test | baseline score recorded, rules tuned |
 | 4 | user-facing texts (id / en), origins on every value, disclaimer | reviewed by the user |
@@ -109,3 +109,20 @@ website can say which rule moved a train.
 - Which train attributes a public user may edit in v1 (times and stops only, or also type, speed and length).
 - Limits for automatic geser / ulur (how far may a scheduled train be moved for a user's train: never? only
   facultative trains?).
+
+## Phase 1 result (25 Nov 2026)
+
+- `export_package.py` (pipeline step 10) -> `dist/gapeka-2026/package.json.gz` (0.44 MB; 3.4 MB raw) + `manifest.json`;
+  `schema/package.schema.json` (JSON Schema 2020-12, compact rows described with prefixItems); `package_check.py`
+  (references, time order) used by `check.py` section 7 (schema, problems, size <= 1.5 MB, counts = databases, same PDF).
+- Contents: 528 stations (sheet-only rows included as kind sheet_only), 13 lines, 582 sections, 419 layouts, 2669
+  trains, 1648 waits, 346 duties (112 sets + 234 locomotive units ... as read), 141 capacity sections, 26 dinas tutup
+  pieces, model and rules as in rules.db (rules still prose + ids: phase 3).
+- Stops: [station, kind, arr_s, dep_s, vmax_kmh, time_origin]; kinds terminal / stop / pass / halt / via; origins:
+  printed 36695, model (halts, KA Dinas) 9714, graph (KA Dinas) 1268, manual (Bandung KAI halts) 178. Times continue
+  above 86400 after midnight. 3444 passes have no printed time ('Ls'): left empty (phase 2 leg times can fill them).
+- Repairs made only in the package: estimated times between two printed times that are out of order or outside them
+  (KA Dinas: graph vs model times, or past the printed end) are spread evenly and marked model (90 stops); a passing
+  point read with arrival > departure gets one time. Train numbers in the notes are normalised ('2539F JJ' -> 2539F,
+  '2640' -> 2640F); none left unresolved.
+- Not yet in the package: leg_times (phase 2), rule parameters (phase 3), user texts id / en (phase 4).

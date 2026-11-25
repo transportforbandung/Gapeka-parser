@@ -52,6 +52,8 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Decided (user, 25 Nov 2026): public from the start, all of Java, automatic re-planning, one compressed JSON package
   per edition (+ JSON Schema / TypeScript types). Plan: docs/simulator_package.md (contents, rules as engine
   parameters, precomputed leg_times, golden replay + re-planning test, phases 1-5, open questions).
+  Phase 1 DONE: export_package.py = pipeline step 10 -> dist/gapeka-2026/package.json.gz (0.44 MB) + manifest,
+  schema/package.schema.json, package_check.py, check.py section 7 (see the phase 1 notes in the plan).
 
 ## Domain rules from the user (do not re-guess these)
 

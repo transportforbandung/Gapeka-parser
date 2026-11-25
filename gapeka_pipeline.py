@@ -24,7 +24,9 @@ Steps
                                                     timetable; halt rules checked against KAI, reference/)
   9  model estimates                -> halt_est: halt times by the KAI rule of the region (rules/halt_rules.csv),
                                        manual KAI halt times (rules/halt_offsets.csv) last; KA Dinas passing times
---no-model skips steps 7-9 (step 3 estimates stay).
+  10 simulator data package         -> dist/<edition>/package.json.gz + manifest.json (export_package.py,
+                                       schema/package.schema.json)
+--no-model skips steps 7-10 (step 3 estimates stay).
 All halt rows are ESTIMATES (method column); the timetable prints no time for them.
 Needs: pip install pymupdf numpy
 """
@@ -1428,6 +1430,15 @@ def main(argv):
     db.commit()
     db.execute("VACUUM")
     print("wrote", out)
+    if model and graph:
+        # [10] simulator data package (docs/simulator_package.md) from the three databases
+        import export_package
+        folder = os.path.dirname(os.path.abspath(out))
+        db.close()
+        pkg = export_package.build(out, os.path.join(folder, "infra.db"), os.path.join(folder, "rules.db"))
+        export_package.validate(pkg)
+        where, m = export_package.write(pkg, os.path.join(folder, "dist"))
+        print(f"[10] simulator package {where}: {m['bytes'] / 1e6:.2f} MB, {m['counts']}")
 
 
 if __name__ == "__main__":

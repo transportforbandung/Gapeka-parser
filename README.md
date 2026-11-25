@@ -332,3 +332,10 @@ SELECT item, detail FROM qa WHERE check_name = 'timetable pair without a sheet s
   publishing.
 - Halt and KA Dinas times are estimates; printed times are exactly as in the GAPEKA.
 - The readers are tuned to the layout of the GAPEKA 2026 PDF (see "A new GAPEKA edition").
+
+## Simulator data package
+
+`export_package.py` (pipeline step 10) writes `dist/<edition>/package.json.gz` and `manifest.json`: stations, lines,
+sections, station track layouts, dinas tutup, capacity, trains with stops (each time marked printed / model / graph /
+manual), waits from the timetable notes, set / locomotive duties, the running-time model and the rules, validated
+against `schema/package.schema.json`. Plan and format notes: `docs/simulator_package.md`.

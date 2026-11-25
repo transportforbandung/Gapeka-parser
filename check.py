@@ -25,7 +25,8 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(HERE, "tests", "baseline")
 LIMITS = {"model_over_1min": 0.05,
-          "halts": {"bandung": (0.75, 0.98), "jabodetabek (held-out trains)": (0.85, 0.98), "surabaya": (0.80, 0.98)}}
+          "halts": {"bandung": (0.75, 0.98), "jabodetabek (held-out trains)": (0.85, 0.98), "surabaya": (0.80, 0.98)},
+          "package_bytes": 1_500_000}
 EXPORTS = [  # (file name, command)
     ("cl_bandung_even.svg", ["export_poster.py", "386-431", "--even"]),
     ("cl_bandung_odd.svg", ["export_poster.py", "386-431", "--odd"]),
@@ -104,6 +105,31 @@ def main():
             same = filecmp.cmp(os.path.join(tmp, name), os.path.join(BASE, name), shallow=False)
             result(same, f"{name} {'identical' if same else 'DIFFERS (compare with tests/baseline/' + name + ')'}")
         shutil.rmtree(tmp)
+    print("7. simulator data package (dist/)")
+    import glob
+    import package_check
+    found = sorted(glob.glob(os.path.join(folder, "dist", "*", "manifest.json")))
+    if not found:
+        result(False, "no package: run  python export_package.py")
+    for mpath in found:
+        pfolder = os.path.dirname(mpath)
+        pkg, man = package_check.load(pfolder)
+        try:
+            import export_package
+            export_package.validate(pkg)
+            result(True, f"{os.path.basename(pfolder)}: schema valid")
+        except Exception as e:                         # noqa: BLE001 (report any schema error as a failed check)
+            result(False, f"{os.path.basename(pfolder)}: schema: {str(e).splitlines()[0]}")
+        probs, info = package_check.problems(pkg)
+        result(not probs, f"references / time order: {len(probs)} problems {probs[:3]}")
+        result(man["bytes"] <= LIMITS["package_bytes"], f"size {man['bytes'] / 1e6:.2f} MB (limit "
+                                                        f"{LIMITS['package_bytes'] / 1e6:.1f} MB)")
+        n_t = g.execute("select count(*) from trains").fetchone()[0]
+        n_s = infra.execute("select count(*) from sections").fetchone()[0]
+        result(man["counts"]["trains"] == n_t and man["counts"]["sections"] == n_s,
+               f"trains {man['counts']['trains']} / {n_t}, sections {man['counts']['sections']} / {n_s} (package / databases)")
+        sha = infra.execute("select value from meta where key = 'pdf_sha256'").fetchone()[0]
+        result(man["pdf_sha256"] == sha, "package built from the same PDF as infra.db")
     print("\nall checks passed" if not failed else f"\n{len(failed)} check(s) failed")
     sys.exit(1 if failed else 0)
 
