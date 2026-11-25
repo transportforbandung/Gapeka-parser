@@ -72,8 +72,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   block k only when the train ahead passed point k+1; times inside a block by distance between halt times (knots).
   GAPEKA keeps it (24 / 23127 pairs break it, 0 margin). approach_blocks 1: a faster train behind must find the block
   clear one point earlier (signal aspect; the user's "stop the slower train where it would hold up the faster one").
-  Missing signals (Gambir - Manggarai): per-block fallback = tightest GAPEKA spacing at the block points
-  (headways.double_block_spacing_s, fitted at package build). Removed: overtake_margin, KRL exception, fixed double
+  Missing signals: Cikini - Manggarai prints no block signal (page 13) though the line has several (user):
+  manual/block_signals.csv (3 per track, evenly spaced like Gondangdia - Cikini; build_infra applies it) -> GAPEKA
+  pairs breaking the rule 24 -> 3 / 23127. Per-block fallback kept for other gaps = tightest GAPEKA spacing at the
+  block points (headways.double_block_spacing_s, fitted at package build). Removed: overtake_margin, KRL exception, fixed double
   minima. Re-planning: intercity 68 / 94 % (same station / end within 2 min), commuter 48 / 92, KRL 55 / 98
   (research/block_clear.py, docs phase 3 tuning). Dispatcher gap (user): double-track following = block clear + 1-2
   min, like single track: engine_params double_follow_gap 2 min (tested 0 / 1 / 2: same station intercity 68 / 71 /

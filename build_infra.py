@@ -1010,6 +1010,11 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
     sys_manual, sys_used = {}, set()
+    sig_manual, sig_used = {}, set()          # manual/block_signals.csv: signals the sheet does not print (user)
+    pth_s = os.path.join(manual_dir, "block_signals.csv")
+    if os.path.exists(pth_s):
+        for r in csv.DictReader(open(pth_s, encoding="utf-8")):
+            sig_manual[(r["from"], r["to"])] = r
     pth = os.path.join(manual_dir, "section_systems.csv")
     if os.path.exists(pth):
         for r in csv.DictReader(open(pth)):
@@ -1058,10 +1063,21 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             bs, el, note = "none", 0, "no symbol on the sheet: no block between stations (legacy communication)"
         out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
                     (a, b, var, bs, el, (p.get("sym") or {}).get("n", 0), note, p.get("page")))
-        for b_ in p["blocks"]:
+        blocks = p["blocks"]
+        mb = sig_manual.get((a, b))
+        if mb and not var:
+            # manual block signals (user): replace what the sheet shows, evenly spaced over the section per track
+            n = int(mb["signals"])
+            blocks = [dict(o=round(p["km"] * k / (n + 1), 3), tag=t, no=None, kind=f"manual: {mb['source']}: evenly spaced")
+                      for t in mb["tracks"].split() for k in range(1, n + 1)]
+            sig_used.add((a, b))
+        for b_ in blocks:
             out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
+    for k in sig_manual:
+        if k not in sig_used:
+            qa.append(("manual block signals not applied (no such section)", f"{k[0]}-{k[1]}", ""))
     for k, r in sys_manual.items():
         if k not in sys_used and (k[1], k[0]) not in sys_used and k == (r["from"], r["to"]):
             qa.append(("section system override not applied", f"{k[0]}-{k[1]}", r["block_system"]))

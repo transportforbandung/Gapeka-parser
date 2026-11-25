@@ -217,6 +217,9 @@ planner plans ONE train against all others, which keep their times (rules/engine
   directed block: a pair is also allowed when it is spaced at every block point at least like the tightest GAPEKA pair
   on that block (headways.double_block_spacing_s, 462 blocks, >= 60 s, fitted on GAPEKA when the package is built,
   never refitted on a user scenario). A line condition per block, not a global margin.
+  Fixed at the source (user): Cikini - Manggarai has no signal printed on page 13 (Gambir - Gondangdia 1, Gondangdia -
+  Cikini 3); manual/block_signals.csv adds 3 per track, evenly spaced (any number >= 1 makes GAPEKA consistent there;
+  3 = the Gondangdia - Cikini spacing). GAPEKA pairs breaking the block rule 24 -> 3 of 23127.
   The waiting train (overtaken) leaves when the overtaker has passed the next block point + the dispatcher gap
   (wait_gaps overtake double, 2.5 min).
   Re-planning test (printed running times; old fixed margins in brackets): intercity same station 68 % (69),
