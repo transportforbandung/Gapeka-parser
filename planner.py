@@ -383,6 +383,7 @@ class Planner:
         self.displaced = set()
         self.displaced_at = {}
         self.forced = set()                     # trains held by the long-train rule (any priority)
+        self.displaced_blk = {}                 # displaced train -> the block (a, b) of the train it gave way to
         self.tail = False                       # plan_priority past its cap
         self.root = None                        # the edited train of a plan_priority chain
         self.chain_rule = False                 # True: chain trains displace only trains they clearly outrank (tested: worse)
@@ -805,6 +806,7 @@ class Planner:
                         self.ignore.add(c[1])
                         self.displaced.add(c[1])
                         self.displaced_at.setdefault(c[1], rows[i][0])
+                        self.displaced_blk.setdefault(c[1], (rows[i][0], rows[j][0]))
                         continue
                     d = max(c[0], d + 1)
                     why = why or c                              # the first conflict is the reason for the wait
@@ -858,6 +860,7 @@ class Planner:
                         self.ignore.add(why[1])
                         self.displaced.add(why[1])
                         self.displaced_at.setdefault(why[1], st)
+                        self.displaced_blk.setdefault(why[1], (rows[i][0], rows[j][0]))
                         self.forced.add(why[1])
                         restart = True
                         break
@@ -889,6 +892,38 @@ class Planner:
         return rows, waits                      # not reached: the last attempt never restarts
 
 
+def hold_index(P, o, blk):
+    """where a held train is held: its last timed station before it reaches the block it gave way at (its printed
+    run before that stays as it is); 0 = from its origin"""
+    if not blk:
+        return 0
+    st = o["stops"]
+    pos = [k for k, r in enumerate(st) if r[0] in blk]
+    if not pos:
+        return 0
+    for k in range(min(pos) - 1, -1, -1):
+        r = st[k]
+        if P.kind.get(r[0]) != "halt" and (r[3] is not None or r[2] is not None):
+            return k
+    return 0
+
+
+def plan_from(P, o, dep, pf, k, printed_times=True):
+    """plan train o, keeping its printed rows before index k and re-timing it from its stop k (its printed departure
+    there is the earliest); k = 0: the whole train from dep"""
+    if not k:
+        return P.plan(o, dep, printed_times=printed_times, printed_from=pf)
+    st = o["stops"]
+    r = st[k]
+    d0 = r[3] if r[3] is not None else r[2]
+    sub = dict(o, stops=[list(x) for x in st[k:]])
+    rows, waits = P.plan(sub, d0, printed_times=printed_times, printed_from=dict(pf or o, stops=st[k:]))
+    head = [list(x) for x in st[:k]]
+    if rows:
+        rows[0][2] = r[2]                       # it arrived there as printed
+    return head + rows, waits
+
+
 def _end(rows):
     for r in reversed(rows):
         if r[2] is not None or r[3] is not None:
@@ -910,6 +945,7 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
     P.displace, P.ignore, P.displaced = False, set(), set()
     plain = P.plan(train, dep0, printed_times=printed_times, printed_from=printed_from)
     P.root = train["no"]
+    hold_k = {}                                 # held train -> index of its stop where it is held (re-timed from)
     saved = {}
     out = {}
     info_at = {}                                # displaced train -> (train it gave way to, station)
@@ -918,8 +954,8 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
         while queue and len(out) < max_trains:
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced = True, set(), set()
-            P.displaced_at, P.forced = {}, set()
-            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            P.displaced_at, P.forced, P.displaced_blk = {}, set(), {}
+            rows, waits = plan_from(P, t, dep, pf, hold_k.get(t["no"], 0), printed_times)
             info_at.update({o: (t["no"], st) for o, st in P.displaced_at.items()})
             out[t["no"]] = (rows, waits)
             for no in [t["no"]] + sorted(P.displaced, key=P.prio):
@@ -932,6 +968,7 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
             done = set(out) | {q[0]["no"] for q in queue}
             for no in sorted(P.displaced - done, key=P.prio):
                 o = byno[no]
+                hold_k[no] = hold_index(P, o, P.displaced_blk.get(no))
                 queue.append((o, o["stops"][0][3], o))
             queue.sort(key=lambda q: P.prio(q[0]["no"]))
         # cap reached: the rest of the chain holds nobody for priority, only where the long-train rule forces it
@@ -939,8 +976,8 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
         while queue and len(out) < 3 * max_trains:
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced, P.tail = True, set(), set(), True
-            P.displaced_at, P.forced = {}, set()
-            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            P.displaced_at, P.forced, P.displaced_blk = {}, set(), {}
+            rows, waits = plan_from(P, t, dep, pf, hold_k.get(t["no"], 0), printed_times)
             P.tail = False
             out[t["no"]] = (rows, waits)
             for no in sorted(P.displaced, key=P.prio):
@@ -953,11 +990,12 @@ def plan_priority(pkg, tl, P, train, dep0, printed_times=True, printed_from=None
             done = set(out) | {q[0]["no"] for q in queue}
             for no in sorted(P.displaced - done, key=P.prio):
                 o = byno[no]
+                hold_k[no] = hold_index(P, o, P.displaced_blk.get(no))
                 queue.append((o, o["stops"][0][3], o))
         while queue:                                # hard cap: plain (yields to all)
             t, dep, pf = queue.pop(0)
             P.displace, P.ignore, P.displaced = False, set(), set()
-            rows, waits = P.plan(t, dep, printed_times=printed_times, printed_from=pf)
+            rows, waits = plan_from(P, t, dep, pf, hold_k.get(t["no"], 0), printed_times)
             out[t["no"]] = (rows, waits)
             tl.set_rows(t["no"], rows)
             tl.index()

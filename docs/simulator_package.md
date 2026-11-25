@@ -339,5 +339,10 @@ research/delay_cases.py (plan_edit, train starts N min late). Causes found and f
 - plan_priority chain past its cap: still applies the long-train rule (no priority holding), hard cap 3 x.
 Results (end late): 7 +5 -> 21 min (accepted), 54 +15 -> 58, 8 +20 -> 40, 121 +15 -> 28, 2535 +10 -> 273; 7 +15 / +30
 still rejected (gain 367 min vs weighted cost 369 / 414: the held freight trains, re-planned from their printed
-departure, lose 2-4 h each) -> plain plan 6.7 h late. Open: re-time held trains from the hold point (not re-plan from
-the origin) / a dispatching re-plan of the affected trains in priority order.
+departure, lose 2-4 h each) -> plain plan 6.7 h late.
+- Held trains are now re-timed from where they are held (their printed run before that stays; plan_from /
+  hold_index), not re-planned from their origin: 7 +15 / +30 -> 35 min late (accepted). Sample (research/
+  delay_sample.py, the 30 lowest-numbered intercity trains each 15 min late): accepted 22 / 30 (origin: 20), end late
+  median 36 min (43), p90 255 min (300), max 335 (402); 11 within 30 min. Still too late in the tail (realistic:
+  ~15-25 min): next step = a dispatching re-plan (the affected trains in a time window re-planned together in priority
+  order), instead of one train at a time against a frozen timetable.
