@@ -16,7 +16,8 @@ npm run serve      # http://localhost:8080/
 is fetched as `data/gapeka-2026/package.json.gz` and unpacked in the browser).
 
 What a user can do:
-- pick a line (the 13 graph-sheet groups), drag to pan, wheel to zoom time (shift / ctrl + wheel: stations), find a
+- pick a graph: each margin table of a sheet group is its own graph (package lines[].tables; e.g. Cikampek - Garut =
+  Cikampek - Banjar, Andir - Ciroyom - Bandung, Cibatu - Garut), grouped by sheet group in the menu; drag to pan, wheel to zoom time (shift / ctrl + wheel: stations), find a
   train by number
 - click a train line: its timetable (printed times in black, model estimates in grey) and the v1 edits: late at the
   origin, vmax, type, cars, stop / pass per station, dwell

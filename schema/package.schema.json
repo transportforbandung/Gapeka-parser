@@ -425,6 +425,19 @@
               "null"
             ]
           },
+          "tables": {
+            "description": "separate graphs (margin tables) of the line: [first row index, last row index] into stations",
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
           "stations": {
             "type": "array",
             "items": {

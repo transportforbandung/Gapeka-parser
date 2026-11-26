@@ -38,6 +38,7 @@ button:hover { border-color: var(--ink); }
 .graph-wrap { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; padding: 10px 0 0 12px; }
 .sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; padding: 0 12px 6px 0; }
 .sheet-title { font-weight: 700; font-size: 15px; }
+.sheet-sub { font-weight: 400; font-size: 12.5px; color: var(--muted); margin-left: 6px; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid; }

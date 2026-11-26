@@ -38,7 +38,9 @@ let lang: "id" | "en" = "id";
 try { if (localStorage.getItem("gapeka-lang") === "en") lang = "en"; } catch { /* storage blocked */ }
 let timeline: Record<string, TRow[]> = {};
 let trainsBy = new Map<string, any>();          // package trains (scenario versions after apply)
-let lineId = "";
+let lineId = "";                                // graph id: line id + ":" + table index
+interface Graph { id: string; line: any; codes: string[] }
+let graphs: Graph[] = [];
 let geom: Geom | null = null;
 let paths = new Map<string, Path[]>();          // train -> polylines on the current line
 let preview: PlanResult | null = null;
@@ -84,12 +86,12 @@ function buildPairKm(): void {
   }
 }
 
-function buildGeom(line: any): Geom {
+function buildGeom(codes: string[]): Geom {
   const rows: GRow[] = [];
   const segs: { y0: number; y1: number }[] = [];
   let y = 0, seg = -1, prev: string | null = null, idx = 0;
   const gap = 4;
-  for (const [code] of line.stations as [string, number][]) {
+  for (const code of codes) {
     const d = prev ? (pairKm.get(prev + ">" + code) ?? pairKm.get(code + ">" + prev)) : undefined;
     if (prev === null || d === undefined) {
       if (seg >= 0) { segs[seg].y1 = y; y += gap; }
@@ -442,31 +444,53 @@ function hover(px: number, py: number): void {
   tip.hidden = false;
 }
 
-// ------------------------------------------------------------------------------------------------ lines
+// ------------------------------------------------------------------------------------------------ lines / graphs
+// a sheet group (pkg.lines) holds several margin tables, each its own graph (L04: Cikampek - Banjar, Andir - Ciroyom -
+// Bandung, Cibatu - Garut): pkg.lines[].tables from export_package.line_tables
+function buildGraphs(): void {
+  graphs = [];
+  for (const l of pkg.lines) {
+    const tabs: [number, number][] = l.tables?.length ? l.tables : [[0, l.stations.length - 1]];
+    tabs.forEach(([a, b], k) => graphs.push({ id: `${l.id}:${k}`, line: l,
+      codes: l.stations.slice(a, b + 1).map((x: any[]) => x[0]) }));
+  }
+}
+function graphTitle(g: Graph): string {
+  return `${stName(g.codes[0])} – ${stName(g.codes[g.codes.length - 1])}`;
+}
 function selectLine(id: string, keepView = false): void {
-  lineId = id;
-  const line = pkg.lines.find((l: any) => l.id === id);
-  ($("line") as HTMLSelectElement).value = id;
-  geom = buildGeom(line);
+  const g = graphs.find((x) => x.id === id) ?? graphs[0];
+  lineId = g.id;
+  ($("line") as HTMLSelectElement).value = g.id;
+  geom = buildGeom(g.codes);
   rebuildPaths();
   if (!keepView) fitY();
   clampView();
-  $("sheet-title").textContent = `${t("web.line")} ${lineTitle(line)}`;
+  sheetTitle();
   draw();
+}
+function sheetTitle(): void {
+  const g = graphs.find((x) => x.id === lineId);
+  if (!g) return;
+  const pages = String(g.line.pages ?? "").trim().split(/\s+/);
+  const pg = pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : pages[0];
+  $("sheet-title").innerHTML = `${esc(t("web.line"))} ${esc(graphTitle(g))} <span class="sheet-sub">${
+    esc(lineTitle(g.line))} · ${lang === "id" ? "hlm." : "p."} ${esc(pg)}</span>`;
 }
 function lineTitle(l: any): string {
   return l.title.split(" - ").map((x: string) => x.trim()).join(" – ");
 }
-function bestLine(no: string): string | null {
-  const rows = timeline[no];
-  if (!rows) return null;
-  const st = new Set(rows.map((r) => r[0]));
+function bestGraphFor(st: Set<string>): string | null {
   let best: string | null = null, n = 1;
-  for (const l of pkg.lines) {
-    const c = new Set(l.stations.map((s: any[]) => s[0]).filter((x: string) => st.has(x))).size;
-    if (c > n) { n = c; best = l.id; }
+  for (const g of graphs) {
+    const c = new Set(g.codes.filter((x) => st.has(x))).size;
+    if (c > n) { n = c; best = g.id; }
   }
   return best;
+}
+function bestLine(no: string): string | null {
+  const rows = timeline[no];
+  return rows ? bestGraphFor(new Set(rows.map((r) => r[0]))) : null;
 }
 function focusPaths(ps: Path[] | undefined): void {
   if (!ps || !ps.length) return;
@@ -693,13 +717,7 @@ async function loadRoute(): Promise<void> {
   };
 }
 function bestLineFor(st: string[]): string | null {
-  const s = new Set(st);
-  let best: string | null = null, n = 1;
-  for (const l of pkg.lines) {
-    const c = l.stations.filter((x: any[]) => s.has(x[0])).length;
-    if (c > n) { n = c; best = l.id; }
-  }
-  return best;
+  return bestGraphFor(new Set(st));
 }
 
 // ------------------------------------------------------------------------------------------------ panel: scenario
@@ -768,9 +786,10 @@ function applyTexts(): void {
     `<span><i style="border-color:${TYPE_COLOR[k]};${k === "freight" ? "border-top-style:dashed" : k === "dinas" ? "border-top-style:dotted" : ""}"></i>${esc(t("train.type." + k))}</span>`).join("") +
     `<span><i style="border-color:#ff6d00;border-top-width:3px"></i>${esc(t("origin.simulated"))}</span>`;
   const sel = $("line") as HTMLSelectElement;
-  sel.innerHTML = pkg.lines.map((l: any) => `<option value="${l.id}">${esc(lineTitle(l))}</option>`).join("");
+  sel.innerHTML = pkg.lines.map((l: any) => `<optgroup label="${esc(lineTitle(l))}">${graphs.filter((g) => g.line === l)
+    .map((g) => `<option value="${g.id}">${esc(graphTitle(g))}</option>`).join("")}</optgroup>`).join("");
   sel.value = lineId;
-  if (geom) $("sheet-title").textContent = `${t("web.line")} ${lineTitle(pkg.lines.find((l: any) => l.id === lineId))}`;
+  if (geom) sheetTitle();
   renderTrain();
   renderNew();
   if (tab === "scenario") renderScenario();
@@ -788,8 +807,9 @@ async function main(): Promise<void> {
   trainsBy = new Map((pkg.trains as any[]).map((x) => [x.no, x]));
   buildPairKm();
   timeline = await call("timeline");
-  const start = pkg.lines.find((l: any) => l.stations.some((s: any[]) => s[0] === "BD")) ?? pkg.lines[0];
-  lineId = start.id;
+  buildGraphs();
+  const withBd = graphs.filter((g) => g.codes.includes("BD")).sort((a, b) => b.codes.length - a.codes.length);
+  lineId = (withBd[0] ?? graphs[0]).id;
   applyTexts();
   selectLine(lineId);
   $("loading").hidden = true;

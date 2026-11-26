@@ -122,7 +122,9 @@ Read this first. It records decisions and findings from earlier sessions so they
   (planner_golden.py --write, replay.py --write) and port the change. Station display names: manual/station_names.csv
   (user asked; drafted from known official names, status sure / check) -> stations.display_name.
   WEBSITE (user: GAPEKA-like graph, NO KAI / Kemenhub logos): web/ (index.html, style.css, src/main.ts; build with
-  `npm run web` in engine/, serve with `npm run serve`); see web/README.md.
+  `npm run web` in engine/, serve with `npm run serve`); see web/README.md. One graph per margin TABLE, not per sheet group (user:
+  Cibatu - Garut and the Ciroyom branch are separate graphs): export_package.line_tables -> lines[].tables (new table
+  where two neighbouring rows have no section; repeated tables dropped, page 28).
 
 ## Domain rules from the user (do not re-guess these)
 

@@ -94,6 +94,28 @@ def run_class(ttype, service):
     return ttype
 
 
+def line_tables(lines, profiles):
+    """the separate graphs (tables) of each sheet group: a line's station rows hold several margin tables one after the
+    other (L04: Cikampek - Banjar, Andir - Ciroyom - Bandung, Cibatu - Garut); a new table starts where two neighbouring
+    rows have no section between them. A table that repeats an earlier one (page 28 draws two 12 h graphs) is dropped.
+    Adds lines[i]['tables'] = [[first row index, last row index], ...] in place."""
+    linked = {(r[0], r[1]) for r in profiles} | {(r[1], r[0]) for r in profiles}
+    for ln in lines:
+        codes = [x[0] for x in ln["stations"]]
+        tables, start = [], 0
+        for k in range(1, len(codes) + 1):
+            if k == len(codes) or (codes[k - 1], codes[k]) not in linked:
+                tables.append([start, k - 1])
+                start = k
+        seen, keep = set(), []
+        for a, b in tables:
+            key = tuple(codes[a:b + 1])
+            if key not in seen:
+                seen.add(key)
+                keep.append([a, b])
+        ln["tables"] = keep
+
+
 def build(tt_path, infra_path, rules_path):
     g, i, r = sqlite3.connect(tt_path), sqlite3.connect(infra_path), sqlite3.connect(rules_path)
     meta_i = dict(i.execute("select key, value from meta"))
@@ -314,6 +336,7 @@ def build(tt_path, infra_path, rules_path):
                           manual="set by hand (user decision)"),
         origins={k[7:]: v for k, v in texts.items() if k.startswith("origin.")},
         disclaimer=disclaimer)
+    line_tables(lines, profiles)
     pkg = dict(meta=meta, fields=FIELDS, profiles=profiles, stations=stations, lines=lines, sections=sections, layouts=layouts,
                 layout_refs=layout_refs, dinas_tutup=dinas_tutup, capacity=capacity, trains=trains, waits=waits,
                 duties=duties, model=model, rules=rules, texts=texts)
