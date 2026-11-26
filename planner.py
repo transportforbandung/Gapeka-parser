@@ -21,7 +21,8 @@ class Timeline:
 
     def __init__(self, pkg, skip=()):
         self.pkg = pkg
-        self.kind = {c: s["kind"] for c, s in pkg["stations"].items()}
+        # a junction (Jsp.: siding branching off the open line) is no block point and no place to wait: like a halt
+        self.kind = {c: ("halt" if s["kind"] == "junction" else s["kind"]) for c, s in pkg["stations"].items()}
         self.prof = physics_ref.Profiles(pkg["profiles"])
         self.trains = {}
         self._signals_init()

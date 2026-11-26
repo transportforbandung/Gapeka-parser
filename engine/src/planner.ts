@@ -123,7 +123,10 @@ export class Timeline {
   blockHmin = new Map<string, number>();
 
   constructor(public pkg: Pkg, skip: Iterable<string> = []) {
-    for (const [c, s] of Object.entries(pkg.stations as Record<string, { kind: string }>)) this.kind.set(c, s.kind);
+    // a junction (Jsp.: siding branching off the open line) is no block point and no place to wait: like a halt
+    for (const [c, s] of Object.entries(pkg.stations as Record<string, { kind: string }>)) {
+      this.kind.set(c, s.kind === "junction" ? "halt" : s.kind);
+    }
     this.prof = new Profiles(pkg.profiles as ProfileRow[]);
     this.signalsInit();
     const sk = new Set(skip);

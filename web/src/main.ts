@@ -262,7 +262,7 @@ function paint(): void {
     const y = Math.round(yOf(r.y)) + 0.5;
     if (y < TOP - 2 || y > H + 2) continue;
     ctx.beginPath(); ctx.moveTo(LEFT, y); ctx.lineTo(W, y);
-    ctx.setLineDash(r.kind === "halt" ? [3, 3] : r.kind === "sheet_only" ? [1, 4] : []);
+    ctx.setLineDash(r.kind === "halt" ? [3, 3] : r.kind === "sheet_only" || r.kind === "junction" ? [1, 4] : []);
     ctx.strokeStyle = r.kind === "station" ? "#55534c" : "#a9a69c";
     ctx.lineWidth = 1;
     ctx.stroke();
@@ -310,10 +310,10 @@ function paint(): void {
     const y = yOf(r.y);
     if (y < TOP - 4 || y > H + 4) continue;
     const isSt = r.kind === "station";
-    if (!isSt && (y - lastY < 11 || pxPerKm < 6)) continue;
-    if (isSt && y - lastY < 9) continue;
+    if (!isSt && (y - lastY < 10 || pxPerKm < 6)) continue;
+    if (isSt && y - lastY < 10.5) continue;
     ctx.fillStyle = isSt ? "#1d1d1b" : "#8a877d";
-    ctx.font = `${isSt ? "600 " : "italic "}${LEFT < 120 ? 10 : 11}px system-ui, sans-serif`;
+    ctx.font = `${isSt ? "600 " : "italic "}${LEFT < 120 ? (isSt ? 9 : 8.5) : (isSt ? 10 : 9.5)}px system-ui, sans-serif`;
     ctx.textAlign = "right"; ctx.textBaseline = "middle";
     const nm = stName(r.code);
     const max = LEFT < 120 ? 13 : 22;

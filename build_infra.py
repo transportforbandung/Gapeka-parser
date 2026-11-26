@@ -1007,6 +1007,12 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     out.executemany("insert into meta values(?,?)", meta.items())
     out.executemany("insert into lines values(?,?,?,?)",
                     [(ln["id"], ln["title"], " ".join(map(str, ln["pages"])), headers[ln["best"]][0]) for ln in lines])
+    # 'Jsp.' rows (jalan simpang: a junction on the open line where a private siding branches off, e.g. Jsp. PERTAMINA
+    # near Purwakarta) are no stations: no platform, no loop. A KA Dinas traced from the graph passes Jsp. PERTAMINA, which
+    # made it a 'station' by the timetable rule above (user review, Nov 2026)
+    for r in st_rows.values():
+        if re.match(r"(?i)jsp\b", (r[1] or r[4] or "").strip()):
+            r[2] = "junction"
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
     sys_manual, sys_used = {}, set()

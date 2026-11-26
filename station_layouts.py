@@ -632,7 +632,7 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
     for a, b in inf.execute("select a, b from sections"):
         adj[a].add(b)
         adj[b].add(a)
-    halts = {c for (c,) in inf.execute("select code from stations where kind in ('halt', 'sheet only')")}
+    halts = {c for (c,) in inf.execute("select code from stations where kind in ('halt', 'sheet only', 'junction')")}
     nb = defaultdict(set)              # neighbours as the diagrams name them: the next stations, stepping over halts
     hops = defaultdict(dict)           # stops between two stations (any kind; some halts are listed as stations)
     for x in list(adj):
@@ -869,7 +869,7 @@ def next_stations(inf, st, line_id):
         if x in seen:
             continue
         seen.add(x)
-        if kind.get(x) in ("halt", "sheet only"):
+        if kind.get(x) in ("halt", "sheet only", "junction"):
             todo += list(adj[x])
         else:
             out.add(x)

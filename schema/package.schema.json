@@ -379,7 +379,8 @@
             "enum": [
               "station",
               "halt",
-              "sheet_only"
+              "sheet_only",
+              "junction"
             ]
           },
           "ctc": {

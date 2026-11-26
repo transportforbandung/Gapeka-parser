@@ -125,6 +125,9 @@ Read this first. It records decisions and findings from earlier sessions so they
   `npm run web` in engine/, serve with `npm run serve`); see web/README.md. One graph per margin TABLE, not per sheet group (user:
   Cibatu - Garut and the Ciroyom branch are separate graphs): export_package.line_tables -> lines[].tables (new table
   where two neighbouring rows have no section; repeated tables dropped, page 28).
+  Jsp. rows (jalan simpang: open-line junction where a private siding branches off; Jsp. PERTAMINA near Purwakarta,
+  Jsp. Balas, Jsp. Bjw) are kind 'junction' (build_infra; user review: Jsp. PERTAMINA was a 'station' only because
+  KA Dinas R371-2, traced from the graph, passes it); the planner treats a junction like a halt (no block point, no wait).
 
 ## Domain rules from the user (do not re-guess these)
 
