@@ -261,8 +261,9 @@ function paint(): void {
   for (const r of geom.rows) {
     const y = Math.round(yOf(r.y)) + 0.5;
     if (y < TOP - 2 || y > H + 2) continue;
+    if (r.kind === "junction") continue;        // the sheet draws no row line for a junction (Jsp.): tick only
     ctx.beginPath(); ctx.moveTo(LEFT, y); ctx.lineTo(W, y);
-    ctx.setLineDash(r.kind === "halt" ? [3, 3] : r.kind === "sheet_only" || r.kind === "junction" ? [1, 4] : []);
+    ctx.setLineDash(r.kind === "halt" ? [3, 3] : r.kind === "sheet_only" ? [1, 4] : []);
     ctx.strokeStyle = r.kind === "station" ? "#55534c" : "#a9a69c";
     ctx.lineWidth = 1;
     ctx.stroke();
@@ -305,20 +306,27 @@ function paint(): void {
   ctx.strokeStyle = "#1d1d1b"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(LEFT + 0.5, 0); ctx.lineTo(LEFT + 0.5, H); ctx.stroke();
   const pxPerKm = (H - TOP - BOTTOM) / (view.y1 - view.y0);
-  let lastY = -99;
-  for (const r of geom.rows) {
+  // labels: stations first (they always win the space), then halts / junctions where no label is near
+  const placed: number[] = [];
+  const free = (y: number, gap: number) => placed.every((p) => Math.abs(p - y) >= gap);
+  const order = [...geom.rows].sort((a, b) => (a.kind === "station" ? 0 : 1) - (b.kind === "station" ? 0 : 1));
+  for (const r of order) {
     const y = yOf(r.y);
     if (y < TOP - 4 || y > H + 4) continue;
     const isSt = r.kind === "station";
-    if (!isSt && (y - lastY < 10 || pxPerKm < 6)) continue;
-    if (isSt && y - lastY < 10.5) continue;
+    if (!isSt && (pxPerKm < 6 || !free(y, 10))) continue;
+    if (isSt && !free(y, 10.5)) continue;
+    if (r.kind === "junction") {                // short tick at the axis instead of a row line
+      ctx.strokeStyle = "#8a877d"; ctx.setLineDash([]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(LEFT - 4, Math.round(y) + 0.5); ctx.lineTo(LEFT + 6, Math.round(y) + 0.5); ctx.stroke();
+    }
     ctx.fillStyle = isSt ? "#1d1d1b" : "#8a877d";
     ctx.font = `${isSt ? "600 " : "italic "}${LEFT < 120 ? (isSt ? 9 : 8.5) : (isSt ? 10 : 9.5)}px system-ui, sans-serif`;
     ctx.textAlign = "right"; ctx.textBaseline = "middle";
     const nm = stName(r.code);
     const max = LEFT < 120 ? 13 : 22;
     ctx.fillText(nm.length > max ? nm.slice(0, max - 1) + "…" : nm, LEFT - 8, y);
-    lastY = y;
+    placed.push(y);
   }
   // top axis: hours
   ctx.fillStyle = "#fff"; ctx.fillRect(LEFT, 0, W - LEFT, TOP);
