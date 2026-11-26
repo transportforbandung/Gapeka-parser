@@ -128,6 +128,12 @@ Read this first. It records decisions and findings from earlier sessions so they
   Jsp. rows (jalan simpang: open-line junction where a private siding branches off; Jsp. PERTAMINA near Purwakarta,
   Jsp. Balas, Jsp. Bjw) are kind 'junction' (build_infra; user review: Jsp. PERTAMINA was a 'station' only because
   KA Dinas R371-2, traced from the graph, passes it); the planner treats a junction like a halt (no block point, no wait).
+  User check (p25): the Jsp rows have NO row line on the sheet (only name + km in the margin; positions right: Jsp.
+  PERTAMINA km 102.800, 270 m before Purwakarta 103.070; Jsp. Balas 105.700); the web had drawn Jsp. PERTAMINA as a
+  station row and hidden the Purwakarta label as too close. Row line style (build_infra.row_line_styles,
+  research/row_styles.py): a timetable 'station' whose row is DASHED on every page read is a halt (user rule) ->
+  Sadang, Karet, Gunung Putri, Pondok Leungsir, Cijambe, Rawabebek, Segitiga Mesigit (all passed by every train, no
+  diagram); qa rows. Rows read as 'none' are mostly filled-outline pages (not evidence).
 
 ## Domain rules from the user (do not re-guess these)
 

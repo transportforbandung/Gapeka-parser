@@ -653,6 +653,33 @@ def plausible(L, o):
 
 
 # ------------------------------------------------------------------------------------------------ main build
+def row_line_styles(page, ys, x_min=340.0):
+    """{code: 'solid' / 'dashed' / 'none'}: the horizontal strokes in the graph area within 1.2 pt of each row's y,
+    summed by length; 'none' when less than 50 pt is found (rows drawn as filled outlines are not read)"""
+    yl = sorted((y, c) for c, y in ys.items())
+    acc = {c: Counter() for c in ys}
+    for d in page.get_drawings():
+        dashed = bool(d.get("dashes")) and d["dashes"] not in ("[] 0", "[] 0.0")
+        for it in d["items"]:
+            if it[0] == "l":
+                x0, y0, x1, y1 = it[1].x, it[1].y, it[2].x, it[2].y
+            elif it[0] == "re" and it[1].height < 1.2 and it[1].width > 20:
+                x0, x1, y0 = it[1].x0, it[1].x1, (it[1].y0 + it[1].y1) / 2
+                y1 = y0
+            else:
+                continue
+            if abs(y0 - y1) > 0.3 or max(x0, x1) < x_min or abs(x1 - x0) < 3:
+                continue
+            for yy, c in yl:
+                if abs(yy - (y0 + y1) / 2) <= 1.2:
+                    acc[c]["dashed" if dashed else "solid"] += abs(x1 - x0)
+    out = {}
+    for c, cnt in acc.items():
+        tot = cnt["solid"] + cnt["dashed"]
+        out[c] = "none" if tot < 50 else ("dashed" if cnt["dashed"] > cnt["solid"] else "solid")
+    return out
+
+
 def build(pdf_path, tt_path, out_path, manual_dir):
     t_start = datetime.datetime.now()
     ttdb = sqlite3.connect(tt_path)
@@ -1113,6 +1140,24 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     out.executemany("insert into sheet_pairs values(?,?,?,?,?,?)",
                     [(pg, p["a"], p["b"], round(p["y_a"], 1), round(p["y_b"], 1), p.get("table"))
                      for pg, prof in sorted(per_page.items()) for p in prof["pairs"]])
+
+    # ---- halts by the row line (user: halts are drawn with DASHED / DOTTED row lines; Jsp. junctions have none). The
+    #      timetable rule above makes a code a halt only if trains stop there as a halt, so rows every train passes
+    #      (Sadang, Karet, Gunung Putri, ...) became 'station'. A station whose row is drawn dashed on every page where a
+    #      style is read (solid on none) is a halt. research/row_styles.py lists all rows.
+    votes = defaultdict(Counter)
+    for pg, prof in sorted(per_page.items()):
+        ys = {}
+        for p_ in prof["pairs"]:
+            ys[p_["a"]], ys[p_["b"]] = p_["y_a"], p_["y_b"]
+        for code, st in row_line_styles(doc[pg - 1], ys).items():
+            votes[code][st] += 1
+    for code, v in votes.items():
+        r = st_rows.get(code)
+        if r and r[2] == "station" and v["dashed"] >= 2 and not v["solid"]:
+            r[2] = "halt"
+            out.execute("update stations set kind = 'halt' where code = ?", (code,))
+            qa.append(("station drawn as a halt (dashed row): kind halt", code, f"{r[1]}: {dict(v)}"))
 
     # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
     #      arrow) every station can be closed in a set period, the end stations then work the section together
