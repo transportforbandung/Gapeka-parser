@@ -12,7 +12,13 @@ npm run web        # type-check, bundle web/build/app.js + worker.js, copy dist/
 npm run serve      # http://localhost:8080/
 ```
 
-`web/build/` and `web/data/` are build output (not in git). Host the `web/` folder on any static server (the package
+`web/build/` and `web/data/` are build output (not in git).
+
+Published by GitHub Actions (`.github/workflows/pages.yml`): on every push to `main` that touches `web/`, `engine/` or
+`dist/` (or by hand: Actions > Publish website > Run workflow) it runs the engine tests (equal to the Python goldens),
+builds the site, and deploys `index.html`, `style.css`, `build/` and `data/` to GitHub Pages
+(https://transportforbandung.github.io/Gapeka-parser/). One-time setting: repository Settings > Pages > Build and
+deployment > Source: **GitHub Actions**. A new edition is published by committing its `dist/<edition>/` package. Host the `web/` folder on any static server (the package
 is fetched as `data/gapeka-2026/package.json.gz` and unpacked in the browser).
 
 What a user can do:
