@@ -49,8 +49,91 @@ Read this first. It records decisions and findings from earlier sessions so they
 - Direction agreed so far: the pipeline (this repo) builds one data package per edition offline; the simulation
   engine runs in the user's browser (TypeScript / WASM in a Web Worker), checked against the Python engine with a
   "replay the official GAPEKA" test; static hosting; a server only later for accounts / shared scenarios.
-- Open decisions: who uses it (TfB internal or public), starting scope (all of Java or one region), check-only
-  conflicts vs automatic re-planning first, station track counts (not in the GAPEKA margins).
+- Decided (user, 25 Nov 2026): public from the start, all of Java, automatic re-planning, one compressed JSON package
+  per edition (+ JSON Schema / TypeScript types). Plan: docs/simulator_package.md (contents, rules as engine
+  parameters, running times by physics in the engine, golden replay + re-planning test, phases 1-5, open questions).
+  Phase 1 DONE: export_package.py = pipeline step 10 -> dist/gapeka-2026/package.json.gz (0.44 MB) + manifest,
+  schema/package.schema.json, package_check.py, check.py section 7 (see the phase 1 notes in the plan).
+  Phase 2 DONE (revised, user: "rely on physics for trains not in GAPEKA"): the engine runs the physics itself.
+  Package `profiles` (physics inputs per directed station pair, derived pairs resolved in Python) + physics_ref.py
+  (pure-Python physics, the port spec) + replay.py (reference engine from the package alone; = gapeka_model on every
+  timed leg, 0.0 s; held-out 83 / 14 / 3 %) + golden dist/gapeka-2026/replay.json.gz checked by check.py. Any vmax
+  works (precomputed leg times could not time a vmax GAPEKA never uses; removed).
+  Phase 3 BASELINE (25 Nov 2026): user: scheduled trains may be edited (GAPEKA times = starting point, re-planned);
+  never moved for a train created outside the schedule; the planner plans one train against all others (fixed).
+  rules/engine_params.csv; package rules.headways (fitted 0.1th percentile, >= 2 min: single follow / cross 2,
+  double 2-3 min; 1st percentiles caused false conflicts); planner.py (Timeline + Planner + replan_test; time tolerance
+  59 s because GAPEKA keeps exact minute gaps; double-track overtakes held at the last planned stop: +16 points);
+  check.py section 8. Re-planning test (printed running times): GAPEKA waits at the same station intercity 62 %,
+  commuter 43 %, KRL 63 %; end within 2 min 88 / 88 / 98 %; physics running times cascade (intercity 50 %): keep
+  printed running times for GAPEKA trains. Details + open tuning items: docs/simulator_package.md phase 3.
+  Overtakes (user: no fixed 3-5 min margins; "trains usually only need the block ahead to clear"): double-track
+  block-point rule: block points = stations (not halts) + block signals of the track in the direction; a train enters
+  block k only when the train ahead passed point k+1; times inside a block by distance between halt times (knots).
+  GAPEKA keeps it (24 / 23127 pairs break it, 0 margin). approach_blocks 1: a faster train behind must find the block
+  clear one point earlier (signal aspect; the user's "stop the slower train where it would hold up the faster one").
+  Missing signals: Cikini - Manggarai prints no block signal (page 13) though the line has several (user):
+  manual/block_signals.csv (3 per track, evenly spaced like Gondangdia - Cikini; build_infra applies it) -> GAPEKA
+  pairs breaking the rule 24 -> 3 / 23127. So it cannot happen silently again: signal_infer.py (pipeline step 10,
+  run by export_package.build before the headways): every double-track block where >= 3 GAPEKA pairs break the block
+  rule gets evenly spaced signals on its longest ABS double-track sheet section with none printed for that track (no
+  manual entry), spacing = the neighbouring sections' printed spacing; kept only if it removes broken pairs; written to
+  infra.db block_signals (kind 'inferred: ...') + qa rows; 1-2 broken pairs = qa row only (CTR-RK 1798/1800, KDB-WK
+  52/2604, KPB-KMO 2762F/5560). Without the manual row it reproduces CKI-MRI exactly (3 per track, 0.44 km spacing).
+  check.py section 7 fails above 5 broken pairs. build_infra alone drops inferred rows; step 10 adds them again.
+  Per-block fallback kept for other gaps = tightest GAPEKA spacing at the
+  block points (headways.double_block_spacing_s, fitted at package build). Removed: overtake_margin, KRL exception, fixed double
+  minima. Re-planning: intercity 68 / 94 % (same station / end within 2 min), commuter 48 / 92, KRL 55 / 98
+  (research/block_clear.py, docs phase 3 tuning). Dispatcher gap (user): double-track following = block clear + 1-2
+  min, like single track: engine_params double_follow_gap 2 min (tested 0 / 1 / 2: same station intercity 68 / 71 /
+  74 %, commuter 48 / 53 / 56, KRL 55 / 61 / 67; end within 2 min unchanged); GAPEKA keeps < 2 min in 2.8 % of
+  consecutive pairs. Fixed: hold_at_stop read the overtaker's times without the day shift (98 held 24 h). Physics is
+  PHASE 3 DONE (user: finish it before phase 4): station tracks by direction + length (matching; stop alone; standing
+  trains only need to fit; MU length cars x 20 m), release rule (never arrive at a full station; 1 min before the train
+  ahead leaves), GAPEKA's 43 printed station-check breaks tolerated (headways.station_exemptions), rolling-stock links
+  (headways.turnaround_min fitted; planner.plan_edit re-plans the unit's next trips), window time (Planner.windows),
+  capacity_warnings(). Re-planning: same station intercity 79 %, commuter 73 %, KRL 71 %; end within 2 min 92 / 93 / 98 %.
+  Decided (user): v1 edits = times, stops, dwell, vmax, type, length (no routes); engine in THIS repo, TypeScript;
+  disclaimer by Transport for Bandung, id + en. PHASE 4 DONE (texts are drafts the user customizes later: do not
+  list their review as open): origins on every value
+  (meta.origins; restrictions / block signals / tracks carry an origin field; infra.db station_tracks.origin), texts/ui.csv
+  (72 keys id / en) -> package texts, texts/disclaimer.md -> meta.disclaimer {id, en}, planner.explain(); schema 1.1.0.
+  Planner fixes found then: _plan no longer returns half plans after 60 restarts; plan_priority caps chains at 30 and
+  plans the rest plainly. Delayed priority trains (research/delay_cases.py): hold_at_stop now limited (hold <= wait it
+  replaces + 10 min; freight re-planning mean 88 -> 15 min), long-train rule in the planner (Planner.forced: a train
+  fitting no track holds the other train that fits, any number), own set successors never held, chain tail keeps the
+  long-train rule; held trains re-timed from where they are held (plan_from). 7 +15 -> 35 min late. Sample of the 30
+  lowest-numbered intercity +15 min (research/delay_sample.py): end late median 36, p90 255 min. DISPATCHING RE-PLAN
+  (user, done): planner.dispatch = plan_edit (affected trains together in priority order, holds decided per conflict by
+  worth_holding, downstream check forbids holds whose held train ends much later than the gain, max 3 passes;
+  Timeline.drop / put incremental) + RECOVERY (late trains run at max(technical minimum = raw physics + 20 s / halt,
+  printed - lateness)). Sample: ends late median 1 / p90 23 / max 100 min; others' total delay median 25 min; Bima +15
+  -> 1 min late. Re-planning test: same station 85 / 78 / 73 %, freight end within 2 min 80 %. Physics is
+  unbiased vs GAPEKA (trip median -0.3 / 0.0 / 0.0 min; GAPEKA's supplement is in the calibration, x1.06-1.08 + fixed
+  times); physics re-planning errors are symmetric waits cascading from +-1 min legs (research/physics_sign.py).
+  Python planner sped up 4-7x with identical plans (bisect time windows, early bound test, cached block-point times,
+  cached compose / minimum): 1008 +15 min 19.5 -> 2.8 s (docs/simulator_package.md 'Python planner speed').
+  PHASE 5 DONE (user: "start phase 5"): engine/ = TypeScript port (py.ts / physics.ts / replay.ts / planner.ts /
+  session.ts / worker.ts), equal to Python TO THE LAST BIT: golden replay, 36695 legs, re-planning test (2093 trains,
+  rows + waits), dispatch goldens (dist/<edition>/replan.json.gz + dispatch.json.gz by planner_golden.py, pipeline
+  step 10, check.py sections 8-9 incl. a headless-Chromium smoke test of the bundled worker). Keep the exactness rules
+  in engine/README.md when changing planner.py / physics_ref.py / replay.py (v * v not ** 2, pySum for sum(), round
+  half even, floor %, dict order, heapq order, no set-order dependence); after a Python change rewrite the goldens
+  (planner_golden.py --write, replay.py --write) and port the change. Station display names: manual/station_names.csv
+  (user asked; drafted from known official names, status sure / check) -> stations.display_name.
+  WEBSITE (user: GAPEKA-like graph, NO KAI / Kemenhub logos): web/ (index.html, style.css, src/main.ts; build with
+  `npm run web` in engine/, serve with `npm run serve`); see web/README.md. One graph per margin TABLE, not per sheet group (user:
+  Cibatu - Garut and the Ciroyom branch are separate graphs): export_package.line_tables -> lines[].tables (new table
+  where two neighbouring rows have no section; repeated tables dropped, page 28).
+  Jsp. rows (jalan simpang: open-line junction where a private siding branches off; Jsp. PERTAMINA near Purwakarta,
+  Jsp. Balas, Jsp. Bjw) are kind 'junction' (build_infra; user review: Jsp. PERTAMINA was a 'station' only because
+  KA Dinas R371-2, traced from the graph, passes it); the planner treats a junction like a halt (no block point, no wait).
+  User check (p25): the Jsp rows have NO row line on the sheet (only name + km in the margin; positions right: Jsp.
+  PERTAMINA km 102.800, 270 m before Purwakarta 103.070; Jsp. Balas 105.700); the web had drawn Jsp. PERTAMINA as a
+  station row and hidden the Purwakarta label as too close. Row line style (build_infra.row_line_styles,
+  research/row_styles.py): a timetable 'station' whose row is DASHED on every page read is a halt (user rule) ->
+  Sadang, Karet, Gunung Putri, Pondok Leungsir, Cijambe, Rawabebek, Segitiga Mesigit (all passed by every train, no
+  diagram); qa rows. Rows read as 'none' are mostly filled-outline pages (not evidence).
 
 ## Domain rules from the user (do not re-guess these)
 
@@ -157,7 +240,26 @@ Read this first. It records decisions and findings from earlier sessions so they
   printed waits); the simulation auto-calculates with the number rule. Written as hand rules in rules/priority.csv
   (rules.db table priority): overtake -> higher number waits; crossing -> lower number keeps running, unless it
   reaches the loop first while the other is still in the section, then the first to arrive waits; equal numbers ->
-  regular before facultative (assumed).
+  regular before facultative (assumed). SUPERSEDED (user, 25 Nov 2026): the lower number never stops at a station it
+  does not serve for a crossing / overtake; if it would arrive there while the higher-numbered train is still in the
+  block, the higher number is held at its previous station (before the block). planner.plan_priority: the planned
+  scheduled train ignores higher-numbered scheduled trains where it would wait at a non-served (pass) station; those
+  are displaced and re-planned in priority order (KA Dinas last, then number, regular before facultative), each may
+  displace higher numbers; a train created outside the schedule never displaces. research/priority_displace.py
+  (GAPEKA's 57 lower-number crossing waits are all at the lower train's passenger stops: allowed, user: waiting where
+  it serves passengers is more effective; the test treats those stations as not served, a synthetic check): waits there 39 -> 1; displaced trains end
+  median 11 min later than GAPEKA (45 % within 5 min; ripples on busy single track, e.g. 52 at Kepanjen moves 11
+  trains, max_trains 12). replan_test keeps the plain mode (planned train yields to all).
+  Close numbers / direction (user: odd = from the east, even = from the west; a 1-number gap or the direction must not
+  decide priority): research/cross_priority.py, 300 clear GAPEKA crossings (one stands, one runs): lower number runs
+  81 % when numbers differ by >= 100, 57-61 % below 100 (chance), odd vs even lower number 74 / 79 % (no effect).
+  Rule: clear priority only for regular over KA Dinas, number gap >= 50 (engine_params priority_number_gap; user
+  lowered it from 100: gaps 50-99 follow the number 73 %, n 22; below 50 51 %), or same number regular over
+  facultative; closer = EQUAL priority, the crossing goes where the total delay is least.
+  Cost limit (user: stop holding when the delay is much bigger than the gain): plan_priority compares with the plain
+  plan; held trains' end delay / displace_cost_ratio (3) for trains clearly outranked, in full for equal ones, must
+  be <= the planned train's gain, else the plain plan. 57-case test: accepted 23, held trains median 0 min late, 87 %
+  within 5 min (ratio 1 / 5: 21 / 24 accepted).
 - Station track diagrams (right of each graph sheet, user): label "track-effective length (m)" ("I-255,9").
   Roman numerals = main or siding tracks; Arabic = stabling / yard only (no crossing / overtaking use). Arrows show
   the NORMAL running direction; Indonesia runs on the RIGHT track on double track. Main straight through tracks are
@@ -359,6 +461,40 @@ Read this first. It records decisions and findings from earlier sessions so they
   flatcars); the PDF gives no daily loads and the freight timetable pages no length. User decision: tolerate the freight
   already scheduled in GAPEKA (research/blocked_station.py --write -> rules/fit_exemptions.csv, rules.db table
   fit_exemptions, 15 printed cases); the rules stay strict for new or changed trains (rules/priority.csv).
+- Distance tables (distances.py, 'JARAK ANTAR STASIUN' PDF pages 1875-1887: O/D matrices per line + small two-station
+  boxes; headers found from the row of column numbers, codes may be staggered, p1877 holds two Jakarta Kota - Cikampek
+  matrices: via Pasarsenen and via Manggarai) -> infra.db station_distances (4501 pairs, adjacent = consecutive in
+  the table, halts skipped). build_infra checks every consecutive pair against the direct section, else the
+  shortest section route: 359 / 364 within 10 m (independent of the sheet km). Fixed from the tables
+  (manual/pair_overrides.csv): Cirebon - Cirebon Prujakan 1.606 (sheet 3.199: Prujakan km 222.367 is another
+  chainage), Kesamben - Pogajih 7.580 (sheet 6.419, chainage break; timetable distance column also 7.58), new direct
+  section Surabaya Gubeng - Sidotopo 3.454 (7 trains each way skip Surabaya Kota). Left in qa: the table swaps
+  Wates / Kedundang (sheet and timetable: Wojo - Kedundang - Wates - Sentolo), and KEN-CGD / JAKG-KPB / GS-IDO
+  (Cigading, Jakarta Gudang, Gresik: no timetable stations). MGA in the tables = MAG (Magetan). Cikampek - Banjar
+  table: cells Rajapolah / Indihiang to KNP / BJR are 1.042 km off their own sums (PDF typo;
+  consecutive cells used). check.py unchanged (held-out > 1 min 3.3 %).
+- Secondary data policy (user, Nov 2026): the distance tables (pp 1875-1887) and the capacity diagrams (pp 1866-1874)
+  are SECONDARY: they check the primary data (timetable pages, graph sheets) and add what the primary data lacks
+  (capacity K), but never replace it on their own. A distance-table value replaces a sheet length only when a second
+  source agrees (the 3 pair overrides: timetable distance column / running times); other differences stay qa notes.
+  Capacity: the printed P is a reference only (blanks such as Tegal - Larangan 0/0, 15 blocks not adding up); the
+  load for the warning is counted from the timetable: section_capacity.timetable_regular / timetable_facultative
+  (trains over the section, path reduced to the diagram stations) and path = stations along the section (a block can
+  span several stations, e.g. CKP-HGL = CKP TJS PAB PRI PAS CKM PGB CRA HGL); CGD-KEN has no section route (Cigading).
+- Line capacity (capacity.py, 'PROGRAM KA DAN KAPASITAS LINTAS' PDF pages 1866-1874, network diagrams per Daop): every
+  section block carries its section as hidden WHITE text ('KPB-AC', 'BKS-TB') just above its first row; rows
+  'CAT = reg/fac' down to 'K = n' ('=' may be glued to the name 'KOM=', 'PAR='; 'K 168' without '='; row spacing 6-12 pt;
+  some blocks print no category names (TPK-AC, AC-RJW): last row K, the one above P; a label can be printed twice).
+  User: KOM / EKO = long-distance or local passenger trains other than KRL; P = program (scheduled trains), K =
+  capacity (trains per day); a/b = regular / facultative. -> infra.db section_capacity (a, b, program_regular,
+  program_facultative, capacity, counts_add_up) + section_program (category rows): 141 blocks. Check
+  (research/capacity_check.py, gapeka.db trains over the section, path reduced to the diagram stations): P exact
+  (regular + facultative) 98 / 141, regular within 2 trains 131 / 141; the rest: KA Dinas counts (Surabaya yard,
+  Kroya - Gumilir - Cilacap), Andir - Bandung (P 140 counts both routes; gapeka.db splits via Ciroyom), Jatinegara -
+  Bekasi (414 vs 482: quadruple track), Tegal - Larangan printed 0/0 (blank template; gapeka.db 104/18). 15 blocks
+  whose categories do not add up to P as printed (qa). Busiest: Pasarsenen - Jatinegara 349 / 354, Klari - Cikampek
+  208 / 224; none over K. Simulator rule (user): warn when a section exceeds K; it still runs, with more hurdles
+  because scheduled trains keep priority (rules/priority.csv event capacity).
 - Layout data status (this round): complete for what the sheets show; open: (position-only assignments reviewed,
   see above), platforms / switch speeds / switch distances (not on the diagrams), the actual track a train uses (only the
   allowed set per direction is derived).

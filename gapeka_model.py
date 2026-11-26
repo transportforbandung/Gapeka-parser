@@ -361,11 +361,12 @@ class Model:
         self.calib, self.eff = {}, {}
 
     # ---- one leg (list of stations, vmax per row), cap per 50 m cell
-    def make_leg(self, no, stations, vmaxes, start_rest, end_rest, halt_idx=(), first=False, last=False, ttype=None):
+    def make_leg(self, no, stations, vmaxes, start_rest, end_rest, halt_idx=(), first=False, last=False, ttype=None,
+                 ctx=None):
         typ = ttype or self.ttype.get(no, "intercity")
         emu = phys_group(typ, self.service.get(no, "")) == "krl"
         caps, sec_grade, halts = [], [], []
-        ctx = frozenset(stations)
+        ctx = frozenset(stations) if ctx is None else frozenset(ctx) | frozenset(stations)
         for i, (a, b) in enumerate(zip(stations, stations[1:])):
             pr = self.infra.profile(a, b, ctx)
             v = vmaxes[i]

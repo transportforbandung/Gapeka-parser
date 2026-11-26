@@ -85,6 +85,9 @@ says where it came from (`source`: sheet / sheet (joined) / manual) and the PDF 
 | `block_signals` | Block signals: position, track, number |
 | `dinas_tutup` | Dinas tutup sections (dashed arrows beside the symbol column): between `end_a` and `end_b` the stations in `closed` can be closed in a set period; the end stations then work the section together |
 | `dinas_tutup_marks` | '=' marks on train lines inside dinas tutup pieces (train passes closed stations): sub-section rows, position, time; periods per station in `research/dinas_tutup_periods.txt` |
+| `section_capacity` | 'PROGRAM KA DAN KAPASITAS LINTAS' (PDF pages 1866-1874): per section `program_regular` / `program_facultative` = scheduled trains per day (P = a/b), `capacity` = K (trains per day), `counts_add_up` = the category rows add up to P as printed; `timetable_regular` / `timetable_facultative` = trains counted from gapeka.db over the section (use these for the load: the printed P is secondary data), `path` = stations along the section |
+| `section_program` | The category rows of those blocks: `category` (KOM, EKO, LOK EKO, KRL, KRD, BAND, PARCEL, PTK, BAR, BBM, SEMEN, PUPUK, TERNAK, D = KA Dinas), `regular`, `facultative` |
+| `station_distances` | 'JARAK ANTAR STASIUN' tables (PDF pages 1875-1887): distance in km between every pair of stations of a table (`matrix` = first, second, last station), `adjacent` = consecutive in the table (halts skipped); build_infra checks consecutive pairs against the sections (qa) |
 | `sheet_pairs` | Adjacent station rows of every graph page with their y positions (for reading the graph) |
 | `joint_dispatch` | Stations run by the dispatcher of another station (box in the symbol column, triangle = dispatcher's station); `position` end / inside the box, `triangle` white / black drawing |
 | `section_systems` | Per section, from the symbol column beside the graph: block system (closed automatic block, open automatic block, electromechanical block) and electrified (1 = zigzag symbol); 'none' = no symbol on the sheet (no block between stations, legacy communication); `symbols` = number of symbols read, `detail` = mixed symbols / manual note; manual rows from `manual/section_systems.csv` |
@@ -344,3 +347,10 @@ SELECT item, detail FROM qa WHERE check_name = 'timetable pair without a sheet s
   publishing.
 - Halt and KA Dinas times are estimates; printed times are exactly as in the GAPEKA.
 - The readers are tuned to the layout of the GAPEKA 2026 PDF (see "A new GAPEKA edition").
+
+## Simulator data package
+
+`export_package.py` (pipeline step 10) writes `dist/<edition>/package.json.gz` and `manifest.json`: stations, lines,
+sections, station track layouts, dinas tutup, capacity, trains with stops (each time marked printed / model / graph /
+manual), waits from the timetable notes, set / locomotive duties, the running-time model and the rules, validated
+against `schema/package.schema.json`. Plan and format notes: `docs/simulator_package.md`.

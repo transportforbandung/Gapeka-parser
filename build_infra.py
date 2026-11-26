@@ -653,6 +653,33 @@ def plausible(L, o):
 
 
 # ------------------------------------------------------------------------------------------------ main build
+def row_line_styles(page, ys, x_min=340.0):
+    """{code: 'solid' / 'dashed' / 'none'}: the horizontal strokes in the graph area within 1.2 pt of each row's y,
+    summed by length; 'none' when less than 50 pt is found (rows drawn as filled outlines are not read)"""
+    yl = sorted((y, c) for c, y in ys.items())
+    acc = {c: Counter() for c in ys}
+    for d in page.get_drawings():
+        dashed = bool(d.get("dashes")) and d["dashes"] not in ("[] 0", "[] 0.0")
+        for it in d["items"]:
+            if it[0] == "l":
+                x0, y0, x1, y1 = it[1].x, it[1].y, it[2].x, it[2].y
+            elif it[0] == "re" and it[1].height < 1.2 and it[1].width > 20:
+                x0, x1, y0 = it[1].x0, it[1].x1, (it[1].y0 + it[1].y1) / 2
+                y1 = y0
+            else:
+                continue
+            if abs(y0 - y1) > 0.3 or max(x0, x1) < x_min or abs(x1 - x0) < 3:
+                continue
+            for yy, c in yl:
+                if abs(yy - (y0 + y1) / 2) <= 1.2:
+                    acc[c]["dashed" if dashed else "solid"] += abs(x1 - x0)
+    out = {}
+    for c, cnt in acc.items():
+        tot = cnt["solid"] + cnt["dashed"]
+        out[c] = "none" if tot < 50 else ("dashed" if cnt["dashed"] > cnt["solid"] else "solid")
+    return out
+
+
 def build(pdf_path, tt_path, out_path, manual_dir):
     t_start = datetime.datetime.now()
     ttdb = sqlite3.connect(tt_path)
@@ -1007,9 +1034,20 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     out.executemany("insert into meta values(?,?)", meta.items())
     out.executemany("insert into lines values(?,?,?,?)",
                     [(ln["id"], ln["title"], " ".join(map(str, ln["pages"])), headers[ln["best"]][0]) for ln in lines])
+    # 'Jsp.' rows (jalan simpang: a junction on the open line where a private siding branches off, e.g. Jsp. PERTAMINA
+    # near Purwakarta) are no stations: no platform, no loop. A KA Dinas traced from the graph passes Jsp. PERTAMINA, which
+    # made it a 'station' by the timetable rule above (user review, Nov 2026)
+    for r in st_rows.values():
+        if re.match(r"(?i)jsp\b", (r[1] or r[4] or "").strip()):
+            r[2] = "junction"
     out.executemany("insert into stations values(?,?,?,?,?,?)", st_rows.values())
     out.executemany("insert into line_stations values(?,?,?,?,?,?,?)", line_station_rows)
     sys_manual, sys_used = {}, set()
+    sig_manual, sig_used = {}, set()          # manual/block_signals.csv: signals the sheet does not print (user)
+    pth_s = os.path.join(manual_dir, "block_signals.csv")
+    if os.path.exists(pth_s):
+        for r in csv.DictReader(open(pth_s, encoding="utf-8")):
+            sig_manual[(r["from"], r["to"])] = r
     pth = os.path.join(manual_dir, "section_systems.csv")
     if os.path.exists(pth):
         for r in csv.DictReader(open(pth)):
@@ -1058,10 +1096,21 @@ def build(pdf_path, tt_path, out_path, manual_dir):
             bs, el, note = "none", 0, "no symbol on the sheet: no block between stations (legacy communication)"
         out.execute("insert into section_systems values(?,?,?,?,?,?,?,?)",
                     (a, b, var, bs, el, (p.get("sym") or {}).get("n", 0), note, p.get("page")))
-        for b_ in p["blocks"]:
+        blocks = p["blocks"]
+        mb = sig_manual.get((a, b))
+        if mb and not var:
+            # manual block signals (user): replace what the sheet shows, evenly spaced over the section per track
+            n = int(mb["signals"])
+            blocks = [dict(o=round(p["km"] * k / (n + 1), 3), tag=t, no=None, kind=f"manual: {mb['source']}: evenly spaced")
+                      for t in mb["tracks"].split() for k in range(1, n + 1)]
+            sig_used.add((a, b))
+        for b_ in blocks:
             out.execute("insert into block_signals values(?,?,?,?,?,?,?,?,?)",
                         (a, b, b_["o"], b_["tag"], b_["no"] or None, b_.get("km"), b_["kind"], p.get("page"), var))
     out.executemany("insert into double_track_header values(?,?,?,?,?)", dt_rows)
+    for k in sig_manual:
+        if k not in sig_used:
+            qa.append(("manual block signals not applied (no such section)", f"{k[0]}-{k[1]}", ""))
     for k, r in sys_manual.items():
         if k not in sys_used and (k[1], k[0]) not in sys_used and k == (r["from"], r["to"]):
             qa.append(("section system override not applied", f"{k[0]}-{k[1]}", r["block_system"]))
@@ -1091,6 +1140,24 @@ def build(pdf_path, tt_path, out_path, manual_dir):
     out.executemany("insert into sheet_pairs values(?,?,?,?,?,?)",
                     [(pg, p["a"], p["b"], round(p["y_a"], 1), round(p["y_b"], 1), p.get("table"))
                      for pg, prof in sorted(per_page.items()) for p in prof["pairs"]])
+
+    # ---- halts by the row line (user: halts are drawn with DASHED / DOTTED row lines; Jsp. junctions have none). The
+    #      timetable rule above makes a code a halt only if trains stop there as a halt, so rows every train passes
+    #      (Sadang, Karet, Gunung Putri, ...) became 'station'. A station whose row is drawn dashed on every page where a
+    #      style is read (solid on none) is a halt. research/row_styles.py lists all rows.
+    votes = defaultdict(Counter)
+    for pg, prof in sorted(per_page.items()):
+        ys = {}
+        for p_ in prof["pairs"]:
+            ys[p_["a"]], ys[p_["b"]] = p_["y_a"], p_["y_b"]
+        for code, st in row_line_styles(doc[pg - 1], ys).items():
+            votes[code][st] += 1
+    for code, v in votes.items():
+        r = st_rows.get(code)
+        if r and r[2] == "station" and v["dashed"] >= 2 and not v["solid"]:
+            r[2] = "halt"
+            out.execute("update stations set kind = 'halt' where code = ?", (code,))
+            qa.append(("station drawn as a halt (dashed row): kind halt", code, f"{r[1]}: {dict(v)}"))
 
     # ---- dinas tutup (user): dashed arrows beside the symbol column; between two arrow ends (or bars on a long
     #      arrow) every station can be closed in a set period, the end stations then work the section together
@@ -1222,6 +1289,112 @@ def build(pdf_path, tt_path, out_path, manual_dir):
         if frozenset((a, b)) not in dbl and inf and p.get("page") in header_pages and p.get("double_track_manual") is None:
             tagged["header single, has hu/hi tags"] += 1
             qa.append(("double track from hu/hi tags, not in the header list", f"{a}-{b}", f"page {p.get('page')}"))
+    # ---- 'JARAK ANTAR STASIUN' tables (pages 1875-1887): stored, and every consecutive pair of a table checked
+    #      against the shortest route over the sections (independent check of the sheet km)
+    import distances
+    import heapq
+    drows = distances.read(doc)
+    out.execute("CREATE TABLE station_distances(matrix TEXT, a TEXT, b TEXT, km REAL, adjacent INTEGER, page INTEGER)")
+    out.executemany("insert into station_distances values(?,?,?,?,?,?)",
+                    [(r["matrix"], r["a"], r["b"], r["km"], r["adjacent"], r["page"]) for r in drows])
+    gd = defaultdict(dict)
+    for (a, b), p in sections.items():
+        if p.get("km") is not None:
+            for x, y in ((a, b), (b, a)):
+                gd[x][y] = min(gd[x].get(y, 1e9), p["km"])
+
+    def shortest(a, b, limit):
+        dist, pq = {a: 0}, [(0, a)]
+        while pq:
+            d, x = heapq.heappop(pq)
+            if x == b:
+                return d
+            if d > dist.get(x, 1e9) or d > limit:
+                continue
+            for y, w in gd[x].items():
+                if d + w < dist.get(y, 1e9):
+                    dist[y] = d + w
+                    heapq.heappush(pq, (d + w, y))
+        return None
+    seen_d, n_ok = set(), 0
+    for r in drows:
+        if not r["adjacent"] or (r["a"], r["b"]) in seen_d:
+            continue
+        seen_d.add((r["a"], r["b"]))
+        direct = sections.get((r["a"], r["b"])) or sections.get((r["b"], r["a"]))
+        d = direct["km"] if direct and direct.get("km") is not None else shortest(r["a"], r["b"], r["km"] * 1.5 + 2)
+        if d is None:
+            qa.append(("distance table pair without a section route", f"{r['a']}-{r['b']}",
+                       f"table {r['km']:.3f} km, page {r['page']}"))
+        elif abs(d - r["km"]) > 0.01:
+            known = {frozenset(("WJ", "WT")): "the table swaps Wates / Kedundang (sheet and timetable: Wojo - Kedundang - "
+                                              "Wates - Sentolo; distances agree position by position)",
+                     frozenset(("KDG", "STL")): "the table swaps Wates / Kedundang (see WJ-WT)"}
+            qa.append(("distance table differs from sections", f"{r['a']}-{r['b']}",
+                       f"sections {d:.3f} km, table {r['km']:.3f} km, page {r['page']}"
+                       + (f"; known: {known[frozenset((r['a'], r['b']))]}" if frozenset((r['a'], r['b'])) in known else "")))
+        else:
+            n_ok += 1
+    print(f"distance tables: {len(drows)} pairs; consecutive pairs agreeing with the sections within 10 m: "
+          f"{n_ok} of {len(seen_d)}")
+    # ---- 'PROGRAM KA DAN KAPASITAS LINTAS' (pages 1866-1874): per section the scheduled trains per category
+    #      (regular / facultative), P = program (scheduled trains per day) and K = capacity (trains per day)
+    import capacity
+    cap = capacity.read(doc)
+    # secondary data (user): the printed P is a reference only; the load for the capacity warning is counted from the
+    # timetable (trains over the section, both directions, path reduced to the stations of the capacity diagrams)
+    cap_nodes = {c for b in cap for c in (b["a"], b["b"])}
+    fac_tt = dict(ttdb.execute("select no, coalesce(facultative, 0) from trains"))
+    tt_load = Counter()
+    for no in fac_tt:
+        path = [st for st, in ttdb.execute("select station from stops where train_no = ? order by seq", (no,))
+                if st in cap_nodes]
+        path = [st for k, st in enumerate(path) if k == 0 or st != path[k - 1]]
+        for x, y in set(zip(path, path[1:])):
+            tt_load[(frozenset((x, y)), bool(fac_tt[no]))] += 1
+
+    def route_path(a, b):
+        """stations along the shortest section route a -> b (a capacity section can span several stations)"""
+        dist, prev, pq = {a: 0}, {}, [(0, a)]
+        while pq:
+            d, x = heapq.heappop(pq)
+            if x == b:
+                out_p = [b]
+                while out_p[-1] != a:
+                    out_p.append(prev[out_p[-1]])
+                return out_p[::-1]
+            if d > dist.get(x, 1e9):
+                continue
+            for y, w in gd[x].items():
+                if d + w < dist.get(y, 1e9):
+                    dist[y], prev[y] = d + w, x
+                    heapq.heappush(pq, (d + w, y))
+        return None
+    out.execute("CREATE TABLE section_capacity(a TEXT, b TEXT, page INTEGER, program_regular INTEGER, "
+                "program_facultative INTEGER, capacity INTEGER, counts_add_up INTEGER, timetable_regular INTEGER, "
+                "timetable_facultative INTEGER, path TEXT)")
+    out.execute("CREATE TABLE section_program(a TEXT, b TEXT, page INTEGER, category TEXT, regular INTEGER, "
+                "facultative INTEGER)")
+    for b in cap:
+        P = b["P"] or (None, None)
+        k_ = frozenset((b["a"], b["b"]))
+        rp = route_path(b["a"], b["b"])
+        out.execute("insert into section_capacity values(?,?,?,?,?,?,?,?,?,?)",
+                    (b["a"], b["b"], b["page"], P[0], P[1], b["K"], int(b["sum_ok"]), tt_load[(k_, False)],
+                     tt_load[(k_, True)], " ".join(rp) if rp else None))
+        if rp is None:
+            qa.append(("capacity section without a section route", b["label"], f"page {b['page']}"))
+        out.executemany("insert into section_program values(?,?,?,?,?,?)",
+                        [(b["a"], b["b"], b["page"], c, v[0], v[1]) for c, v in b["counts"].items()])
+        if b["P"] is None or b["K"] is None:
+            qa.append(("capacity block not read", b["label"], f"page {b['page']}"))
+        elif not b["sum_ok"]:
+            qa.append(("capacity block: categories do not add up to P (as printed)", b["label"],
+                       f"page {b['page']}: P {b['P'][0]}/{b['P'][1]}, categories "
+                       f"{sum(v[0] for v in b['counts'].values())}"))
+        elif b["P"] == (0, 0):
+            qa.append(("capacity block: P printed 0/0", b["label"], f"page {b['page']} (template not filled?)"))
+    print(f"capacity: {len(cap)} section blocks")
     out.executemany("insert into qa values(?,?,?)", qa)
     out.commit()
 

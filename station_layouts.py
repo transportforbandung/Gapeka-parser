@@ -632,7 +632,7 @@ def read_all(doc, inf, rows_by_page, ocr=None, fixes=None):
     for a, b in inf.execute("select a, b from sections"):
         adj[a].add(b)
         adj[b].add(a)
-    halts = {c for (c,) in inf.execute("select code from stations where kind in ('halt', 'sheet only')")}
+    halts = {c for (c,) in inf.execute("select code from stations where kind in ('halt', 'sheet only', 'junction')")}
     nb = defaultdict(set)              # neighbours as the diagrams name them: the next stations, stepping over halts
     hops = defaultdict(dict)           # stops between two stations (any kind; some halts are listed as stations)
     for x in list(adj):
@@ -822,7 +822,7 @@ CREATE TABLE station_layouts(station TEXT, line_id TEXT, page INTEGER, y REAL, e
 CREATE TABLE station_tracks(station TEXT, line_id TEXT, page INTEGER, seq INTEGER, track TEXT, number INTEGER, kind TEXT,
                             length_m REAL, length_on_sheet REAL, arrows TEXT, towards TEXT, through INTEGER,
                             out_of_service INTEGER,
-                            usable TEXT, usable_towards TEXT, enter TEXT);
+                            usable TEXT, usable_towards TEXT, enter TEXT, origin TEXT);
 """
 
 
@@ -850,7 +850,7 @@ def manual_tracks(diagrams, path="manual/layout_tracks.csv"):
             continue
         old_t = next((t for t in dg["tracks"] if t["no"] == r["track"]), None)
         dg["tracks"] = [t for t in dg["tracks"] if t["no"] != r["track"]] + [
-            dict(old_t or {}, no=r["track"], length=float(r["length_m"]) if r["length_m"] else None,
+            dict(old_t or {}, no=r["track"], length=float(r["length_m"]) if r["length_m"] else None, origin="manual",
                  arrows=(old_t or {}).get("arrows", ""), through=(old_t or {}).get("through", False),
                  line_y=(old_t or {}).get("line_y", 9e9))]
     return diagrams
@@ -869,7 +869,7 @@ def next_stations(inf, st, line_id):
         if x in seen:
             continue
         seen.add(x)
-        if kind.get(x) in ("halt", "sheet only"):
+        if kind.get(x) in ("halt", "sheet only", "junction"):
             todo += list(adj[x])
         else:
             out.add(x)
@@ -969,12 +969,13 @@ def write(inf, diagrams, refs=()):
             tw = " ".join(([left[0]] if "L" in t["arrows"] and left else []) + ([right[0]] if "R" in t["arrows"] and right else []))
             ut = " ".join(([left[0]] if "L" in t.get("usable", "") and left else []) +
                           ([right[0]] if "R" in t.get("usable", "") and right else []))
-            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            org = t.get("origin") or ("ocr" if t.get("ocr") else "sheet")   # where the track label was read
+            inf.execute("INSERT INTO station_tracks VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (d["station"], ln, d["page"], k, t["no"], roman(t["no"]) if is_roman(t["no"]) else int(re.sub(r"\D", "", t["no"])),
                          "roman" if is_roman(t["no"]) else "yard", longest.get(ks_[id(t)], t["length"]),
                          t["length"], t["arrows"], tw or None,
                          int(t["through"]), int(bool(t.get("out_of_service"))), t.get("usable"), ut or None,
-                         t.get("enter")))
+                         t.get("enter"), org))
 
 
 if __name__ == "__main__":

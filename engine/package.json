@@ -1,0 +1,23 @@
+{
+  "name": "gapeka-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GAPEKA simulator engine for the browser (TypeScript port of physics_ref.py, replay.py, planner.py)",
+  "type": "module",
+  "scripts": {
+    "types": "json2ts -i ../schema/package.schema.json -o src/package.gen.ts --no-additionalProperties",
+    "build": "tsc -p tsconfig.json",
+    "bundle": "esbuild src/worker.ts --bundle --format=esm --target=es2022 --minify --outfile=build/worker.js",
+    "test": "npm run build && node --test build/test/*.test.js",
+    "smoke": "npm run bundle && node tools/browser_smoke.mjs",
+    "fixtures": "python3 tools/py_fixtures.py",
+    "web": "tsc -p ../web/tsconfig.json && node tools/build_web.mjs",
+    "serve": "node tools/serve.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "esbuild": "0.28.2",
+    "json-schema-to-typescript": "15.0.4",
+    "typescript": "6.0.3"
+  }
+}

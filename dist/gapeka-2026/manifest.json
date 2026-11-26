@@ -1,0 +1,23 @@
+{
+ "edition": "GAPEKA 2026",
+ "decree": "KP-DJKA 116 TAHUN 2026",
+ "valid_from": "1 Desember 2026",
+ "pdf_sha256": "5149c60ca7a739081bf32e13779bd574f89f2e4665fb5e2b1dcda247899710a4",
+ "schema_version": "1.1.0",
+ "built": "2026-11-26T12:38:46",
+ "file": "package.json.gz",
+ "bytes": 475524,
+ "bytes_uncompressed": 3703694,
+ "sha256": "000bb7d91f48416fce86ca2f18de7ac85733fb58f47e0fb538868200b1549571",
+ "counts": {
+  "stations": 528,
+  "lines": 13,
+  "sections": 582,
+  "layouts": 419,
+  "trains": 2669,
+  "waits": 1648,
+  "duties": 346,
+  "capacity": 141,
+  "dinas_tutup": 26
+ }
+}
