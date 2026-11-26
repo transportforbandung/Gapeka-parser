@@ -1353,7 +1353,7 @@ def explain(pkg, train_no, waits, lang="id", info=None):
     """user-facing sentences (texts msg.*) for a plan: one per wait [(station, other, kind, seconds)] of 30 s or more,
     plus the trains held for it (info['displaced']) and the unit's next trips moved (info['turnaround'])"""
     tx = pkg["texts"]
-    name = {c: s.get("name") or c for c, s in pkg["stations"].items()}
+    name = {c: s.get("display_name") or s.get("name") or c for c, s in pkg["stations"].items()}
     out = []
     for st, other, kind, sec in waits:
         k = kind.split(" ")[0]

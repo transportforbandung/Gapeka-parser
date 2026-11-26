@@ -43,7 +43,8 @@ export interface NewTrain {
 }
 
 export interface PlanResult {
-  trains: { no: string; rows: Row[]; waits: Wait[]; late_s: number | null }[];
+  /** filled: every row timed (passes interpolated like the timeline), for drawing */
+  trains: { no: string; rows: Row[]; waits: Wait[]; late_s: number | null; filled: [string, string, number, number][] }[];
   info: Partial<DispatchInfo> & { edited: string; physics: boolean };
   texts: string[];
 }
@@ -148,8 +149,8 @@ export class Session {
     const stops: Row[] = nt.route.map((st, i) => {
       const vmax = i < n - 1 ? (typeof nt.vmax === "number" ? nt.vmax : nt.vmax[i]) : null;
       const isHalt = this.tl.kind.get(st) === "halt";
-      let kind: string = i === 0 || i === n - 1 ? "terminal" : st in nt.stops ? "stop" : isHalt ? "halt" : "pass";
-      if (kind === "stop" && isHalt) kind = "halt";
+      // listed stations are stops (a listed halt: kind 'halt'); every other station and halt is passed
+      const kind: string = i === 0 || i === n - 1 ? "terminal" : st in nt.stops ? (isHalt ? "halt" : "stop") : "pass";
       const dw = nt.stops[st] ?? 0;
       return [st, kind, kind === "stop" ? 0 : null, kind === "stop" ? dw : i === 0 ? nt.depart : null, vmax, "simulated"];
     });
@@ -167,6 +168,11 @@ export class Session {
     } finally {
       keep();
     }
+  }
+
+  /** the scenario's timeline: every train's rows [station, kind, arr, dep] with all times filled (for drawing) */
+  timeline(): Record<string, [string, string, number, number][]> {
+    return Object.fromEntries(this.tl.trains);
   }
 
   /** make a result part of the scenario */
@@ -253,7 +259,8 @@ export class Session {
     for (const [no, [rows, waits]] of plans) {
       const g = this.gapeka.get(no) ?? created;
       const a = endOf(rows), b = g ? endOf(g.stops) : null;
-      trains.push({ no, rows, waits, late_s: a !== null && b !== null && !created ? a - b : null });
+      const filled = (this.tl.fill({ no, type: "", stops: rows }) ?? []) as [string, string, number, number][];
+      trains.push({ no, rows, waits, late_s: a !== null && b !== null && !created ? a - b : null, filled });
     }
     const mine = plans.get(me);
     const texts = mine ? explain(this.pkg, me, mine[1], lang, info, this.P) : [];

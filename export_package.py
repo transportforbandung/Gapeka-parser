@@ -113,6 +113,13 @@ def build(tt_path, infra_path, rules_path):
             ctc=bool(s["ctc"]) or None, dispatcher=jd.get(s["code"]), sheet_name=s["sheet_name"],
             attributes=attrs.get(s["code"])))
 
+    # display names (manual/station_names.csv): the timetable prints compound names without spaces (Pasarsenen)
+    import csv
+    names_csv = os.path.join(HERE, "manual", "station_names.csv")
+    if os.path.exists(names_csv):
+        for x in csv.DictReader(open(names_csv, encoding="utf-8")):
+            if x["code"] in stations and x["display_name"] and x["display_name"] != stations[x["code"]].get("name"):
+                stations[x["code"]]["display_name"] = x["display_name"]
     for c, in i.execute("select a from sections union select b from sections union select code from line_stations"):
         stations.setdefault(c, dict(kind="sheet_only"))     # sheet rows without a stations row (e.g. ?stadion)
 

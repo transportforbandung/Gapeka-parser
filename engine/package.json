@@ -10,7 +10,9 @@
     "bundle": "esbuild src/worker.ts --bundle --format=esm --target=es2022 --minify --outfile=build/worker.js",
     "test": "npm run build && node --test build/test/*.test.js",
     "smoke": "npm run bundle && node tools/browser_smoke.mjs",
-    "fixtures": "python3 tools/py_fixtures.py"
+    "fixtures": "python3 tools/py_fixtures.py",
+    "web": "tsc -p ../web/tsconfig.json && node tools/build_web.mjs",
+    "serve": "node tools/serve.mjs"
   },
   "devDependencies": {
     "@types/node": "22.19.1",

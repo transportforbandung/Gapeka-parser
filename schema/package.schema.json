@@ -388,6 +388,10 @@
           "dispatcher": {
             "$ref": "#/$defs/code"
           },
+          "display_name": {
+            "type": "string",
+            "description": "name for display (manual/station_names.csv); else name"
+          },
           "sheet_name": {
             "type": "string"
           },

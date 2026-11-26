@@ -401,4 +401,11 @@ Worker protocol). Bundle build/worker.js 37 KB (esbuild).
 - Open (data, user): station display names. The package has one name per station, the timetable's, printed without
   spaces for most (Surabayagubeng, Pasarsenen, Jakartagudang; 19 of 470 have a space). The texts show them as they
   are until a name list (manual CSV) gives the display names.
-- Next: the website itself (graph view, edit forms, scenario sharing later) on top of the worker.
+- Website (web/, user: "a web with graph like GAPEKA, but no logo of KAI and Kemenhub"): see web/README.md. Canvas graph
+  per line (13 sheet groups; segments of a line where the sheet starts a new table are stacked with a gap), panel for
+  train / new train / scenario, id + en (texts web.* in texts/ui.csv), disclaimer dialog. Checked in headless Chromium
+  (desktop + phone): load, find, edit 121 / 7 late, apply, scenario, new train Bandung - Cicalengka.
+- Station display names (user: "create manual CSV"): manual/station_names.csv (code, name_printed, display_name,
+  status sure / check); export_package adds stations[code].display_name (schema); texts and the website use it. 38
+  names spaced (Pasar Senen, Tanah Abang, Surabaya Gubeng, Solo Balapan, ...); 3 left as printed with status check
+  (Segitiga Mesigit spaced but unconfirmed, Rawabebek, Banjarkemantren).

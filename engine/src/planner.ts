@@ -1237,7 +1237,7 @@ export function pOutranks(pkg: Pkg, a: string, b: string): boolean {
 export function explain(pkg: Pkg, trainNo: string, waits: Wait[], lang: "id" | "en" = "id",
   info: Partial<DispatchInfo> | null = null, P?: Planner): string[] {
   const tx = pkg.texts as Record<string, Record<string, string>>;
-  const name = (c: string | null) => (c && pkg.stations[c]?.name) || c;
+  const name = (c: string | null) => (c && (pkg.stations[c]?.display_name || pkg.stations[c]?.name)) || c;
   const out: string[] = [];
   for (const [st, other, kind, sec] of waits) {
     const k = kind.split(" ")[0];

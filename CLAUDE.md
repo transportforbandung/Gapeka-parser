@@ -119,8 +119,10 @@ Read this first. It records decisions and findings from earlier sessions so they
   step 10, check.py sections 8-9 incl. a headless-Chromium smoke test of the bundled worker). Keep the exactness rules
   in engine/README.md when changing planner.py / physics_ref.py / replay.py (v * v not ** 2, pySum for sum(), round
   half even, floor %, dict order, heapq order, no set-order dependence); after a Python change rewrite the goldens
-  (planner_golden.py --write, replay.py --write) and port the change. Open data item: station display names (timetable
-  names lack spaces: Surabayagubeng, Pasarsenen).
+  (planner_golden.py --write, replay.py --write) and port the change. Station display names: manual/station_names.csv
+  (user asked; drafted from known official names, status sure / check) -> stations.display_name.
+  WEBSITE (user: GAPEKA-like graph, NO KAI / Kemenhub logos): web/ (index.html, style.css, src/main.ts; build with
+  `npm run web` in engine/, serve with `npm run serve`); see web/README.md.
 
 ## Domain rules from the user (do not re-guess these)
 

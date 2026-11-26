@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator GAPEKA</title>
+<meta name="description" content="Simulator grafik perjalanan kereta api (GAPEKA) Jawa, tidak resmi, oleh Transport for Bandung.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="title" id="title">Simulator Grafik Perjalanan Kereta Api</div>
+    <div class="sub"><span id="edition">GAPEKA</span> · <span id="publisher">oleh Transport for Bandung</span> · <span class="unofficial" id="unofficial">tidak resmi</span></div>
+  </div>
+  <div class="controls">
+    <label class="ctl"><span id="lbl-line">Lintas</span>
+      <select id="line"></select></label>
+    <form id="search-form" class="ctl search"><input id="search" type="search" inputmode="text" placeholder="Cari nomor KA" aria-label="Cari nomor KA"></form>
+    <div class="ctl zoom" role="group">
+      <button id="zoom-out" type="button" title="Perkecil">−</button>
+      <button id="fit" type="button">Seluruh hari</button>
+      <button id="zoom-in" type="button" title="Perbesar">+</button>
+    </div>
+    <button id="lang" type="button" class="ctl lang">English</button>
+  </div>
+</header>
+<main class="layout">
+  <section class="graph-wrap" aria-label="Grafik">
+    <div class="sheet-head">
+      <div class="sheet-title" id="sheet-title"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="graph" id="graph">
+      <canvas id="canvas"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="loading" id="loading">Memuat data GAPEKA… / Loading GAPEKA data…</div>
+    </div>
+    <div class="hint" id="hint"></div>
+  </section>
+  <aside class="panel" id="panel">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="train" class="on" id="tab-train">KA</button>
+      <button role="tab" data-tab="new" id="tab-new">KA baru</button>
+      <button role="tab" data-tab="scenario" id="tab-scenario">Skenario</button>
+    </nav>
+    <div class="tabpane" id="pane-train"></div>
+    <div class="tabpane" id="pane-new" hidden></div>
+    <div class="tabpane" id="pane-scenario" hidden></div>
+  </aside>
+</main>
+<footer class="foot">
+  <span id="disclaimer-short"></span>
+  <button type="button" id="disclaimer-open" class="linklike">Penafian</button>
+</footer>
+<dialog id="disclaimer"><div id="disclaimer-body"></div><form method="dialog"><button id="disclaimer-close">Tutup</button></form></dialog>
+<script type="module" src="build/app.js"></script>
+</body>
+</html>

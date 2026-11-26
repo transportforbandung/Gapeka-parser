@@ -8,6 +8,7 @@
 //   warnings {}                                                      -> sections over capacity K
 //   route    { a, b }                                                -> station codes (halts included) or null
 //   trains   {}                                                      -> the scenario's trains (no, name, type, stops)
+//   timeline {}                                                      -> {train: rows [station, kind, arr, dep]} all timed
 import { Session } from "./session.js";
 
 declare const self: { onmessage: ((ev: { data: Req }) => void) | null; postMessage(m: unknown): void };
@@ -39,6 +40,7 @@ async function handle(m: Req): Promise<unknown> {
     case "apply": session.apply(m.result as any); return null;
     case "reset": session.reset(); return null;
     case "warnings": return session.warnings();
+    case "timeline": return session.timeline();
     case "route": return session.route(String(m.a), String(m.b));
     case "trains": return session.pkg.trains.map((t: { no: string; name?: string; type: string; stops: unknown[] }) =>
       ({ no: t.no, name: t.name, type: t.type, stops: t.stops }));
